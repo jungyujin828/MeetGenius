@@ -16,13 +16,16 @@ with open(commit_msg_filepath, 'r', encoding='utf-8') as file:
 print(f"검사할 커밋 메시지: {commit_msg}")
 
 # 커밋 메시지 패턴 정의
-pattern = r"^\[(feat|fix|docs|style|refactor|test|chore)\]_\[(FE|BE|AI|DA|EM|ETC)\]_[^\s_]+(?:\s[^\s_]+)*_#S12P11B203-\d+$"
+pattern = r"^(feat|fix|docs|style|refactor|test|chore)\((FE|BE|AI|DA|EM|ETC)\): .+\n\n[^\n]+\n?(.*\n)*\n#S12P11B203-\d+$"
 
 # 정규식 검증
 if not re.match(pattern, commit_msg):
     print("❌ 커밋 메시지가 컨벤션에 맞지 않습니다.")
     print(
-        "커밋 메시지 형식 예시: [feat]_[AI]_결함 탐지 기능 추가_#S12P11B203-16\n\n"
+        "커밋 메시지 형식 예시:\n"
+        "  feat(BE): 로그인 기능 추가\n\n"
+        "  유효성 검사를 모두 마친 로그인 기능 추가\n\n"
+        "  #S12P11B203-16\n\n"
         "Type의 의미:\n"
         "  feat      : 새로운 기능 추가\n"
         "  fix       : 버그 수정\n"
@@ -31,7 +34,7 @@ if not re.match(pattern, commit_msg):
         "  refactor  : 리팩토링 (기능 변경 없이 코드 구조 개선)\n"
         "  test      : 테스트 추가/수정\n"
         "  chore     : 빌드 작업, 패키지 관리 등 기타 변경 사항\n\n"
-        "테마의 의미:\n"
+        "Scope의 의미:\n"
         "  FE        : 프론트엔드 관련 작업\n"
         "  BE        : 백엔드 관련 작업\n"
         "  AI        : 인공지능 관련 작업\n"
