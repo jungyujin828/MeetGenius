@@ -29,3 +29,13 @@ def test_view(request):
         return JsonResponse({'message':'데이터 받았다리', 'received_data' : data}, status=200)
     else:
         return JsonResponse({'error':'잘못된 요청'})
+
+
+# FastAPI에서 데이터 실시간으로 받아오기 TEST.
+@csrf_exempt # 일단 비활성화
+def receive_stt_test(request):
+    if request.method =="POST":
+        data = json.loads(request.body)
+        print(f'data : {data}')
+        return JsonResponse({"status":"success","data":1},status=200)
+    
