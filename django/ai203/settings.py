@@ -134,3 +134,14 @@ SESSION_ENGINE = 'django.contrib.sessions.backends.db'
 SESSION_COOKIE_AGE = 60 * 60 * 24  # 세션 유지 시간: 1일
 SESSION_SAVE_EVERY_REQUEST = True
 
+# # MriaDB 연결
+# DATABASES = {
+#     'default': {
+#         'ENGINE': 'django.db.backends.mysql',  
+#         'NAME': '203.ai_database',          
+#         'USER': 'root',                # MariaDB 사용자 이름
+#         'PASSWORD': 'OKCq0wAQK',        # MariaDB 비밀번호
+#         'HOST': 'localhost',                   # MariaDB가 로컬에 있으면 localhost, 원격 서버일 경우 IP 입력
+#         'PORT': '3306',                        # 기본 MariaDB 포트
+#     }
+# }
