@@ -1,16 +1,34 @@
 from django.contrib import admin
-from django.contrib.auth.admin import UserAdmin
-from .models import Department, Position, User
+from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
 
-# @admin.register(Department)
-class DepartmentAdmin(admin.ModelAdmin):
-    list_display = ('id', 'name')  # 보여줄 필드 추가
-
-# @admin.register(Position)
-class PositionAdmin(admin.ModelAdmin):
-    list_display = ('id', 'name')  # 보여줄 필드 추가
+from .models import User, Department, Position
 
 
+class UserAdmin(BaseUserAdmin):
+    model = User
+    list_display = ('employee_number', 'name', 'email', 'department', 'position', 'is_staff')
+    search_fields = ('employee_number', 'name', 'email', 'department')
+    readonly_fields = ('id',)
+    fieldsets = (
+        (None, {'fields': ('employee_number', 'password')}),
+        ('Personal info', {'fields': ('name', 'email', 'department', 'position')}),
+        ('Permissions', {'fields': ('is_active', 'is_staff', 'is_superuser')}),
+        ('Important dates', {'fields': ('last_login',)}),
+    )
+
+
+    add_fieldsets = (
+    (None, {
+        'classes': ('wide',), 
+        'fields': ('employee_number', 'password1', 'password2', 'name', 'email', 'department', 'position'),
+    }),
+)
+
+
+    ordering = ('employee_number',) 
+    filter_horizontal = () 
+    list_filter = ()
+
+admin.site.register(User, UserAdmin)
 admin.site.register(Department)
 admin.site.register(Position)
-admin.site.register(User, UserAdmin)
