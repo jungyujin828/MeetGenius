@@ -6,13 +6,10 @@ router = APIRouter(
     prefix="/api/stt",
 )
 
-# 장고 url 
+# 장고 url
 django_url = "http://127.0.0.1:8000/tests/stt/"
 # 임시 데이터 : 
 meeting_data = [
-    "하이하이",
-    "안녕안녕",
-    "나는근휘"
     "Today's meeting will focus on the quarterly sales report.",
     "We need to discuss the progress of the new marketing campaign.",
     "Please provide updates on the client feedback from last week.",
@@ -37,7 +34,6 @@ async def send_data_to_django(data):
         except Exception as e:
             print(f'error sending data : {e}')
 
-
 # 음성 데이터 처리 함수
 async def listen_and_recognize():
     print('Listening..')
@@ -48,7 +44,7 @@ async def listen_and_recognize():
         data = 'stt 완료'
         # STT 완료된 데이터 Django로 전송
         await send_data_to_django(data)
-        await asyncio.sleep(0) # CPU 과하게 점유 방지.
+        await asyncio.sleep(0) # 있으면 좋다고 하네여. 없어도 괜찮지만, CPU 과하게 점유 방지.
 
 
 ######## 테스트입니다. #######
