@@ -1,0 +1,51 @@
+services:
+  fastapi:
+    build:
+      context: ./fastapi
+      dockerfile: Dockerfile
+    container_name: fastapi-server
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./fastapi/app:/app
+    environment:
+      - NVIDIA_VISIBLE_DEVICES=all
+      - NVIDIA_DRIVER_CAPABILITIES=compute,utility
+    runtime: nvidia
+    networks:
+      - app_network
+    command: uvicorn main:app --host 0.0.0.0 --port 8000 --reload
+    
+  ollama:
+    build:
+      context: ./ollama
+      dockerfile: Dockerfile
+    container_name: ollama-server
+    ports:
+      - "11434:11434"
+    networks:
+      - app_network
+    runtime: nvidia
+    environment:
+      - NVIDIA_VISIBLE_DEVICES=all
+      - NVIDIA_DRIVER_CAPABILITIES=compute,utility
+
+
+  chromadb:
+    build:
+      context: ./chromadb
+      dockerfile: Dockerfile
+    container_name: chromadb-server
+    ports:
+      - "8001:8001"
+    volumes:
+      - ./chromadb/data:/chroma/data
+    networks:
+      - app_network
+
+# volumes:
+#   chromadb_data:
+
+networks:
+  app_network:
+    driver: bridge
