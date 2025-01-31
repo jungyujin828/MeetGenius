@@ -37,7 +37,7 @@ INSTALLED_APPS = [
     'meetings',
     'rest_framework',
     'dj_rest_auth',
-    'rest_framework.authtoken',  # 이 줄이 반드시 포함되어야 합니다  
+    'rest_framework.authtoken',
     'corsheaders',
     'django.contrib.admin',
     'django.contrib.auth',
@@ -50,10 +50,14 @@ INSTALLED_APPS = [
 REST_FRAMEWORK = {
     # Use Django's standard `django.contrib.auth` permissions,
     # or allow read-only access for unauthenticated users.
+    'DEFAULT_AUTHENTICATION_CLASSES': [
+        'rest_framework.authentication.SessionAuthentication',  # 세션 인증 사용
+    ],
     'DEFAULT_PERMISSION_CLASSES': [
         'rest_framework.permissions.DjangoModelPermissionsOrAnonReadOnly',
         'rest_framework.authentication.SessionAuthentication',
     ],
+    
 }
 
 MIDDLEWARE = [
