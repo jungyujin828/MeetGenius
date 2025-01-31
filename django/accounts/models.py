@@ -1,7 +1,5 @@
 from django.contrib.auth.models import AbstractBaseUser, BaseUserManager, PermissionsMixin
-
 from django.db import models
-from django.utils import timezone
 
 # Create your models here.
 class Department(models.Model):
@@ -15,9 +13,6 @@ class Position(models.Model):
 
     def __str__(self):
         return self.name
-    
-from django.contrib.auth.models import AbstractUser
-
 
 class UserManager(BaseUserManager):
     def create_user(self, employee_number, password=None, **extra_fields):
