@@ -25,16 +25,17 @@ SECRET_KEY = 'django-insecure-&6a*lsqef20_e@2p5@06g5xxd0_1457i9i2np4m*by3hw^oret
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = ["*"]
 
 
 # Application definition
 
 INSTALLED_APPS = [
-    'test',
+    'testapp',
     'accounts',
     'projects',
     'meetings',
+    'rest_framework',
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
@@ -43,6 +44,13 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
 ]
 
+REST_FRAMEWORK = {
+    # Use Django's standard `django.contrib.auth` permissions,
+    # or allow read-only access for unauthenticated users.
+    'DEFAULT_PERMISSION_CLASSES': [
+        'rest_framework.permissions.DjangoModelPermissionsOrAnonReadOnly'
+    ]
+}
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
@@ -85,6 +93,18 @@ DATABASES = {
     }
 }
 
+# DB - mariadb 수정 후
+# DATABASES = {
+#     'default': {
+#         'ENGINE': 'django.db.backends.mysql', # MariaDB도 MySQL 백엔드 사용
+#         'NAME': 'test_db',
+#         'USER': 'root',
+#         'PASSWORD':'1234',
+#         'HOST': 'localhost',
+#         'PORT': '',
+
+#     }
+# }
 
 # Password validation
 # https://docs.djangoproject.com/en/5.1/ref/settings/#auth-password-validators
