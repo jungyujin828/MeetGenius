@@ -92,25 +92,26 @@ WSGI_APPLICATION = 'ai203.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/5.1/ref/settings/#databases
 
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
-    }
-}
-
-# DB - mariadb 수정 후
+# SQLite
 # DATABASES = {
 #     'default': {
-#         'ENGINE': 'django.db.backends.mysql', # MariaDB도 MySQL 백엔드 사용
-#         'NAME': 'test_db',
-#         'USER': 'root',
-#         'PASSWORD':'1234',
-#         'HOST': 'localhost',
-#         'PORT': '',
-
+#         'ENGINE': 'django.db.backends.sqlite3',
+#         'NAME': BASE_DIR / 'db.sqlite3',
 #     }
 # }
+
+# DB - mariadb 수정 후
+DATABASES = {
+    'default': {
+        'ENGINE': 'django.db.backends.mysql', # MariaDB도 MySQL 백엔드 사용
+        'NAME': 'test_maria',
+        'USER': 'root',
+        'PASSWORD':'',
+        'HOST': 'localhost',
+        'PORT': '',
+
+    }
+}
 
 # # MriaDB 연결
 # DATABASES = {
