@@ -1,9 +1,9 @@
 from django.contrib import admin
-from .models import Proejct
+from .models import Project
 
 # Register your models here.
 
-@admin.register(Proejct) #admin.site.register(Proejct) 와 동일.
+@admin.register(Project) #admin.site.register(Project) 와 동일.
 class ProjectAdmin(admin.ModelAdmin):
     # 목록 페이지에 표시할 필드들
     list_display = ('id', 'name', 'department', 'creator', 'is_inprogress', 'startdate', 'duedate')

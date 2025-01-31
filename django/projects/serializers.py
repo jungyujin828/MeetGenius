@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Proejct, ProjectParticipation
+from .models import Project, ProjectParticipation
 from django.conf import settings
 from django.contrib.auth import get_user_model
 
@@ -15,7 +15,7 @@ class ProjectSerializer(serializers.ModelSerializer):
     # get_participants() 함수에서 처ㅣㄹ
 
     class Meta:
-        model = Proejct
+        model = Project
         fields = [
             'id', 'name', 'description', 'department', 'creator',
             'is_inprogress', 'startdate', 'duedate', 'participants'

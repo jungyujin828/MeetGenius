@@ -102,7 +102,7 @@ DATABASES = {
         'ENGINE': 'django.db.backends.mysql', # MariaDB도 MySQL 백엔드 사용
         'NAME': 'test_maria',
         'USER': 'root',
-        'PASSWORD':'1234',
+        'PASSWORD':'',
         'HOST': 'localhost',
         'PORT': '',
 
