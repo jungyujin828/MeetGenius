@@ -36,7 +36,8 @@ INSTALLED_APPS = [
     'projects',
     'meetings',
     'rest_framework',
-    'dj_rest_auth',  
+    'dj_rest_auth',
+    'rest_framework.authtoken',  # 이 줄이 반드시 포함되어야 합니다  
     'corsheaders',
     'django.contrib.admin',
     'django.contrib.auth',
