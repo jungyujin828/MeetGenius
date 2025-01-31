@@ -4,7 +4,7 @@ from rest_framework.decorators import api_view, permission_classes, authenticati
 
 from rest_framework.response import Response
 from rest_framework import status
-from .models import Proejct, ProjectParticipation
+from .models import Project, ProjectParticipation
 from .serializers import ProjectSerializer
 from rest_framework.permissions import IsAuthenticatedOrReadOnly,AllowAny
 
@@ -27,7 +27,7 @@ def project_list_create(request):
     - 로그인 구현 안 된 상태라 수정 해야함.
     """
     if request.method == "GET":
-        projects = Proejct.objects.all()
+        projects = Project.objects.all()
         serializer = ProjectSerializer(projects, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
     
@@ -64,7 +64,7 @@ def project_update(request, project_id):
     - 'PUT' : 전체 필드 업데이트
     - 'PATCH' : 일부 필드 업데이트 -> 대부분의 경우에 얘가 더 유연한 듯.
     """
-    project = get_object_or_404(Proejct, id=project_id)
+    project = get_object_or_404(Project, id=project_id)
 
     serializer = ProjectSerializer(project, data=request.data, partial =(request.method =='PATCH'))
 
