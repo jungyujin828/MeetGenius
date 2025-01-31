@@ -55,7 +55,7 @@ REST_FRAMEWORK = {
     ],
     'DEFAULT_PERMISSION_CLASSES': [
         'rest_framework.permissions.DjangoModelPermissionsOrAnonReadOnly',
-        'rest_framework.authentication.SessionAuthentication',
+        'rest_framework.permissions.IsAuthenticated', 
     ],
     
 }
@@ -96,21 +96,13 @@ WSGI_APPLICATION = 'ai203.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/5.1/ref/settings/#databases
 
-# SQLite
-# DATABASES = {
-#     'default': {
-#         'ENGINE': 'django.db.backends.sqlite3',
-#         'NAME': BASE_DIR / 'db.sqlite3',
-#     }
-# }
-
 # DB - mariadb 수정 후
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.mysql', # MariaDB도 MySQL 백엔드 사용
         'NAME': 'test_maria',
         'USER': 'root',
-        'PASSWORD':'',
+        'PASSWORD':'1234',
         'HOST': 'localhost',
         'PORT': '',
 
@@ -185,7 +177,15 @@ SESSION_COOKIE_SECURE = False  # 배포 시 True로 변경
 # dj-rest-auth 설정 (Token 인증 비활성화)
 REST_AUTH_TOKEN_MODEL = None
 REST_USE_JWT = False
-
+REST_AUTH_SERIALIZERS = {
+    'LOGIN_SERIALIZER': 'accounts.serializers.LoginSerializer',
+}
 CORS_ALLOW_CREDENTIALS = True
 CORS_ALLOWED_ORIGINS = ["http://localhost:3000"]
 CSRF_TRUSTED_ORIGINS = ["http://localhost:3000"]
+
+
+AUTHENTICATION_BACKENDS = [
+    'accounts.authentication.EmployeeNumberBackend',
+    'django.contrib.auth.backends.ModelBackend',
+]
