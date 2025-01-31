@@ -36,6 +36,8 @@ INSTALLED_APPS = [
     'projects',
     'meetings',
     'rest_framework',
+    'dj_rest_auth',  
+    'corsheaders',
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
@@ -48,11 +50,14 @@ REST_FRAMEWORK = {
     # Use Django's standard `django.contrib.auth` permissions,
     # or allow read-only access for unauthenticated users.
     'DEFAULT_PERMISSION_CLASSES': [
-        'rest_framework.permissions.DjangoModelPermissionsOrAnonReadOnly'
-    ]
+        'rest_framework.permissions.DjangoModelPermissionsOrAnonReadOnly',
+        'rest_framework.authentication.SessionAuthentication',
+    ],
 }
 
 MIDDLEWARE = [
+    'corsheaders.middleware.CorsMiddleware',
+    'django.middleware.common.CommonMiddleware',
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
@@ -106,6 +111,20 @@ DATABASES = {
 #     }
 # }
 
+# # MriaDB 연결
+# DATABASES = {
+#     'default': {
+#         'ENGINE': 'django.db.backends.mysql',  
+#         'NAME': '203.ai_database',          
+#         'USER': 'root',                # MariaDB 사용자 이름
+#         'PASSWORD': 'OKCq0wAQK',        # MariaDB 비밀번호
+#         'HOST': 'localhost',                   # MariaDB가 로컬에 있으면 localhost, 원격 서버일 경우 IP 입력
+#         'PORT': '3306',                        # 기본 MariaDB 포트
+#     }
+# }
+
+
+
 # Password validation
 # https://docs.djangoproject.com/en/5.1/ref/settings/#auth-password-validators
 
@@ -128,9 +147,9 @@ AUTH_PASSWORD_VALIDATORS = [
 # Internationalization
 # https://docs.djangoproject.com/en/5.1/topics/i18n/
 
-LANGUAGE_CODE = 'en-us'
+LANGUAGE_CODE = 'ko-kr'
 
-TIME_ZONE = 'UTC'
+TIME_ZONE = 'Asia/Seoul'
 
 USE_I18N = True
 
@@ -149,19 +168,18 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 # 유저모델 설정
 AUTH_USER_MODEL = 'accounts.User'
-# 세션 설정
-SESSION_ENGINE = 'django.contrib.sessions.backends.db'
-SESSION_COOKIE_AGE = 60 * 60 * 24  # 세션 유지 시간: 1일
-SESSION_SAVE_EVERY_REQUEST = True
 
-# # MriaDB 연결
-# DATABASES = {
-#     'default': {
-#         'ENGINE': 'django.db.backends.mysql',  
-#         'NAME': '203.ai_database',          
-#         'USER': 'root',                # MariaDB 사용자 이름
-#         'PASSWORD': 'OKCq0wAQK',        # MariaDB 비밀번호
-#         'HOST': 'localhost',                   # MariaDB가 로컬에 있으면 localhost, 원격 서버일 경우 IP 입력
-#         'PORT': '3306',                        # 기본 MariaDB 포트
-#     }
-# }
+# 세션 설정 (세션 유지 및 보안 강화)
+SESSION_ENGINE = 'django.contrib.sessions.backends.db'
+SESSION_COOKIE_AGE = 60 * 60 * 24
+SESSION_SAVE_EVERY_REQUEST = True
+SESSION_COOKIE_HTTPONLY = True
+SESSION_COOKIE_SECURE = False  # 배포 시 True로 변경
+
+# dj-rest-auth 설정 (Token 인증 비활성화)
+REST_AUTH_TOKEN_MODEL = None
+REST_USE_JWT = False
+
+CORS_ALLOW_CREDENTIALS = True
+CORS_ALLOWED_ORIGINS = ["http://localhost:3000"]
+CSRF_TRUSTED_ORIGINS = ["http://localhost:3000"]

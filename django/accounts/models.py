@@ -18,9 +18,6 @@ class Position(models.Model):
     
 from django.contrib.auth.models import AbstractUser
 
-# class User(AbstractUser):
-#     pass
-
 
 class UserManager(BaseUserManager):
     def create_user(self, employee_number, password=None, **extra_fields):
