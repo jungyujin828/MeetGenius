@@ -35,10 +35,10 @@ ALLOWED_HOSTS = ["*"]
 # Application definition
 
 INSTALLED_APPS = [
-    'testapp',
     'accounts',
     'projects',
     'meetings',
+    'meetingroom',
     'rest_framework',
     'dj_rest_auth',
     'rest_framework.authtoken',
@@ -100,10 +100,10 @@ WSGI_APPLICATION = 'ai203.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/5.1/ref/settings/#databases
 
-# DB - mariadb 수정 후
+# DB - mariadb
 DATABASES = {
     'default': {
-        'ENGINE': 'django.db.backends.mysql', # MariaDB도 MySQL 백엔드 사용
+        'ENGINE': 'django.db.backends.mysql',
         'NAME': os.getenv('DATABASENAME','test_maria'),
         'USER': 'root',
         'PASSWORD':os.getenv('DATABASEPASSWORD',''),
@@ -112,19 +112,6 @@ DATABASES = {
 
     }
 }
-
-# # MriaDB 연결
-# DATABASES = {
-#     'default': {
-#         'ENGINE': 'django.db.backends.mysql',  
-#         'NAME': '203.ai_database',          
-#         'USER': 'root',                # MariaDB 사용자 이름
-#         'PASSWORD': 'OKCq0wAQK',        # MariaDB 비밀번호
-#         'HOST': 'localhost',                   # MariaDB가 로컬에 있으면 localhost, 원격 서버일 경우 IP 입력
-#         'PORT': '3306',                        # 기본 MariaDB 포트
-#     }
-# }
-
 
 
 # Password validation
