@@ -10,9 +10,11 @@ from rest_framework.permissions import IsAuthenticatedOrReadOnly,AllowAny,IsAuth
 
 from docx import Document as DocxDocument  # Word 문서 읽기용
 import os # 파일 확장자 처리리
-
+import httpx
 
 # Create your views here.
+
+FASTAPI_BASE_URL = "http://127.0.0.1:8001"  # ✅ http:// 추가 (FastAPI 서버 주소)
 
 User = get_user_model()
 
@@ -102,39 +104,78 @@ def upload_report(request, project_id):
     '''
     project = get_object_or_404(Project, id = project_id)
     department = project.department
-    uploaded_file = request.FILES.get('file') # 파일 받기
+    uploaded_files = request.FILES.getlist('files') # 파일 받기
     doc_type = 2
-    print(project_id)
-    if not uploaded_file:
+    
+    if not uploaded_files:
         print('No file')
         return Response({'error': 'no file'},status=status.HTTP_400_BAD_REQUEST)
     
-    title = os.path.splitext(uploaded_file.name)[0]
+    reports = [] # 생성된 Report 목록
+    embedding_data_list = []
 
-    try : 
-        if uploaded_file.name.endswith('.docx'):
-            doc = DocxDocument(uploaded_file)
-            file_content = "\n".join([p.text for p in doc.paragraphs])  # 문서의 모든 텍스트 합치기
-        else : # 일반 txt
-            file_content = uploaded_file.read().decode('utf-8')
-    except UnicodeEncodeError:
-        return Response({"error": "파일 인코딩 오류. UTF-8 형식이어야 합니다."}, status=status.HTTP_400_BAD_REQUEST)
-    print(file_content)
-    # Document 객체 생성
-    document = Document.objects.create(
-        type=doc_type,
-        project=project,
-        department=department)
-    
-    
-    # Report 객체 생성
-    report = Report.objects.create(
-        document = document,
-        project = project,
-        writer = request.user,
-        title = title,
-        content = file_content,
-    )
+    with httpx.Client() as client: # 연결!!!!
+        for uploaded_file in uploaded_files:
 
-    return Response({"message": "파일 내용 저장 완료", "report_id": report.id}, status=status.HTTP_201_CREATED)
+            title = os.path.splitext(uploaded_file.name)[0]
+
+            try : 
+                if uploaded_file.name.endswith('.docx'):
+                    doc = DocxDocument(uploaded_file)
+                    file_content = "\n".join([p.text for p in doc.paragraphs])  # 문서의 모든 텍스트 합치기
+                else : # 일반 txt
+                    file_content = uploaded_file.read().decode('utf-8')
+            except UnicodeEncodeError:
+                return Response({"error": "파일 인코딩 오류. UTF-8 형식이어야 합니다."}, status=status.HTTP_400_BAD_REQUEST)
+            print(file_content)
+
+            # Document 객체 생성
+            document = Document.objects.create(
+                type=doc_type,
+                project=project,
+                department=department,
+                embedding = 1           # 일단 1로 하고 임베딩 에러뜨면 0으로 설정
+            )
+            
+            # Report 객체 생성
+            report = Report.objects.create(
+                document = document,
+                project = project,
+                writer = request.user,
+                title = title,
+                content = file_content,
+            )
+
+            reports.append({
+                "report_id": report.id,
+                "title": title
+            })
+
+            embedding_data = {
+                "project_id": project.id,
+                "project_name": project.name,
+                "report_title": title,
+                "report_content": file_content,
+                "document_id": document.id,
+                "document_type": doc_type
+            }
+            embedding_data_list.append(embedding_data)
+        
+        # FastAPI로 데이터 전송
+        try:
+            response = client.post(
+                f"{FASTAPI_BASE_URL}/api/embedding/process_reports/",
+                json={'reports':embedding_data_list}
+            )
+            response.raise_for_status()
+        except httpx.HTTPStatusError as http_err:
+            return Response({"error": f"FastAPI 서버 오류: {http_err}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        except Exception as err:
+            return Response({"error": f"FastAPI 요청 실패: {err}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+    return Response(
+        {"message": "파일 내용 저장 완료", 
+         "reports": reports,
+         'fastapi_response':response.json()}, 
+         status=status.HTTP_201_CREATED)
     
