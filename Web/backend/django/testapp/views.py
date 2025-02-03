@@ -55,8 +55,6 @@ async def receive_stt_test(request):
             # 연결된 모든 클라이언트의 대기열에 데이터 추가
             for client in clients:
                 # SSE 포맷
-                # await client["queue"].append(f"data: {json.dumps(data)}\n\n")
-                # await client["queue"].put(f"data: {json.dumps(data)}\n\n")
                 await client["queue"].put(json.dumps(data, ensure_ascii=False) + "\n\n")  # "data: " 제거
                 print(f"clients queue updated: {client['queue']}")
 

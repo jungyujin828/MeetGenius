@@ -126,6 +126,7 @@ def upload_report(request, project_id):
         project=project,
         department=department)
     
+    
     # Report 객체 생성
     report = Report.objects.create(
         document = document,
@@ -134,5 +135,6 @@ def upload_report(request, project_id):
         title = title,
         content = file_content,
     )
+
     return Response({"message": "파일 내용 저장 완료", "report_id": report.id}, status=status.HTTP_201_CREATED)
     
