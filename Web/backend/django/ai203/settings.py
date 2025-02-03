@@ -186,6 +186,5 @@ CSRF_TRUSTED_ORIGINS = ["http://localhost:5173"]
 
 
 AUTHENTICATION_BACKENDS = [
-    'accounts.authentication.EmployeeNumberBackend',
     'django.contrib.auth.backends.ModelBackend',
 ]
