@@ -14,12 +14,7 @@ const SidebarContainer = styled.div`
   display: flex;
   flex-direction: column;
   padding: 20px;
-`;
-
-// ✅ 로고 스타일
-const Logo = styled.img`
-  width: 150px;
-  margin-bottom: 20px;
+  justify-content: flex-start; /* 사이드바 내에서 상단 정렬 */
 `;
 
 // ✅ 메뉴 아이템 스타일
@@ -46,7 +41,8 @@ const LogoutButton = styled.button`
   background: transparent;
   border: none;
   color: white;
-
+  margin-top: 400px; /* 상단과의 간격을 적절히 줄여서 버튼을 위로 올림 */
+  
   &:hover {
     background-color: #1b3a57;
   }
@@ -64,13 +60,14 @@ const Sidebar = () => {
 
   return (
     <SidebarContainer>
-      <Logo src="/203ai_logo.png" alt="203ai Logo" />
-      <MenuItem><FaTachometerAlt /> Dashboard</MenuItem>
-      <MenuItem><FaUser /> My page</MenuItem>
-      <MenuItem><FaEnvelope /> Mail</MenuItem>
-      <MenuItem><FaProjectDiagram /> Project</MenuItem>
-      <MenuItem><FaDoorOpen /> Meeting room</MenuItem>
-      <MenuItem><FaMoneyCheckAlt /> Paycheck</MenuItem>
+      <div>
+        <MenuItem><FaTachometerAlt /> Dashboard</MenuItem>
+        <MenuItem><FaUser /> My page</MenuItem>
+        <MenuItem><FaEnvelope /> Mail</MenuItem>
+        <MenuItem><FaProjectDiagram /> Project</MenuItem>
+        <MenuItem><FaDoorOpen /> Meeting room</MenuItem>
+        <MenuItem><FaMoneyCheckAlt /> Paycheck</MenuItem>
+      </div>
       <LogoutButton onClick={handleLogout}>
         <FaSignOutAlt /> 로그아웃
       </LogoutButton>
