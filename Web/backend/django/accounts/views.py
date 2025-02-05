@@ -3,6 +3,7 @@ from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import AllowAny
 from django.contrib.auth import login as auth_login, logout as auth_logout
 from django.contrib.auth.forms import AuthenticationForm
+from .serializers import UserSerializer
 
 @api_view(['POST'])
 @permission_classes([AllowAny])
@@ -12,8 +13,10 @@ def login(request):
 
     form = AuthenticationForm(request, data={'username': request.data.get('employee_number'), 'password': request.data.get('password')})
     if form.is_valid():
-        auth_login(request, form.get_user())
-        return JsonResponse({"message": "로그인 성공"}, status=200)
+        user = form.get_user()
+        auth_login(request, user)
+        user_data = UserSerializer(user).data
+        return JsonResponse(user_data, status=200)
 
     return JsonResponse({"error": "잘못된 사번 또는 비밀번호입니다."}, status=400)
 
