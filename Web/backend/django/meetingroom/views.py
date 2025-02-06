@@ -8,6 +8,8 @@ from rest_framework import status
 from .models import Meeting, Agenda, MeetingParticipation
 from .serializers import MeetingReadSerializer
 
+from projects.models import Project
+from projects.serializers import ProjectSerializer, ProjectParticipationSerializer
 
 User = get_user_model()
 
@@ -44,28 +46,47 @@ def meetingroom_list_create(request, room_id):
 
         serializer = MeetingReadSerializer(meetings, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
-    # 회의 생성 및 참여자 추가
+    
+    
+    # 회의 생성
     elif request.method == "POST":
         serializer = MeetingReadSerializer(data=request.data)
         if serializer.is_valid():
             booker = request.user
-            project = request.data.get("project")
-            project = serializer.save(booker = booker,
-                                      project = project
-                                      ) # 현재 로그인한 유저가 생성자로 저장
-            
-            participants = request.data.get("participants", [])
-            for participant in participants:
-                user_id = participant.get("id")
-                authority = participant.get("authority", 1) 
-                meeting = participant.get("meeting",1)
-                user= get_object_or_404(User, id=user_id)
-
-                MeetingParticipation.objects.create(
-                    meeting=meeting, participant = user, authority = authority
+            project_name = request.data.get("project_name")
+        
+            # 프로젝트 이름으로 프로젝트를 찾기
+            try:
+                project = Project.objects.get(name=project_name)  # 프로젝트 이름으로 조회
+            except Project.DoesNotExist:
+                return Response(
+                    {"status": "error", "message": "프로젝트를 찾을 수 없습니다."},
+                    status=status.HTTP_404_NOT_FOUND,
                 )
+
+
+            
+            # 회의 객체 생성
+            meeting = serializer.save(booker=booker, project=project)  # 프로젝트와 booker를 회의에 연결
+        
+
             return  Response(serializer.data, status=status.HTTP_201_CREATED)
+        
         return Response(
             {"status": "error", "message": serializer.errors},
             status=status.HTTP_400_BAD_REQUEST,
         )
+    
+
+@api_view(['GET'])
+def project_detail(request, project_name):
+    """
+    특정 회의실(room_id)와 프로젝트(project_id)의 상세 정보를 조회하는 API
+    """
+    # 요청한 프로젝트를 조회
+    project = get_object_or_404(Project, name=project_name)
+
+    if request.method == 'GET':  # 상세 보기 요청
+        participants = project.participants.all()
+        serializer = ProjectParticipationSerializer(participants, many=True)
+        return Response({"project_participation":serializer.data}, status=status.HTTP_200_OK)
