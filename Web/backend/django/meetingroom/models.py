@@ -19,7 +19,7 @@ class Meeting(models.Model):
     def __str__(self):
         return self.title
 
-class Aganda(models.Model):
+class Agenda(models.Model):
     meeting = models.ForeignKey(Meeting, on_delete=models.SET_NULL, null=True, blank=True)
     title = models.CharField(max_length=100)
 
