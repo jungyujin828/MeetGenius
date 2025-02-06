@@ -5,13 +5,13 @@ from django.contrib.auth import get_user_model
 # 모델과 연결.
 class MeetingSerializer(serializers.ModelSerializer):
     booker = serializers.ReadOnlyField(source='booker.name') 
-    project = serializers.ReadOnlyField(source = 'department.name')
+    project = serializers.ReadOnlyField(source = 'project.name')
     participants = serializers.SerializerMethodField()
     class Meta:
         model = Meeting
         fields = [
             'id', 'room', 'starttime', 'endtime', 'booked_at',
-            'booker', 'project', 'title'
+            'booker', 'project', 'title', 'participants' 
         ]
     
     def get_participants(self, obj):
@@ -23,8 +23,6 @@ class MeetingSerializer(serializers.ModelSerializer):
             }
             for p in obj.participants.all() # 현재 프로젝트의 모든 참여자.
         ]
-# class ProjectParticipationSerializer(serializers.ModelSerializer):
-#     participant = serializers.PrimaryKeyRelatedField(queryset=settings.AUTH_USER_MODEL.objects.all())
 
 
 User = get_user_model()
