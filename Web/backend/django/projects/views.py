@@ -60,7 +60,7 @@ def project_list_create(request):
         )
     
 
-@api_view(['GET','PUT', 'PATCH'])
+@api_view(['GET','PATCH'])
 @permission_classes([IsAuthenticated]) # 인증되지 않은 사용자는 접근 불가
 def project_update(request, project_id):
     
@@ -75,7 +75,7 @@ def project_update(request, project_id):
         serializer = ProjectSerializer(project)
         return Response(serializer.data, status=status.HTTP_200_OK)
 
-    else:
+    elif request.method =='PATCH':
         serializer = ProjectSerializer(project, data=request.data, partial =(request.method =='PATCH'))
 
         if serializer.is_valid():
@@ -96,6 +96,7 @@ def project_update(request, project_id):
 
             return Response(serializer.data, status=status.HTTP_200_OK)
         return Response({'status':'error','message':serializer.errors},status=status.HTTP_400_BAD_REQUEST)
+
 
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
