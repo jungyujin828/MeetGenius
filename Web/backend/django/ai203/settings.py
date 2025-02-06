@@ -58,7 +58,6 @@ REST_FRAMEWORK = {
         'rest_framework.authentication.SessionAuthentication',  # 세션 인증 사용
     ],
     'DEFAULT_PERMISSION_CLASSES': [
-        'rest_framework.permissions.DjangoModelPermissionsOrAnonReadOnly',
         'rest_framework.permissions.IsAuthenticated', 
     ],
     
