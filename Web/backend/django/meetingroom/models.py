@@ -20,7 +20,7 @@ class Meeting(models.Model):
         return self.title
 
 class Agenda(models.Model):
-    meeting = models.ForeignKey(Meeting, on_delete=models.SET_NULL, null=True, blank=True)
+    meeting = models.ForeignKey(Meeting, on_delete=models.CASCADE, null=True, blank=True)
     order = models.IntegerField(default=0)
     title = models.CharField(max_length=100)
 
