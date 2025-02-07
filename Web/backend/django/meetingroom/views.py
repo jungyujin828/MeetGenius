@@ -6,10 +6,11 @@ from rest_framework.decorators import api_view
 from rest_framework.response import Response
 from rest_framework import status
 from .models import Meeting, Agenda, MeetingParticipation
-from .serializers import MeetingReadSerializer
+from .serializers import MeetingReadSerializer, MeetingBookSerializer
 
 from projects.models import Project
 from projects.serializers import ProjectSerializer, ProjectParticipationSerializer
+import json
 
 User = get_user_model()
 
@@ -50,28 +51,47 @@ def meetingroom_list_create(request, room_id):
     
     # 회의 생성
     elif request.method == "POST":
-        serializer = MeetingReadSerializer(data=request.data)
+        serializer = MeetingBookSerializer(data=request.data)
         if serializer.is_valid():
-            booker = request.user
+            booker=request.user
             project_name = request.data.get("project_name")
-        
-            # 프로젝트 이름으로 프로젝트를 찾기
+            # 프로젝트 조회 (공백 제거 및 예외 처리)
             try:
-                project = Project.objects.get(name=project_name)  # 프로젝트 이름으로 조회
+                project =  get_object_or_404(Project, name=project_name)  
             except Project.DoesNotExist:
                 return Response(
-                    {"status": "error", "message": "프로젝트를 찾을 수 없습니다."},
+                    {"status": "error"},
                     status=status.HTTP_404_NOT_FOUND,
                 )
-
-
-            
             # 회의 객체 생성
-            meeting = serializer.save(booker=booker, project=project)  # 프로젝트와 booker를 회의에 연결
-        
+            meeting = serializer.save(room=room_id, booker=booker, project=project)
 
-            return  Response(serializer.data, status=status.HTTP_201_CREATED)
-        
+
+            meeting_participants = request.data.get("participants", [])
+
+            # participants가 문자열이면 JSON 변환
+            if isinstance(meeting_participants, str):
+                try:
+                    meeting_participants = json.loads(meeting_participants)
+                except json.JSONDecodeError:
+                    return Response(
+                        {"status": "error", "message": "Invalid meeting_participants format"},
+                        status=status.HTTP_400_BAD_REQUEST,
+                    )
+
+            for participant in meeting_participants:
+                user_id = participant.get("id")
+                authority = participant.get("authority", 1) 
+
+                user= get_object_or_404(User, id=user_id)
+                
+                MeetingParticipation.objects.create(
+                    meeting=meeting,
+                    participant=user,
+                    authority=authority
+                )
+
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
         return Response(
             {"status": "error", "message": serializer.errors},
             status=status.HTTP_400_BAD_REQUEST,
