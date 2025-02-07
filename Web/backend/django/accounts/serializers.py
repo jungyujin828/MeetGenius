@@ -1,9 +1,16 @@
 from rest_framework import serializers
-from django.contrib.auth import get_user_model
-
-User = get_user_model()
+from .models import User
 
 class UserSerializer(serializers.ModelSerializer):
+    department = serializers.SerializerMethodField()
+    position = serializers.SerializerMethodField()
+
     class Meta:
         model = User
-        fields= ('employee_number','name','department','position')
+        fields = ['employee_number', 'name', 'email', 'department', 'position']
+
+    def get_department(self, obj):
+        return obj.department.name if obj.department else None
+
+    def get_position(self, obj):
+        return obj.position.name if obj.position else None

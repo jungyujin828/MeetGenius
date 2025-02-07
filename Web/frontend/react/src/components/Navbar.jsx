@@ -9,7 +9,7 @@ import { logoutUser } from "../redux/authSlice";
 const NavbarContainer = styled.div`
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: space-between; /* 좌우에 배치 */
   position: fixed; /* 상단 고정 */
   top: 0;
   left: 0;
@@ -27,20 +27,26 @@ const Logo = styled.img`
   height: auto;
 `;
 
+// ✅ 오른쪽 섹션 스타일 (부서명, 이름, 검색창, 로그아웃 버튼을 모을 컨테이너)
+const RightSection = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  margin-right: 50px;
+`;
+
 // ✅ 검색창 스타일
 const SearchBar = styled.div`
   display: flex;
   align-items: center;
   gap: 10px;
-  flex-grow: 1; /* 검색창이 자연스럽게 확장되도록 설정 */
-  margin-left: 20px;
-
   input {
-    width: 200px;
+    width: 150px;
     padding: 8px;
     border-radius: 5px;
     border: 1px solid #ccc;
   }
+    color: #274C77;
 `;
 
 // ✅ 사용자 정보 스타일
@@ -50,18 +56,25 @@ const UserInfo = styled.div`
   gap: 15px;
   font-size: 16px;
   font-weight: bold; /* 글씨 굵게 */
+  color: #274C77;
+`;
+
+// ✅ 이름 색상 변경 스타일
+const Name = styled.span`
+  color:#274C77; /* 이름에 색상 설정 */
 `;
 
 // ✅ 로그아웃 버튼 스타일
 const LogoutButton = styled.button`
   background: transparent;
   border: none;
-  color: #007bff;
+  color: #274C77;
   cursor: pointer;
   font-size: 16px;
   display: flex;
   align-items: center;
   gap: 5px;
+  font-weight: bold; /* 글씨 굵게 */
 
   &:hover {
     color: #0056b3;
@@ -86,28 +99,31 @@ const Navbar = () => {
       {/* ✅ 네비게이션 바 왼쪽에 로고 추가 */}
       <Logo src="/203ai_logo.png" alt="203ai Logo" />
 
-      {/* ✅ 검색창 */}
-      <SearchBar>
-        <FaSearch />
-        <input type="text" placeholder="Search..." />
-      </SearchBar>
+      {/* ✅ 오른쪽에 위치한 부서명, 이름, 로그아웃 버튼, 검색창 */}
+      <RightSection>
+        <SearchBar>
+          <FaSearch />
+          <input type="text" placeholder="Search..." />
+        </SearchBar>
 
-      {/* ✅ 사용자 정보 및 로그아웃 버튼 */}
-      <UserInfo>
-        <FaBell />
-        {user ? (
-          <>
-            <span>{user.department}</span> {/* 사용자 부서 */}
-            <span>{user.name} 님</span> {/* 사용자 이름 */}
-          </>
-        ) : (
-          <span>사용자 정보 없음</span>
-        )}
-        <FaUserCircle />
+        <UserInfo>
+          <FaBell />
+          {user ? (
+            <>
+              <span>{user.department}팀</span> {/* 사용자 부서 */}
+              <Name>{user.name}님</Name> {/* 사용자 이름, 색상 변경 */}
+            </>
+          ) : (
+            <span>사용자 정보 없음</span>
+          )}
+          <FaUserCircle />
+        </UserInfo>
+
+
         <LogoutButton onClick={handleLogout}>
           <FaSignOutAlt /> 로그아웃
         </LogoutButton>
-      </UserInfo>
+      </RightSection>
     </NavbarContainer>
   );
 };
