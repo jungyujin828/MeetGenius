@@ -51,10 +51,29 @@ def meetingroom_list_create(request, room_id):
     
     # 회의 생성
     elif request.method == "POST":
-        serializer = MeetingBookSerializer(data=request.data)
+        # 요청 데이터 가져오기
+        request_data = request.data.copy()
+
+        # meetingday와 시간 결합하여 starttime, endtime 수정
+        meetingday =request_data.get("meetingday")
+        starttime = request_data.get("starttime")
+        endtime = request_data.get("endtime")
+
+        # 잘못된 데이터 처리
+        if not meetingday or not starttime or not endtime:
+            return Response(
+                {"status": "error", "message": "meetingday, starttime, endtime 값이 필요합니다."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        request_data['starttime'] = meetingday + "T" + starttime
+        request_data['endtime'] = meetingday + "T" + endtime
+
+        # serializer에 수정된 데이터 전달
+        serializer = MeetingBookSerializer(data=request_data)
+
         if serializer.is_valid():
             booker=request.user
-            project_name = request.data.get("project_name")
+            project_name = request_data.get("project_name")
             # 프로젝트 조회 (공백 제거 및 예외 처리)
             try:
                 project =  get_object_or_404(Project, name=project_name)  
@@ -67,7 +86,7 @@ def meetingroom_list_create(request, room_id):
             meeting = serializer.save(room=room_id, booker=booker, project=project)
 
 
-            meeting_participants = request.data.get("participants", [])
+            meeting_participants = request_data.get("participants", [])
 
             # participants가 문자열이면 JSON 변환
             if isinstance(meeting_participants, str):
