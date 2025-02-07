@@ -33,10 +33,7 @@ def meetingroom_list_create(request, room_id):
         if startdate and enddate:
             startdate = parse_datetime(startdate+ " 00:00:00")
             enddate = parse_datetime(enddate + " 23:59:59")
-            print(startdate, enddate)  # 디버깅용 출력
             meetings = meetings.filter(starttime__range=(startdate, enddate))
-            print(meetings.query)
-
 
         # 조회된 데이터가 없을 경우 예외 처리
         if not meetings.exists():
@@ -156,3 +153,41 @@ def project_detail(request, project_name):
         participants = project.participants.all()
         serializer = ProjectParticipationSerializer(participants, many=True)
         return Response({"project_participation":serializer.data}, status=status.HTTP_200_OK)
+    
+
+
+
+@api_view(['GET','PATCH','DELETE'])
+def meeting_detail(request, meeting_id):
+    meeting = get_object_or_404(Meeting, id=meeting_id)
+    if request.method == "GET":
+        serializer = MeetingBookSerializer(meeting)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+    
+    
+    elif request.method == "DELETE":
+        user = request.user
+        participation = MeetingParticipation.objects.filter(meeting=meeting, participant=user).first()
+
+        if participation and participation.authority == 0:  # '0'은 마스터 권한을 의미
+            # 마스터 권한이 있다면 회의 삭제
+            meeting.delete()
+            return Response(
+                {"status": "success", "message": "성공적으로 회의가 취소되었습니다."},
+                status=status.HTTP_204_NO_CONTENT
+            )
+        else:
+            # 참여 정보가 없거나, 권한이 없는 경우
+            if participation is None:
+                return Response(
+                    {"status": "error", "message": "참여 정보가 없습니다."},
+                    status=status.HTTP_404_NOT_FOUND
+                )
+            else:
+                authority = participation.authority
+                participant = participation.participant
+                return Response(
+                    {"status": "error", "message": "삭제 권한이 없습니다.",},
+                    status=status.HTTP_403_FORBIDDEN
+                )
+    
