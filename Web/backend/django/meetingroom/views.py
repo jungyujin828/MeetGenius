@@ -110,6 +110,33 @@ def meetingroom_list_create(request, room_id):
                     authority=authority
                 )
 
+        # agenda 처리
+        agenda_items = request_data.get("agenda_items", [])
+
+        if isinstance(agenda_items, str):
+            try:
+                agenda_items = json.loads(agenda_items)
+            except json.JSONDecodeError:
+                return Response(
+                    {"status": "error", "message": "Invalid agenda format"},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+        for agenda_item in agenda_items:
+            order = agenda_item.get("order")
+            title = agenda_item.get("title")
+            if not title:
+                return Response(
+                    {"status": "error", "message": "Agenda title is required"},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+            Agenda.objects.create(
+                meeting=meeting,
+                title=title,
+                order=order
+            )
+
             return Response(serializer.data, status=status.HTTP_201_CREATED)
         return Response(
             {"status": "error", "message": serializer.errors},

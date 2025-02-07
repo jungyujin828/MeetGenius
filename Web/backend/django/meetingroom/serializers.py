@@ -28,17 +28,23 @@ class MeetingParticipationSerializer(serializers.ModelSerializer):
         model = MeetingParticipation
         fields = ['id', 'meeting', 'participant', 'authority']
 
+class AgendaSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Agenda
+        fields = ['id','meeting', 'order','title']
+
 class MeetingBookSerializer(serializers.ModelSerializer):
     booker = serializers.ReadOnlyField(source='booker.name')
     meeting_participants = serializers.SerializerMethodField() 
+    meeting_agendas = serializers.SerializerMethodField() 
     project = ProjectSerializer(read_only=True)
     starttime = serializers.DateTimeField(format="%Y-%m-%d %H:%M:%S")  # 회의 시작 시간
     endtime = serializers.DateTimeField(format="%Y-%m-%d %H:%M:%S")  # 회의 종료 시간
-
+    
 
     class Meta:
         model = Meeting
-        fields = ['id', 'room', 'starttime', 'endtime', 'booked_at', 'booker', 'project', 'meeting_participants', 'title']
+        fields = ['id', 'room', 'starttime', 'endtime', 'booked_at', 'booker', 'project', 'meeting_participants', 'meeting_agendas','title']
 
 
     def get_meeting_participants(self, obj):
@@ -49,4 +55,14 @@ class MeetingBookSerializer(serializers.ModelSerializer):
                 "authority": p.authority
             }
             for p in obj.participants.all() # 현재 회의의 모든 참여자.
+        ]
+
+    def get_meeting_agendas(self, obj):
+        return [
+            {
+                "id": a.id,
+                "title": a.title,
+                "order": a.order
+            }
+            for a in obj.agenda_set.all()  # 현재 회의의 모든 안건
         ]

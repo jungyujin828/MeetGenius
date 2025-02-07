@@ -21,6 +21,7 @@ class Meeting(models.Model):
 
 class Agenda(models.Model):
     meeting = models.ForeignKey(Meeting, on_delete=models.SET_NULL, null=True, blank=True)
+    order = models.IntegerField(default=0)
     title = models.CharField(max_length=100)
 
     def __str__(self):
