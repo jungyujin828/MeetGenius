@@ -44,7 +44,7 @@ class MeetingBookSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Meeting
-        fields = ['id', 'room', 'starttime', 'endtime', 'booked_at', 'booker', 'project', 'meeting_participants', 'meeting_agendas','title']
+        fields = ['id', 'room','title', 'starttime', 'endtime', 'booked_at', 'booker', 'project', 'meeting_participants', 'meeting_agendas']
 
 
     def get_meeting_participants(self, obj):

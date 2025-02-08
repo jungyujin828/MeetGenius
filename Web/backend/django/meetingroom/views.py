@@ -10,6 +10,7 @@ from .serializers import MeetingReadSerializer, MeetingBookSerializer
 
 from projects.models import Project
 from projects.serializers import ProjectSerializer, ProjectParticipationSerializer
+from accounts.models import Notification
 import json
 
 User = get_user_model()
@@ -106,6 +107,10 @@ def meetingroom_list_create(request, room_id):
                     participant=user,
                     authority=authority
                 )
+                # 알림 생성
+                # 회의 예약 메시지 생성
+                message = f"새로운 회의가 예약되었습니다. 회의 제목: {meeting.title}, 시작 시간: {meeting.starttime.strftime('%Y-%m-%d %H:%M')}"
+                Notification.objects.create(user=user, message=message)
 
         # agenda 처리
         agenda_items = request_data.get("agenda_items", [])

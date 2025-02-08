@@ -45,3 +45,12 @@ class User(AbstractBaseUser, PermissionsMixin):
 
     def __str__(self):
         return self.name
+
+class Notification(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE)  # 알림을 받을 사용자
+    message = models.TextField()  # 알림 내용
+    is_read = models.BooleanField(default=False)  # 알림 읽음 여부
+    created_at = models.DateTimeField(auto_now_add=True)  # 알림 생성 시각
+
+    def __str__(self):
+        return f"Notification for {self.user.username}"

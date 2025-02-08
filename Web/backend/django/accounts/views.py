@@ -5,7 +5,7 @@ from django.contrib.auth import login as auth_login, logout as auth_logout
 from django.contrib.auth.forms import AuthenticationForm
 from .serializers import UserSerializer
 from rest_framework import status
-
+from .models import Notification
 
 @api_view(['POST'])
 @permission_classes([AllowAny])
@@ -30,3 +30,53 @@ def logout(request):
         return Response({"message": "성공적으로 로그아웃되었습니다."}, status=status.HTTP_200_OK)
 
     return Response({"message": "이미 로그아웃된 상태입니다."}, status=status.HTTP_400_BAD_REQUEST)
+
+
+@api_view(['GET'])
+def get_unread_notifications(request):
+    user = request.user  # 현재 로그인한 사용자 가져오기
+
+    # 해당 사용자의 읽지 않은 알림만 가져오기
+    notifications = Notification.objects.filter(user=user, is_read=False)
+
+    # 알림이 없다면 빈 리스트 반환
+    if not notifications:
+        return Response([], status=status.HTTP_200_OK)
+
+    # 알림 데이터 반환
+    notification_data = [
+        {
+            "id": notification.id,
+            "message": notification.message,
+        }
+        for notification in notifications
+    ]
+    
+    return Response(notification_data, status=status.HTTP_200_OK)
+
+@api_view(['POST'])
+def mark_as_read(request, notification_id):
+    try:
+        # 알림 조회
+        notification = Notification.objects.get(id=notification_id)
+        
+        # 알림이 이미 읽은 상태일 경우 처리
+        if notification.is_read:
+            return Response(
+                {"status": "error", "message": "이미 읽은 알림입니다."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # 알림 읽음 상태로 업데이트
+        notification.is_read = True
+        notification.save()
+
+        return Response(
+            {"status": "success", "message": "알림을 읽은 상태로 변경했습니다."},
+            status=status.HTTP_200_OK
+        )
+    except Notification.DoesNotExist:
+        return Response(
+            {"status": "error", "message": "알림을 찾을 수 없습니다."},
+            status=status.HTTP_404_NOT_FOUND
+        )

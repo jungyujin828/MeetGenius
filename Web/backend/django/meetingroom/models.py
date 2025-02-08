@@ -1,6 +1,7 @@
 from django.db import models
 from django.conf import settings
 from projects.models import Project
+
 # Create your models here.
 class Meeting(models.Model):
     room = models.IntegerField()
@@ -15,6 +16,8 @@ class Meeting(models.Model):
         )
     project = models.ForeignKey(Project, on_delete=models.SET_NULL, null=True, blank=True)
     title = models.CharField(max_length=100)
+
+    # page_id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
 
     def __str__(self):
         return self.title
@@ -44,3 +47,4 @@ class MeetingParticipation(models.Model):
     def __str__(self):
         return f"{self.participant} - {self.meeting}"
     
+
