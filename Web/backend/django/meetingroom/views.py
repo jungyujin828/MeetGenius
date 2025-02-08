@@ -109,7 +109,7 @@ def meetingroom_list_create(request, room_id):
                 )
                 # 알림 생성
                 # 회의 예약 메시지 생성
-                message = f"새로운 회의가 예약되었습니다. 회의 제목: {meeting.title}, 시작 시간: {meeting.starttime.strftime('%Y-%m-%d %H:%M')}"
+                message = f"새로운 회의가 예약되었습니다. 회의 제목: {meeting.title}, 회의 시간: {meeting.starttime.strftime('%Y-%m-%d %H:%M')} ~ {meeting.endtime.strftime('%H:%M')}"
                 Notification.objects.create(user=user, message=message)
 
         # agenda 처리
@@ -170,29 +170,152 @@ def meeting_detail(request, meeting_id):
         return Response(serializer.data, status=status.HTTP_200_OK)
     
     
-    elif request.method == "DELETE":
-        user = request.user
-        participation = MeetingParticipation.objects.filter(meeting=meeting, participant=user).first()
+    user = request.user
+    participation = MeetingParticipation.objects.filter(meeting=meeting, participant=user).first()
 
-        if participation and participation.authority == 0:  # '0'은 마스터 권한을 의미
+    if participation and participation.authority == 0:  # '0'은 마스터 권한을 의미
+        
+        if request.method == "PATCH":
+            # 회의 정보 수정
+            request_data = request.data.copy()
+
+            # meetingday와 시간 결합하여 starttime, endtime 수정
+            meetingday = request_data.get("meetingday")
+            starttime = request_data.get("starttime")
+            endtime = request_data.get("endtime")
+
+            # 잘못된 데이터 처리
+            if meetingday and starttime and endtime:
+                request_data['starttime'] = meetingday + "T" + starttime
+                request_data['endtime'] = meetingday + "T" + endtime
+            else:
+                return Response(
+                    {"status": "error", "message": "meetingday, starttime, endtime 값이 필요합니다."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+            # serializer에 수정된 데이터 전달
+            serializer = MeetingBookSerializer(meeting, data=request_data, partial=True)
+
+            if serializer.is_valid():
+                # 회의 수정 후 회의 객체 업데이트
+                updated_meeting = serializer.save()
+
+                # 회의 시간이 변경된 경우에만 알림을 보냄
+                if meeting.starttime != updated_meeting.starttime or meeting.endtime != updated_meeting.endtime:
+                    # 회의 시간 변경 알림
+                    message = f"회의 시간이 변경되었습니다. 회의 제목: {updated_meeting.title}, 새로운 회의 시간: {updated_meeting.starttime.strftime('%Y-%m-%d %H:%M')} ~ {updated_meeting.endtime.strftime('%H:%M')}"
+                    for participant in MeetingParticipation.objects.filter(meeting=updated_meeting):
+                        Notification.objects.create(user=participant.participant, message=message)
+
+                # 참석자 정보 처리
+                meeting_participants = request_data.get("participants", [])
+                
+                if isinstance(meeting_participants, str):
+                    try:
+                        meeting_participants = json.loads(meeting_participants)
+                    except json.JSONDecodeError:
+                        return Response(
+                            {"status": "error", "message": "Invalid meeting_participants format"},
+                            status=status.HTTP_400_BAD_REQUEST,
+                        )
+
+                # 기존 참석자와 새로운 참석자 비교
+                current_participants = {participant.participant.id: participant for participant in MeetingParticipation.objects.filter(meeting=updated_meeting)}
+
+                for participant in meeting_participants:
+                    user_id = participant.get("id")
+                    authority = participant.get("authority", 1)
+
+                    user = get_object_or_404(User, id=user_id)
+
+                    # 기존 참석자에 없는 참석자 추가
+                    if user_id not in current_participants:
+                        MeetingParticipation.objects.create(
+                            meeting=updated_meeting,
+                            participant=user,
+                            authority=authority
+                        )
+                        
+                        # 알림 생성 (새로운 참석자에 대한 알림)
+                        message = f"새로운 참석자로 추가되었습니다. 회의 제목: {updated_meeting.title}, 회의 시간: {updated_meeting.starttime.strftime('%Y-%m-%d %H:%M')} ~ {updated_meeting.endtime.strftime('%H:%M')}"
+                        Notification.objects.create(user=user, message=message)
+
+                    # 참석자가 변경된 경우 (권한 변경 시)
+                    elif current_participants[user_id].authority != authority:
+                        current_participants[user_id].authority = authority
+                        current_participants[user_id].save()
+
+                        # 알림 생성 (권한 변경 알림)
+                        message = f"회의 참석자의 권한이 변경되었습니다. 회의 제목: {updated_meeting.title}, 회의 시간: {updated_meeting.starttime.strftime('%Y-%m-%d %H:%M')} ~ {updated_meeting.endtime.strftime('%H:%M')}"
+                        Notification.objects.create(user=user, message=message)
+
+                # 기존 참석자 목록에서 삭제된 참석자는 삭제
+                for user_id, participant in current_participants.items():
+                    if user_id not in [p.get("id") for p in meeting_participants]:
+                        participant.delete()
+
+                # agenda 처리
+                agenda_items = request_data.get("agenda_items", [])
+
+                if isinstance(agenda_items, str):
+                    try:
+                        agenda_items = json.loads(agenda_items)
+                    except json.JSONDecodeError:
+                        return Response(
+                            {"status": "error", "message": "Invalid agenda format"},
+                            status=status.HTTP_400_BAD_REQUEST,
+                        )
+
+                # 기존 안건 삭제 후 새 안건 추가
+                existing_agenda_items = Agenda.objects.filter(meeting=updated_meeting)
+                existing_agenda_items.delete()  # 기존 안건 삭제
+
+                for agenda_item in agenda_items:
+                    order = agenda_item.get("order")
+                    title = agenda_item.get("title")
+                    if not title:
+                        return Response(
+                            {"status": "error", "message": "Agenda title is required"},
+                            status=status.HTTP_400_BAD_REQUEST,
+                        )
+
+                    # 새 안건 추가
+                    Agenda.objects.create(
+                        meeting=updated_meeting,
+                        title=title,
+                        order=order
+                    )
+
+                return Response(
+                    {"status": "success", "message": "회의 정보가 성공적으로 수정되었습니다."},
+                    status=status.HTTP_200_OK
+                )
+            else:
+                return Response(
+                    {"status": "error", "message": serializer.errors},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            
+        elif request.method == "DELETE":
             # 마스터 권한이 있다면 회의 삭제
             meeting.delete()
             return Response(
                 {"status": "success", "message": "성공적으로 회의가 취소되었습니다."},
                 status=status.HTTP_204_NO_CONTENT
             )
+    else:
+        # 참여 정보가 없거나, 권한이 없는 경우
+        if participation is None:
+            return Response(
+                {"status": "error", "message": "참여 정보가 없습니다."},
+                status=status.HTTP_404_NOT_FOUND
+            )
         else:
-            # 참여 정보가 없거나, 권한이 없는 경우
-            if participation is None:
-                return Response(
-                    {"status": "error", "message": "참여 정보가 없습니다."},
-                    status=status.HTTP_404_NOT_FOUND
-                )
-            else:
-                authority = participation.authority
-                participant = participation.participant
-                return Response(
-                    {"status": "error", "message": "삭제 권한이 없습니다.",},
-                    status=status.HTTP_403_FORBIDDEN
-                )
+            authority = participation.authority
+            participant = participation.participant
+            return Response(
+                {"status": "error", "message": "삭제 권한이 없습니다.",},
+                status=status.HTTP_403_FORBIDDEN
+            )
     
