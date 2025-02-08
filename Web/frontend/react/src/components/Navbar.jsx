@@ -121,7 +121,7 @@ const Navbar = () => {
 
 
         <LogoutButton onClick={handleLogout}>
-          <FaSignOutAlt /> 로그아웃
+          <FaSignOutAlt /> Logout
         </LogoutButton>
       </RightSection>
     </NavbarContainer>

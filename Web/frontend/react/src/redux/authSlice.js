@@ -14,11 +14,7 @@ export const loginUser = createAsyncThunk(
         }
       );
 
-      // 로그인 성공 시 반환된 데이터 처리
-      const userData = response.data;
-      console.log("로그인 성공! 반환된 사용자 정보:", userData); // 여기에 console.log 추가
-
-      return userData; // 유저 정보 (부서명, 직급 등 포함)
+      return response.data; // 로그인 성공 시 유저 데이터 반환
     } catch (error) {
       return thunkAPI.rejectWithValue(error.response?.data || "Login failed");
     }
@@ -28,7 +24,6 @@ export const loginUser = createAsyncThunk(
 // ✅ 로그아웃 요청 (비동기 Thunk)
 export const logoutUser = createAsyncThunk("auth/logoutUser", async () => {
   await axiosInstance.post("/accounts/logout/"); // Django 로그아웃 API 엔드포인트
-  localStorage.removeItem("token"); // 로컬 스토리지에서 토큰 삭제
 });
 
 // ✅ 로그인 유지 (세션 정보 가져오기)
@@ -43,24 +38,17 @@ export const loadUser = createAsyncThunk("auth/loadUser", async (_, thunkAPI) =>
 
 // ✅ 초기 상태 정의
 const initialState = {
-  user: null, // 현재 로그인한 사용자 정보 (부서명, 직급 포함)
-  isAuthenticated: false, // 로그인 여부
+  user: null, // 현재 로그인한 사용자 정보
+  isAuthenticated: false, // 로그인 여부 ❤️❤️❤️❤️❤️
   isLoading: false, // 로딩 상태
   error: null, // 에러 메시지 저장
 };
 
+// ✅ 인증 관련 Redux Slice 생성
 const authSlice = createSlice({
   name: "auth",
   initialState,
-  reducers: {
-    // 로그아웃 후 상태 초기화하는 액션
-    clearAuthState: (state) => {
-      state.user = null;
-      state.isAuthenticated = false;
-      state.isLoading = false;
-      state.error = null;
-    },
-  },
+  reducers: {},
   extraReducers: (builder) => {
     builder
       // ✅ 로그인 요청 처리
@@ -69,7 +57,7 @@ const authSlice = createSlice({
         state.error = null;
       })
       .addCase(loginUser.fulfilled, (state, action) => {
-        state.user = action.payload; // 로그인 시 받은 사용자 정보 저장
+        state.user = action.payload;
         state.isAuthenticated = true;
         state.isLoading = false;
         state.error = null;
@@ -94,7 +82,7 @@ const authSlice = createSlice({
         state.isLoading = true;
       })
       .addCase(loadUser.fulfilled, (state, action) => {
-        state.user = action.payload; // 로그인된 유저 정보
+        state.user = action.payload;
         state.isAuthenticated = true;
         state.isLoading = false;
       })
@@ -106,5 +94,4 @@ const authSlice = createSlice({
   },
 });
 
-export const { clearAuthState } = authSlice.actions;
 export default authSlice.reducer;

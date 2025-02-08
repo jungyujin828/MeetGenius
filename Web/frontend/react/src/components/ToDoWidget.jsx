@@ -1,3 +1,5 @@
+// ToDoWidget.jsx
+
 import React from "react";
 import styled from "styled-components";
 
@@ -104,4 +106,5 @@ const ToDoWidget = () => {
   );
 };
 
+// `default`로 export
 export default ToDoWidget;
