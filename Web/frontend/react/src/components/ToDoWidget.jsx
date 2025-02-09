@@ -8,7 +8,7 @@ const ToDoWidgetContainer = styled.div`
   padding: 20px;
   box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
   width: 100%;
-  max-width: 300px;
+  max-width: 330px;
   margin-top: 20px;
 `;
 

@@ -30,8 +30,9 @@ const MainContent = styled.div`
 const BannerAndCalendarContainer = styled.div`
   display: flex;
   margin-top: 60px;
-  gap: 40px; /* 배너와 달력 간 간격 */
+  gap: 60px; /* 배너와 달력 간 간격 */
   flex-wrap: wrap; /* 화면 크기 축소 시 자동으로 한 줄로 줄어들게 */
+  margin-left: 40px;
 `;
 
 const Banner = styled.img`
@@ -114,10 +115,11 @@ const StyledDayPicker = styled(DayPicker)`
 // ✅ 위젯들 배치할 컨테이너
 const WidgetsContainer = styled.div`
   display: flex;
-  gap: 40px;
+  gap: 60px;
   margin-top: 20px;
   flex-wrap: wrap; /* 반응형 처리 - 작은 화면에서 한 줄로 줄어듬 */
   align-items: flex-start; /* 위젯들이 세로로 정렬되도록 설정 */
+  margin-left: 40px;
 
   @media (max-width: 1024px) {
     flex-direction: column;
