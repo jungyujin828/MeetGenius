@@ -5,7 +5,7 @@ from rest_framework.decorators import api_view, permission_classes
 from django.views.decorators.csrf import csrf_exempt
 from django.views import View
 import redis.asyncio as redis # 비동기로 동작하려면 redis.asyncio 활용.
-from projects.models import Project, ProjectParticipation
+from projects.models import Project, ProjectParticipation, Document, Report
 from meetingroom.models import Meeting, Aganda, MeetingParticipation
 from django.shortcuts import get_object_or_404,get_list_or_404
 from rest_framework.permissions import IsAuthenticated
@@ -272,6 +272,42 @@ async def get_current_agenda():
 
     return None  # 현재 진행 중인 안건을 찾지 못한 경우
 
+async def fetch_and_store_documents(document_ids):
+    """
+    FastAPI에서 받은 문서 ID 리스트를 기반으로 DB에서 문서 조회 후 Redis 저장 및 Pub/Sub
+    """
+    if not document_ids:
+        print("No document")
+
+    # Redis에서 프로젝트 ID 조회
+    project_id = await redis_client.get("meeting:project_id")
+    if not project_id:
+        print('ERROR : no prj id')
+
+    print(f"📌 Fetching documents for project_id: {project_id}, doc_ids: {document_ids}")
+
+    # Django ORM을 비동기 실행하여 문서 조회
+    documents = await sync_to_async(
+        lambda: list(Report.objects.filter(document_id__in=document_ids, project_id=project_id
+                    ).values("id", "title", "content")))()
+
+    print(documents)
+    if not documents:
+        print('No doc in DB')
+    
+    for doc in documents:
+        await redis_client.rpush(RAG_LIST_KEY, json.dumps(doc))
+    
+    # PUBSUB
+    update_msg = json.dumps({
+        "type": "agenda_docs_update",
+        "documents": documents
+    })
+    await redis_client.publish(MEETING_CHANNEL, update_msg)
+    print('문서 전달 완료 ###')
+
+
+
 # 회의시작/다음 안건 response 처리
 async def handle_fastapi_response(fastapi_response):
     """
@@ -291,10 +327,10 @@ async def handle_fastapi_response(fastapi_response):
     await redis_client.publish(MEETING_CHANNEL,update_msg)
     print(f"📢 STT 상태 변경: {stt_running}")
 
-    # 2. 안건 문서 처리..
+    # 2. 문서 ID 리스트 기반 DB 조회 & Redis 저장
+    document_ids = fastapi_response.get("agenda_docs", [])
+    await fetch_and_store_documents(document_ids)
 
-    return
-            
 
 
 # 회의 시작
@@ -357,7 +393,7 @@ async def start_meeting(request):
         '''
         fastapi_response = {
             'stt_running': 'run',
-            'agenda_docs': [1,2,3]
+            'agenda_docs': [8]
         }  # 시험..
         await handle_fastapi_response(fastapi_response)
 
