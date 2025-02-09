@@ -12,6 +12,30 @@ from projects.models import Project
 from projects.serializers import ProjectSerializer, ProjectParticipationSerializer
 from accounts.models import Notification
 import json
+from django.db.models import Q
+from django.utils.dateparse import parse_datetime
+
+def check_room_availability(room_id, starttime, endtime, exclude_meeting_id=None):
+    """
+    회의실의 특정 시간대에 다른 회의가 예약되어 있는지 확인하는 함수.
+    exclude_meeting: 현재 회의를 제외할 때 사용.
+    """
+    # exclude_meeting이 None이면 빈 리스트로 초기화
+    if exclude_meeting_id is None:
+        exclude_meeting_id = []
+
+    # 특정 회의실(room_id)과 시간대(starttime, endtime) 비교
+    conflicting_meetings = Meeting.objects.filter(
+        room=room_id,
+        starttime__lt=endtime,  # 예약 시작 시간이 endtime 이전
+        endtime__gt=starttime,   # 예약 종료 시간이 starttime 이후
+    ).exclude(id=exclude_meeting_id)  # 현재 회의를 제외
+
+    # 충돌하는 회의가 존재하면 False 반환
+    if conflicting_meetings.exists():
+        return False
+    return True
+
 
 User = get_user_model()
 
@@ -66,6 +90,13 @@ def meetingroom_list_create(request, room_id):
         request_data['starttime'] = meetingday + "T" + starttime
         request_data['endtime'] = meetingday + "T" + endtime
 
+        # 예약 가능한 시간인지 확인
+        if not check_room_availability(room_id, request_data['endtime'], request_data['endtime']):
+            return Response(
+                {"status": "error", "message": "이 시간대에는 이미 회의가 예약되어 있습니다."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        
         # serializer에 수정된 데이터 전달
         serializer = MeetingBookSerializer(data=request_data)
 
@@ -109,7 +140,7 @@ def meetingroom_list_create(request, room_id):
                 )
                 # 알림 생성
                 # 회의 예약 메시지 생성
-                message = f"새로운 회의가 예약되었습니다. 회의 제목: {meeting.title}, 회의 시간: {meeting.starttime.strftime('%Y-%m-%d %H:%M')} ~ {meeting.endtime.strftime('%H:%M')}"
+                message = f"새로운 회의가 예약되었습니다. 회의실: {meeting.room}번 회의실, 회의 제목: {meeting.title}, 회의 시간: {meeting.starttime.strftime('%Y-%m-%d %H:%M')} ~ {meeting.endtime.strftime('%H:%M')}"
                 Notification.objects.create(user=user, message=message)
 
         # agenda 처리
@@ -174,15 +205,23 @@ def meeting_detail(request, meeting_id):
     participation = MeetingParticipation.objects.filter(meeting=meeting, participant=user).first()
 
     if participation and participation.authority == 0:  # '0'은 마스터 권한을 의미
-        
+
         if request.method == "PATCH":
             request_data = request.data.copy()
             meetingday = request_data.get("meetingday")
             starttime = request_data.get("starttime")
             endtime = request_data.get("endtime")
+
             if meetingday and starttime and endtime:
                 request_data['starttime'] = meetingday + "T" + starttime
                 request_data['endtime'] = meetingday + "T" + endtime
+                # 예약 가능한 시간인지 확인, 현재 회의는 제외하고 확인
+                # 예약 가능한 시간인지 확인
+                if not check_room_availability(meeting.room, request_data['starttime'], request_data['endtime'], meeting_id):
+                    return Response(
+                        {"status": "error", "message": "이 시간대에는 이미 회의가 예약되어 있습니다."},
+                        status=status.HTTP_400_BAD_REQUEST,
+                    )
 
             # ✅ 기존 참석자 목록 조회
             current_participants = {participant.participant.id: participant for participant in MeetingParticipation.objects.filter(meeting=meeting)}
@@ -216,59 +255,58 @@ def meeting_detail(request, meeting_id):
                         status=status.HTTP_400_BAD_REQUEST,
                     )
 
-            # ✅ 기존 참석자와 새로운 참석자 비교 및 업데이트
-            for participant in meeting_participants:
-                user_id = participant.get("id")
-                authority = participant.get("authority", 1)
-
-                user = get_object_or_404(get_user_model(), id=user_id)
-
-                if user_id not in current_participants:
-                    MeetingParticipation.objects.create(meeting=meeting, participant=user, authority=authority)
-                    message = f"새로운 참석자로 추가되었습니다. 회의 제목: {meeting.title}, 회의 시간: {meeting.starttime.strftime('%Y-%m-%d %H:%M')} ~ {meeting.endtime.strftime('%H:%M')}"
-                    Notification.objects.create(user=user, message=message)
-                elif current_participants[user_id].authority != authority:
-                    current_participants[user_id].authority = authority
-                    current_participants[user_id].save()
-                    message = f"회의 참석자의 권한이 변경되었습니다. 회의 제목: {meeting.title}, 회의 시간: {meeting.starttime.strftime('%Y-%m-%d %H:%M')} ~ {meeting.endtime.strftime('%H:%M')}"
-                    Notification.objects.create(user=user, message=message)
-
-            # ✅ 기존 참석자 목록에서 삭제된 참석자 제거
-            for user_id, participant in current_participants.items():
-                if user_id not in [p.get("id") for p in meeting_participants]:
-                    participant.delete()
-
-            # ✅ 기존 안건과 새로운 안건 비교 및 업데이트
-            for agenda_item in agenda_items:
-                order = agenda_item.get("order")
-                title = agenda_item.get("title")
-                if not title:
-                    return Response(
-                        {"status": "error", "message": "Agenda title is required"},
-                        status=status.HTTP_400_BAD_REQUEST,
-                    )
-
-                if order in existing_agenda_items:
-                    existing_agenda_items[order].title = title
-                    existing_agenda_items[order].save()
-                else:
-                    Agenda.objects.create(meeting=meeting, title=title, order=order)
-
-            # ✅ 기존 안건 목록에서 삭제된 안건 제거
-            for order, agenda in existing_agenda_items.items():
-                if order not in [a.get("order") for a in agenda_items]:
-                    agenda.delete()
-
             # ✅ 모든 데이터 검증 후 MeetingBook 업데이트
             serializer = MeetingBookSerializer(meeting, data=request_data, partial=True)
             if serializer.is_valid():
                 updated_meeting = serializer.save()
 
-                # ✅ 회의 시간이 변경된 경우 알림 발송
-                if meeting.starttime != updated_meeting.starttime or meeting.endtime != updated_meeting.endtime:
-                    message = f"회의 시간이 변경되었습니다. 회의 제목: {updated_meeting.title}, 새로운 회의 시간: {updated_meeting.starttime.strftime('%Y-%m-%d %H:%M')} ~ {updated_meeting.endtime.strftime('%H:%M')}"
-                    for participant in MeetingParticipation.objects.filter(meeting=updated_meeting):
-                        Notification.objects.create(user=participant.participant, message=message)
+
+                # ✅ 기존 참석자와 새로운 참석자 비교 및 업데이트
+                for participant in meeting_participants:
+                    user_id = participant.get("id")
+                    authority = participant.get("authority", 1)
+
+                    user = get_object_or_404(get_user_model(), id=user_id)
+
+                    if user_id not in current_participants:
+                        # 새로운 참석자 추가
+                        MeetingParticipation.objects.create(meeting=meeting, participant=user, authority=authority)
+                    elif current_participants[user_id].authority != authority:
+                        # 권한 변경
+                        current_participants[user_id].authority = authority
+                        current_participants[user_id].save()
+                        
+                # ✅ 기존 참석자 목록에서 삭제된 참석자 제거
+                for user_id, participant in current_participants.items():
+                    if user_id not in [p.get("id") for p in meeting_participants]:
+                        participant.delete()
+
+                # ✅ 기존 안건과 새로운 안건 비교 및 업데이트
+                for agenda_item in agenda_items:
+                    order = agenda_item.get("order")
+                    title = agenda_item.get("title")
+                    if not title:
+                        return Response(
+                            {"status": "error", "message": "Agenda title is required"},
+                            status=status.HTTP_400_BAD_REQUEST,
+                        )
+
+                    if order in existing_agenda_items:
+                        existing_agenda_items[order].title = title
+                        existing_agenda_items[order].save()
+                    else:
+                        Agenda.objects.create(meeting=meeting, title=title, order=order)
+
+                # ✅ 기존 안건 목록에서 삭제된 안건 제거
+                for order, agenda in existing_agenda_items.items():
+                    if order not in [a.get("order") for a in agenda_items]:
+                        agenda.delete()
+
+
+                message = f"회의 정보가 변경되었습니다. 회의 제목: {updated_meeting.title}, 새로운 회의 시간: {updated_meeting.starttime.strftime('%Y-%m-%d %H:%M')} ~ {updated_meeting.endtime.strftime('%H:%M')}"
+                for participant in MeetingParticipation.objects.filter(meeting=updated_meeting):
+                    Notification.objects.create(user=participant.participant, message=message)
+
 
                 return Response(
                     {"status": "success", "message": "회의 정보가 성공적으로 수정되었습니다."},
@@ -279,6 +317,7 @@ def meeting_detail(request, meeting_id):
                     {"status": "error", "message": serializer.errors},
                     status=status.HTTP_400_BAD_REQUEST
                 )
+
             
         elif request.method == "DELETE":
             # 마스터 권한이 있다면 회의 삭제
