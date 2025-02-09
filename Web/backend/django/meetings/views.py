@@ -118,6 +118,7 @@ async def scheduler(request,meeting_id):
     스케쥴러에 의해 특정 시간이 되면, 해당 'meeting_id' 에 따라
     Redis에 회의 정보 저장 (project_id, meeting_id, agenda_list)
     '''
+    
     if request.method == 'GET':
         # Meeting 객체 가져오기
         meeting = await sync_to_async(lambda: get_object_or_404(Meeting.objects.select_related("project"), id=meeting_id))()
@@ -126,29 +127,53 @@ async def scheduler(request,meeting_id):
         # 해당 Meeting에 연결된 Agenda 목록 가져오기
         agendas = await sync_to_async(lambda: list(Aganda.objects.filter(meeting=meeting).values("id", "title")))()
         print(agendas,meeting,project_id,'입니다 ###')
-        await redis_client.set("meeting:state", "false")  # 기본 상태: 회의 준비 전
-        await redis_client.set("meeting:project_id", str(project_id))  # 프로젝트 ID 저장
+        await redis_client.set("meeting:state", "waiting_for_ready")  # 기본 상태: 회의 준비 전
+        await redis_client.set("meeting:project_id", str(project_id))   # 프로젝트 ID 저장
+        await redis_client.set("meeting:meeting_id", str(meeting.id))   # meeting ID 저장
         await redis_client.set("meeting:cur_agenda", "1")  # 첫 번째 안건부터 시작
         await redis_client.set("meeting:agenda_list", json.dumps(list(agendas)))  # 안건 목록 저장
 
         return JsonResponse({'status':'success','message':'Test 시작'})
 
 # 회의 준비 함수 (to FastAPI)
-async def sent_agendas():
+async def sent_meeting_information():
     '''
         안건 목록 fastAPI로 쏴줘야 함.
         {
-        "project_id": str,
-        "agendas": [
-            {
-                "agenda_id": str,
-                "agenda_title": str
-            }, {}, {}, ...
-        ]
-    }
+            "project_id": str,
+            "agendas": [
+                {
+                    "agenda_id": str,
+                    "agenda_title": str
+                }, {}, {}, ...
+            ]
+        }
     '''
+    # Redis에서 회의 정보 가져오기
+    meeting_id = await redis_client.get("meeting:current_meeting")
+    project_id = await redis_client.get("meeting:project_id")
+    agenda_list_json = await redis_client.get("meeting:agenda_list")
+    agendas = json.loads(agenda_list_json) if agenda_list_json else []
 
-    pass
+
+    meeting_id = await redis_client.get('meeting:meeting_id')
+    if not meeting_id:
+        return {'error': 'No active meeting found in Redis'}
+    
+    url = f"{FASTAPI_BASE_URL}/api/v1/meetings/{meeting_id}/prepare/"
+    payload = {
+        "project_id": project_id,
+        "agendas": agendas or [],
+    }
+    print('# 안건정보###')
+    
+    print(url)
+    print(payload['agendas'])
+
+    # async with httpx.AsyncClient() as client:
+    #     response = await client.post(url=url, json=payload)
+    #     return response.json()  # FastAPI에서 받은 응답 데이터 반환
+    return {'status':'test'}
 
 # 회의 준비 버튼
 async def prepare_meeting(request):
@@ -156,15 +181,20 @@ async def prepare_meeting(request):
     회의 준비 버튼
     
     '''
-    if request.method =='post':
+    if request.method =='POST':
         # redis에서 현재 상태 확인
-        current_state = await redis_client.get(IS_READY_MEETING) or 'false'
-        # 이미 준비상태라면, 리턴.
-        if current_state == 'true':
-            return JsonResponse({'status':'success', 'message':'already preparing state..'})
+        current_state = await redis_client.get(IS_READY_MEETING) or 'waiting_for_ready'
+        
+        # 이미 준비상태라면, 리턴. -> 
+        '''
+        일단 개발할 동안만 주석처리
+        - 
+        '''
+        # if current_state == 'true':
+        #     return JsonResponse({'status':'success', 'message':'already preparing state..'})
         
         # new state 갱신
-        new_state = 'true' if current_state == "false" else "true"
+        new_state = 'waiting_for_start' if current_state == "waiting_for_ready" else "waiting_for_start"
 
         # redis에 새로운 상태 저장
         await redis_client.set(IS_READY_MEETING, new_state)
@@ -178,11 +208,32 @@ async def prepare_meeting(request):
         )
         # 업데이트 메시지를 Pub/Sub 채널에 발행.
         await redis_client.publish(MEETING_CHANNEL, update_msg)
-
-        # 안건 목록 전송
-        await sent_agendas()        
         
-        return JsonResponse({'status':'success','started':new_state})
+        print('redis 업로드까지는 완료') # 디버깅
+
+        # 안건 목록 fastAPI로 전송
+        fastapi_response = await sent_meeting_information()
+
+        # FastAPI 응답이 온다 = 모델 준비가 끝났다. 
+        # 회의 진행중으로 상태 변경
+        await redis_client.set("meeting:state", "meeting_in_progress")  
+
+        new_state = 'meeting_in_progress'
+        # 업데이트 메시지 생성
+        update_msg = json.dumps(
+            {
+                "type": "is_ready", 
+                "is_ready": new_state
+            }
+        )
+        # 업데이트 메시지를 Pub/Sub 채널에 발행.
+        await redis_client.publish(MEETING_CHANNEL, update_msg)
+
+        return JsonResponse({
+            'status': 'success',
+            'started': new_state,
+            'fastapi_response': fastapi_response  # FastAPI 응답 포함
+        })
     else:
         return JsonResponse({'error':'Invalid request'}, status=400)
 
