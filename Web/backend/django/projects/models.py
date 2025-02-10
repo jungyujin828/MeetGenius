@@ -1,9 +1,8 @@
 from django.db import models
 from django.conf import settings
 from accounts.models import Department
+# from meetingroom.models import Meeting, Agenda  # 직접 import 제거
 
-# Create your models here.
-# 프로젝트 모델
 class Project(models.Model):
     name = models.CharField(max_length=50, unique=True)
     description = models.TextField(blank=True)
@@ -12,7 +11,6 @@ class Project(models.Model):
     )
     creator = models.ForeignKey(
         settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='created_projects',
-        # 잠시동안만 null blank true.. 로그인 못하잖아
         null=True, blank=True 
     )
     is_inprogress = models.BooleanField(default=True)
@@ -22,7 +20,6 @@ class Project(models.Model):
     def __str__(self):
         return self.name
 
-# 프로젝트참여자 모델
 class ProjectParticipation(models.Model):
     ROLE_CHOICES = [
         (0, "Master"),
@@ -33,36 +30,45 @@ class ProjectParticipation(models.Model):
     participant = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="project_participations")
     authority = models.IntegerField(choices=ROLE_CHOICES, default=1)
 
-    # 한 사용자가 같은 프로젝트 중복 참여 방지 (DB단에서 제약조건 추가.)
     class Meta:
         constraints = [
             models.UniqueConstraint(
-                    fields=['project', 'participant'], 
-                    name='unique_project_participant'
-                    )
+                fields=['project', 'participant'], 
+                name='unique_project_participant'
+            )
         ]
 
     def __str__(self):
         return f"{self.participant} - {self.project}"
-    
-# 문서 모델
+
 class Document(models.Model):
     TYPE_CHOICES=[
         (0, "요약 전 회의록"),
         (1, "요약 후 회의록"),
         (2, "보고서"),
     ]
-    type = models.IntegerField(choices=TYPE_CHOICES)    # 어떤 문시인지 구분
+    type = models.IntegerField(choices=TYPE_CHOICES)    # 어떤 문서인지 구분
     embedding = models.BooleanField(default=False)      # Embedding 여부
-    project = models.ForeignKey(Project,on_delete=models.CASCADE, related_name='documents')
-    department = models.ForeignKey(Department,on_delete=models.CASCADE, related_name='documents')
+    project = models.ForeignKey(Project, on_delete=models.CASCADE, related_name='documents')
+    department = models.ForeignKey(Department, on_delete=models.CASCADE, related_name='documents')
 
-# 참고 보고서 모델
 class Report(models.Model):
     project = models.ForeignKey(Project, on_delete=models.CASCADE, related_name='reports')
     writer = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="written_reports")
     document = models.ForeignKey(Document, on_delete=models.SET_NULL, null=True, blank=True, related_name='reports')
-    # SET_NULL : 참조하는 객체가 삭제되면, document 필드값을 NULL로 설정
     title = models.CharField(max_length=100)
-    content = models.TextField() # 받자마자 파일 읽어서 데이터 채우고 저장.
+    content = models.TextField()
     created_at = models.DateTimeField(auto_now_add=True)
+
+class Mom(models.Model):
+    meeting = models.ForeignKey('meetingroom.Meeting', on_delete=models.CASCADE, related_name='moms')
+    agenda = models.ForeignKey('meetingroom.Agenda', on_delete=models.CASCADE, related_name='moms')
+    agenda_result = models.TextField(verbose_name="회의 결과 (안건 내용)")
+    document = models.ForeignKey(Document, on_delete=models.SET_NULL, null=True, blank=True, related_name='moms')
+    completed = models.BooleanField(default=False)
+
+class SummaryMom(models.Model):
+    mom = models.OneToOneField(Mom, on_delete=models.CASCADE, related_name='summary', verbose_name='원본 회의록 ID')
+    summary_result = models.TextField(verbose_name='요약된 회의 결과')
+    document = models.ForeignKey(Document, on_delete=models.SET_NULL, null=True, blank=True, related_name='summary_moms')
+    completed = models.BooleanField(default=False)
