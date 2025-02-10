@@ -60,7 +60,7 @@ def project_list_create(request):
         )
     
 
-@api_view(['PUT', 'PATCH'])
+@api_view(['GET','PATCH'])
 @permission_classes([IsAuthenticated]) # 인증되지 않은 사용자는 접근 불가
 def project_update(request, project_id):
     
@@ -70,27 +70,33 @@ def project_update(request, project_id):
     - 'PATCH' : 일부 필드 업데이트 -> 대부분의 경우에 얘가 더 유연한 듯.
     """
     project = get_object_or_404(Project, id=project_id)
-
-    serializer = ProjectSerializer(project, data=request.data, partial =(request.method =='PATCH'))
-
-    if serializer.is_valid():
-        serializer.save() # Django의 ManyToManyField는 이 메소드만으로는 업데이트 되지 않음.
-
-        if "participants" in request.data:
-            participants = request.data.get("participants", []) # 리스트로 받아옴
-            project.participants.all().delete() # 기존 참여자 제거
-
-            for participant in participants:
-                user_id = participant.get("id")
-                authority = participant.get("authority",1)
-
-                user = get_object_or_404(User, id=user_id)
-                ProjectParticipation.objects.create(
-                    project=project,participant=user,authority=authority
-                )
-
+    
+    if request.method == 'GET': 
+        serializer = ProjectSerializer(project)
         return Response(serializer.data, status=status.HTTP_200_OK)
-    return Response({'status':'error','message':serializer.errors},status=status.HTTP_400_BAD_REQUEST)
+
+    elif request.method =='PATCH':
+        serializer = ProjectSerializer(project, data=request.data, partial =(request.method =='PATCH'))
+
+        if serializer.is_valid():
+            serializer.save() # Django의 ManyToManyField는 이 메소드만으로는 업데이트 되지 않음.
+
+            if "participants" in request.data:
+                participants = request.data.get("participants", []) # 리스트로 받아옴
+                project.participants.all().delete() # 기존 참여자 제거
+
+                for participant in participants:
+                    user_id = participant.get("id")
+                    authority = participant.get("authority",1)
+
+                    user = get_object_or_404(User, id=user_id)
+                    ProjectParticipation.objects.create(
+                        project=project,participant=user,authority=authority
+                    )
+
+            return Response(serializer.data, status=status.HTTP_200_OK)
+        return Response({'status':'error','message':serializer.errors},status=status.HTTP_400_BAD_REQUEST)
+
 
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
