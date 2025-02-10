@@ -109,8 +109,7 @@ const MeetingRoomListWidget = ({ roomId }) => {
 
       <Table>
         {/* 회의 목록을 `MeetingRoomBookedListWidget`으로 전달 */}
-        <MeetingRoomBooked meetings={meetings} />
-      </Table>
+        <MeetingRoomBooked meetings={meetings.length > 0 ? meetings : []} />      </Table>
     </ScheduleContainer>
   );
 };

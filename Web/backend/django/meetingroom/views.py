@@ -62,10 +62,7 @@ def meetingroom_list_create(request, room_id):
 
         # 조회된 데이터가 없을 경우 예외 처리
         if not meetings.exists():
-            return Response(
-                {"status": "error", "message": "조건에 맞는 회의가 없습니다."},
-                status=status.HTTP_404_NOT_FOUND
-            )
+            return Response([], status=status.HTTP_200_OK)
 
         serializer = MeetingReadSerializer(meetings, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
