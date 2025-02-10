@@ -22,17 +22,30 @@ const Project = () => {
 
   // 프로젝트 목록을 가져오는 함수
   const fetchProjects = async () => {
+    const authToken = localStorage.getItem("authToken"); // 로그인 후 저장된 토큰을 가져옵니다.
+  
+    if (!authToken) {
+      setError("로그인이 필요합니다.");
+      setLoading(false);
+      return;
+    }
+  
     try {
       const response = await axios.get("http://127.0.0.1:8000/projects/", {
+        headers: {
+          Authorization: `Token ${authToken}`, // 헤더에 토큰을 추가합니다.
+        },
+        withCredentials: true,  // 인증 쿠키가 필요한 경우 true로 설정합니다.
       });
-      setProjects(response.data); // API에서 가져온 프로젝트 목록을 상태에 저장
+      setProjects(response.data); // 프로젝트 목록을 상태에 저장
       setLoading(false); // 로딩 완료
     } catch (error) {
       setError("프로젝트 목록을 불러오는 데 실패했습니다.");
-      setLoading(false); // 로딩 완료
+      setLoading(false);
       console.error("프로젝트 목록 불러오기 오류:", error);
     }
   };
+  
 
   // 컴포넌트가 처음 렌더링될 때 프로젝트 목록을 가져오는 효과
   useEffect(() => {
