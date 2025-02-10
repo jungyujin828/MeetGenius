@@ -102,29 +102,10 @@ const ProjectCreateWidget = ({ fetchProjects }) => {
     }
   };
 
-  // ✅ CSRF 토큰 가져오기 함수
-  function getCSRFToken() {
-    let csrfToken = null;
-    const cookies = document.cookie.split(";");
-    for (let i = 0; i < cookies.length; i++) {
-      const cookie = cookies[i].trim();
-      if (cookie.startsWith("csrftoken=")) {
-        csrfToken = cookie.substring("csrftoken=".length, cookie.length);
-      }
-    }
-    return csrfToken;
-  }
-
   // 프로젝트 생성 핸들러
   const handleCreateProject = async () => {
-    const csrftoken = getCSRFToken();
     const authToken = localStorage.getItem("authToken"); // localStorage에서 토큰 가져오기
 
-    if (!csrftoken || !authToken) {
-      console.error("CSRF Token 또는 Auth Token이 없습니다.");
-      alert("CSRF Token 또는 Auth Token이 없습니다. 로그인 후 다시 시도해주세요.");
-      return;
-    }
 
     const formData = {
       name: projectName,
@@ -138,8 +119,7 @@ const ProjectCreateWidget = ({ fetchProjects }) => {
       const response = await axiosInstance.post("/projects/", formData, {
         withCredentials: true,
         headers: {
-          "X-CSRFToken": csrftoken, // CSRF 토큰
-          "Authorization": `Bearer ${authToken}`, // 인증 토큰
+          "Authorization": `Token ${authToken}`, // 인증 토큰
         },
       });
 

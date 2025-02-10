@@ -35,7 +35,7 @@ export const logoutUser = createAsyncThunk("auth/logoutUser", async () => {
     // 로그아웃 요청을 보냅니다. Authorization 헤더에 토큰을 포함
     await axiosInstance.post("/accounts/logout/", {}, {
       headers: {
-        "Authorization": `Bearer ${authToken}`, // Bearer 토큰을 Authorization 헤더에 포함시킵니다.
+        "Authorization": `Token ${authToken}`,
       },
     });
 

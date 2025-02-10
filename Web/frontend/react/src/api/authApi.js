@@ -26,7 +26,7 @@ export const logoutRequest = async () => {
     // 로그아웃 요청을 보냄 (Authorization 헤더에 토큰 포함)
     await axiosInstance.post("/accounts/logout/", {}, {
       headers: {
-        "Authorization": `Bearer ${authToken}`, // Bearer 토큰을 헤더에 포함
+        "Authorization": `Token ${authToken}`,
       },
     });
 
@@ -52,7 +52,7 @@ export const loadUserRequest = async () => {
     // 사용자 정보 요청 (Authorization 헤더에 토큰 포함)
     const response = await axiosInstance.get("/accounts/user/", {
       headers: {
-        "Authorization": `Bearer ${authToken}`, // Bearer 토큰을 헤더에 포함
+        "Authorization": `Token ${authToken}`,
       },
     });
     return response.data; // 로그인된 사용자 정보 반환

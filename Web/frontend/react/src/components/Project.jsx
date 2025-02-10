@@ -24,7 +24,6 @@ const Project = () => {
   const fetchProjects = async () => {
     try {
       const response = await axios.get("http://127.0.0.1:8000/projects/", {
-        withCredentials: true, // 쿠키 포함
       });
       setProjects(response.data); // API에서 가져온 프로젝트 목록을 상태에 저장
       setLoading(false); // 로딩 완료
