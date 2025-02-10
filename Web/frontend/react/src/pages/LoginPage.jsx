@@ -7,7 +7,9 @@ import Login from "../components/Login"; // 로그인 UI 컴포넌트
 const LoginPage = () => {
   const dispatch = useDispatch();
   const navigate = useNavigate();
-  const { isAuthenticated, isLoading, error } = useSelector((state) => state.auth || {}); // Redux 상태
+  
+  // Redux 상태에서 인증 상태와 에러 메시지 가져오기
+  const { isAuthenticated, isLoading, error } = useSelector((state) => state.auth || {}); 
 
   // 사용자에게 에러 메시지를 표시하기 위한 상태
   const [errorMessage, setErrorMessage] = useState("");
@@ -23,14 +25,12 @@ const LoginPage = () => {
         loginUser({ employeeNumber: employee_number, password })
       );
 
-      // Redux Thunk 결과 확인
+      // 로그인 성공 시, 토큰을 로컬 스토리지에 저장하고 대시보드로 이동
       if (loginUser.fulfilled.match(resultAction)) {
         const authToken = resultAction.payload.token; // 응답에서 토큰 추출
         localStorage.setItem("authToken", authToken); // 🔹 토큰 저장
         console.log("✅ 로그인 성공! 저장된 토큰:", authToken); // 확인용 로그
         navigate("/dashboard"); // 로그인 성공 시 대시보드 이동
-      } else {
-        setErrorMessage("로그인에 실패했습니다. 사번과 비밀번호를 확인해주세요."); // 사용자에게 피드백
       }
     } catch (error) {
       console.error("로그인 오류:", error);
@@ -40,9 +40,9 @@ const LoginPage = () => {
 
   return (
     <Login
-      onLogin={handleLogin}
-      isLoading={isLoading}
-      error={errorMessage || error} // 오류 메시지 전달
+      onLogin={handleLogin} // 로그인 요청을 처리하는 함수 전달
+      isLoading={isLoading} // 로딩 상태 전달
+      error={errorMessage || error} // 오류 메시지 전달 (Redux의 error 또는 local state의 errorMessage 사용)
     />
   );
 };

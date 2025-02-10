@@ -5,7 +5,6 @@ import { useDispatch } from "react-redux";
 import { addProject } from "../redux/projectSlice"; // 리덕스 액션 가져오기
 import axiosInstance from "../api/axiosInstance";  // ✅ axiosInstance import 추가
 
-
 // 스타일 컴포넌트 설정
 const ProjectFormContainer = styled.div`
   display: flex;
@@ -81,97 +80,112 @@ const ProjectCreateWidget = ({ fetchProjects }) => {
   const [department, setDepartment] = useState("");
   const [startDate, setStartDate] = useState("");
   const [dueDate, setDueDate] = useState("");
-  const [participants, setParticipants] = useState([]);
-  const [users, setUsers] = useState([]);
-  const [error, setError] = useState(null);
+  const [participants, setParticipants] = useState([]); // 참여자 상태
+  const [users, setUsers] = useState([]); // 유저 목록
+  const [error, setError] = useState(null); // 에러 상태
 
   const dispatch = useDispatch();
 
+  // 모든 유저 목록 불러오기
+  useEffect(() => {
+    fetchUsers();
+  }, []);
 
-// ✅ 모든 유저 목록 불러오기 (부서 필터 없음)
-useEffect(() => {
-  fetchUsers();
-}, []);
-
-const fetchUsers = async () => {
-  try {
-    const url = "http://127.0.0.1:8000/accounts/users/"; // 모든 유저 불러오는 엔드포인트
-    const response = await axios.get(url, { withCredentials: true });
-    console.log("Fetched users:", response.data);
-    setUsers(response.data);
-  } catch (error) {
-    setError("유저 목록을 불러오는 데 실패했습니다.");
-    console.error("유저 목록 불러오기 오류:", error);
-  }
-};
-
-// ✅ CSRF 토큰 가져오기 함수 (쿠키에서 추출)
-function getCSRFToken() {
-  let csrfToken = null;
-  const cookies = document.cookie.split(";");
-  for (let i = 0; i < cookies.length; i++) {
-    const cookie = cookies[i].trim();
-    if (cookie.startsWith("csrftoken=")) {
-      csrfToken = cookie.substring("csrftoken=".length, cookie.length);
+  const fetchUsers = async () => {
+    try {
+      const url = "http://127.0.0.1:8000/accounts/users/"; // 모든 유저 불러오는 엔드포인트
+      const response = await axios.get(url, { withCredentials: true });
+      setUsers(response.data);
+    } catch (error) {
+      setError("유저 목록을 불러오는 데 실패했습니다.");
+      console.error("유저 목록 불러오기 오류:", error);
     }
-  }
-  return csrfToken;
-}
-
-const handleCreateProject = async () => {
-  const csrftoken = getCSRFToken();
-  if (!csrftoken) {
-    console.error("CSRF Token이 없습니다.");
-    alert("CSRF 토큰이 없습니다. 새로고침 후 다시 시도하세요.");
-    return;
-  }
-
-  const formData = {
-    name: projectName,
-    description: projectDescription,
-    startdate: startDate,
-    duedate: dueDate,
-    participants: participants.map(p => ({ id: p.id, authority: p.authority })),
   };
 
-  try {
-    const response = await axiosInstance.post("/projects/", formData, {
-      withCredentials: true, // 세션 쿠키 포함
-    });
-
-    console.log("🟢 프로젝트 생성 성공:", response.data);
-    dispatch(addProject(response.data));
-    alert("프로젝트가 생성되었습니다.");
-    
-  } catch (error) {
-    console.error("🔴 프로젝트 생성 실패:", error);
-    if (error.response) {
-      console.log("🔴 서버 응답:", error.response);
-      alert(`프로젝트 생성 실패: ${error.response.data.detail || "알 수 없는 오류"}`);
-    } else {
-      alert("네트워크 오류가 발생했습니다.");
+  // ✅ CSRF 토큰 가져오기 함수
+  function getCSRFToken() {
+    let csrfToken = null;
+    const cookies = document.cookie.split(";");
+    for (let i = 0; i < cookies.length; i++) {
+      const cookie = cookies[i].trim();
+      if (cookie.startsWith("csrftoken=")) {
+        csrfToken = cookie.substring("csrftoken=".length, cookie.length);
+      }
     }
+    return csrfToken;
   }
-};
 
-  
-  // 유저 선택 처리 (마스터 권한 설정)
+  // 프로젝트 생성 핸들러
+  const handleCreateProject = async () => {
+    const csrftoken = getCSRFToken();
+    const authToken = localStorage.getItem("authToken"); // localStorage에서 토큰 가져오기
+
+    if (!csrftoken || !authToken) {
+      console.error("CSRF Token 또는 Auth Token이 없습니다.");
+      alert("CSRF Token 또는 Auth Token이 없습니다. 로그인 후 다시 시도해주세요.");
+      return;
+    }
+
+    const formData = {
+      name: projectName,
+      description: projectDescription,
+      startdate: startDate,
+      duedate: dueDate,
+      participants: participants.map((p) => ({ id: p.id, authority: p.authority })),
+    };
+
+    try {
+      const response = await axiosInstance.post("/projects/", formData, {
+        withCredentials: true,
+        headers: {
+          "X-CSRFToken": csrftoken, // CSRF 토큰
+          "Authorization": `Bearer ${authToken}`, // 인증 토큰
+        },
+      });
+
+      console.log("🟢 프로젝트 생성 성공:", response.data);
+      dispatch(addProject(response.data));
+      alert("프로젝트가 생성되었습니다.");
+    } catch (error) {
+      console.error("🔴 프로젝트 생성 실패:", error);
+      if (error.response) {
+        alert(`프로젝트 생성 실패: ${error.response.data.detail || "알 수 없는 오류"}`);
+      } else {
+        alert("네트워크 오류가 발생했습니다.");
+      }
+    }
+  };
+
+  // 유저 선택 처리 (체크박스 클릭 시)
   const handleUserSelect = (event) => {
-    const userId = parseInt(event.target.value, 10);
-    const isChecked = event.target.checked;
-    const selectedUser = users.find(user => user.employee_number === userId); // employee_number 사용
+    const userId = event.target.value; // 체크박스의 value 값 (문자열로 받기)
+    const isChecked = event.target.checked; // 체크박스의 선택 여부
 
-    if (isChecked) {
-      setParticipants(prev => [...prev, { id: userId, name: selectedUser.name, department: selectedUser.department, position: selectedUser.position, authority: 0 }]);
-    } else {
-      setParticipants(prev => prev.filter(participant => participant.id !== userId));
+    // 선택된 유저를 찾음
+    const selectedUser = users.find((user) => user.employee_number === userId);
+
+    if (selectedUser) {
+      if (isChecked) {
+        setParticipants((prev) => [
+          ...prev,
+          {
+            id: userId,
+            name: selectedUser.name,
+            department: selectedUser.department,
+            position: selectedUser.position,
+            authority: 1, // 기본 권한
+          },
+        ]);
+      } else {
+        setParticipants((prev) => prev.filter((participant) => participant.id !== userId));
+      }
     }
   };
 
   // 권한 변경 (마스터 권한 체크박스)
   const handleAuthorityChange = (userId) => {
-    setParticipants(prev =>
-      prev.map(participant =>
+    setParticipants((prev) =>
+      prev.map((participant) =>
         participant.id === userId
           ? { ...participant, authority: participant.authority === 0 ? 1 : 0 }
           : participant
@@ -193,25 +207,14 @@ const handleCreateProject = async () => {
         value={projectDescription}
         onChange={(e) => setProjectDescription(e.target.value)}
       />
-      <SelectField
-        value={department}
-        onChange={(e) => setDepartment(e.target.value)}
-      >
+      <SelectField value={department} onChange={(e) => setDepartment(e.target.value)}>
         <option value="">담당 부서 선택</option>
         <option value="1">개발팀</option>
         <option value="2">마케팅팀</option>
         <option value="3">인사팀</option>
       </SelectField>
-      <DateInput
-        type="date"
-        value={startDate}
-        onChange={(e) => setStartDate(e.target.value)}
-      />
-      <DateInput
-        type="date"
-        value={dueDate}
-        onChange={(e) => setDueDate(e.target.value)}
-      />
+      <DateInput type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} />
+      <DateInput type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} />
       <UserSelectContainer>
         <h4>참여자 선택</h4>
         {error && <div style={{ color: "red" }}>{error}</div>}
@@ -221,18 +224,18 @@ const handleCreateProject = async () => {
               <input
                 type="checkbox"
                 value={user.employee_number}
-                checked={participants.some(p => p.id === user.employee_number)}
-                onChange={handleUserSelect}
+                checked={participants.some((p) => p.id === user.employee_number)} // 체크박스 상태 확인
+                onChange={handleUserSelect} // 체크박스 선택 처리
               />
-              {user.name} ({user.department} / {user.position}) {/* 유저 이름, 부서명, 직급 */}
+              {user.name} ({user.department} / {user.position})
             </label>
             <div>
               <label>
                 마스터 권한
                 <input
                   type="checkbox"
-                  checked={participants.some(p => p.id === user.employee_number && p.authority === 1)}
-                  onChange={() => handleAuthorityChange(user.employee_number)}
+                  checked={participants.some((p) => p.id === user.employee_number && p.authority === 1)} // 권한 체크 상태
+                  onChange={() => handleAuthorityChange(user.employee_number)} // 권한 변경
                 />
               </label>
             </div>

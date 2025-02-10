@@ -23,7 +23,29 @@ export const loginUser = createAsyncThunk(
 
 // ✅ 로그아웃 요청 (비동기 Thunk)
 export const logoutUser = createAsyncThunk("auth/logoutUser", async () => {
-  await axiosInstance.post("/accounts/logout/"); // Django 로그아웃 API 엔드포인트
+  try {
+    // 로컬 스토리지에서 토큰을 가져옵니다.
+    const authToken = localStorage.getItem("authToken");
+
+    // 토큰이 없다면 로그아웃할 수 없습니다.
+    if (!authToken) {
+      throw new Error("No valid auth token found");
+    }
+
+    // 로그아웃 요청을 보냅니다. Authorization 헤더에 토큰을 포함
+    await axiosInstance.post("/accounts/logout/", {}, {
+      headers: {
+        "Authorization": `Bearer ${authToken}`, // Bearer 토큰을 Authorization 헤더에 포함시킵니다.
+      },
+    });
+
+    // 로그아웃 후 토큰 삭제
+    localStorage.removeItem("authToken");
+    return;
+  } catch (error) {
+    console.error("로그아웃 오류:", error);
+    throw error.response?.data || "로그아웃 실패";
+  }
 });
 
 // ✅ 로그인 유지 (세션 정보 가져오기)
@@ -39,19 +61,17 @@ export const loadUser = createAsyncThunk("auth/loadUser", async (_, thunkAPI) =>
 // ✅ 초기 상태 정의
 const initialState = {
   user: null, // 현재 로그인한 사용자 정보
-  isAuthenticated: false, // 로그인 여부 ❤️❤️❤️❤️❤️
+  isAuthenticated: false, // 로그인 여부
   isLoading: false, // 로딩 상태
   error: null, // 에러 메시지 저장
 };
 
-// ✅ 인증 관련 Redux Slice 생성
 const authSlice = createSlice({
   name: "auth",
   initialState,
   reducers: {},
   extraReducers: (builder) => {
     builder
-      // ✅ 로그인 요청 처리
       .addCase(loginUser.pending, (state) => {
         state.isLoading = true;
         state.error = null;
@@ -66,10 +86,10 @@ const authSlice = createSlice({
         state.user = null;
         state.isAuthenticated = false;
         state.isLoading = false;
-        state.error = action.payload;
+        state.error = action.payload; // 실패한 에러 메시지
       })
 
-      // ✅ 로그아웃 처리
+      // 로그아웃 처리
       .addCase(logoutUser.fulfilled, (state) => {
         state.user = null;
         state.isAuthenticated = false;
@@ -77,7 +97,7 @@ const authSlice = createSlice({
         state.error = null;
       })
 
-      // ✅ 로그인 유지 (세션 체크)
+      // 로그인 유지 (세션 체크)
       .addCase(loadUser.pending, (state) => {
         state.isLoading = true;
       })

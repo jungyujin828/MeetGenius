@@ -1,6 +1,7 @@
 from django.db import models
 from django.conf import settings
 from projects.models import Project
+
 # Create your models here.
 class Meeting(models.Model):
     room = models.IntegerField()
@@ -16,11 +17,14 @@ class Meeting(models.Model):
     project = models.ForeignKey(Project, on_delete=models.SET_NULL, null=True, blank=True)
     title = models.CharField(max_length=100)
 
+    # page_id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+
     def __str__(self):
         return self.title
 
-class Aganda(models.Model):
-    meeting = models.ForeignKey(Meeting, on_delete=models.SET_NULL, null=True, blank=True)
+class Agenda(models.Model):
+    meeting = models.ForeignKey(Meeting, on_delete=models.CASCADE, null=True, blank=True)
+    order = models.IntegerField(default=0)
     title = models.CharField(max_length=100)
 
     def __str__(self):
@@ -38,7 +42,9 @@ class MeetingParticipation(models.Model):
     authority = models.IntegerField(choices=ROLE_CHOICES, default=1)
 
     class Meta:
-        unique_together = ('meeting', 'participant')  # 한 사용자가 같은 프로젝트 중복 참여 방지
+        unique_together = ('meeting', 'participant')  # 한 사용자가 같은 회의의 중복 참여 방지
 
     def __str__(self):
         return f"{self.participant} - {self.meeting}"
+    
+

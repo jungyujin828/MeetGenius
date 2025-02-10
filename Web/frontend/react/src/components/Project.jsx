@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from "react";
 import styled from "styled-components"; // styled-components import 추가
-import ProjectCreateWidget from "./ProjectCreateWidget";
-import ProjectListWidget from "./ProjectListWidget";
-import axios from "axios";
+import ProjectCreateWidget from "./ProjectCreateWidget"; // 프로젝트 생성 위젯
+import ProjectListWidget from "./ProjectListWidget"; // 프로젝트 목록 위젯
+import axios from "axios"; // axios import
 
 // 스타일 컴포넌트
 const ProjectContainer = styled.div`
@@ -16,15 +16,22 @@ const ProjectContainer = styled.div`
 `;
 
 const Project = () => {
-  const [projects, setProjects] = useState([]); // projects 상태 초기값을 빈 배열로 설정
+  const [projects, setProjects] = useState([]); // 프로젝트 목록 상태 관리
+  const [loading, setLoading] = useState(true);  // 로딩 상태
+  const [error, setError] = useState(null);     // 에러 상태
 
   // 프로젝트 목록을 가져오는 함수
   const fetchProjects = async () => {
     try {
-      const response = await axios.get("/accounts/projects/");
+      const response = await axios.get("http://127.0.0.1:8000/projects/", {
+        withCredentials: true, // 쿠키 포함
+      });
       setProjects(response.data); // API에서 가져온 프로젝트 목록을 상태에 저장
+      setLoading(false); // 로딩 완료
     } catch (error) {
-      console.error("프로젝트 목록 조회 실패:", error);
+      setError("프로젝트 목록을 불러오는 데 실패했습니다.");
+      setLoading(false); // 로딩 완료
+      console.error("프로젝트 목록 불러오기 오류:", error);
     }
   };
 
@@ -37,8 +44,10 @@ const Project = () => {
     <ProjectContainer>
       <h2>프로젝트 관리</h2>
       <div style={{ display: "flex", gap: "20px", overflow: "auto", maxHeight: "calc(100% - 40px)" }}>
-        <ProjectListWidget projects={projects} /> {/* props로 프로젝트 목록 전달 */}
-        <ProjectCreateWidget fetchProjects={fetchProjects} /> {/* 프로젝트 생성 후 목록을 새로 고침 */}
+        {/* 프로젝트 목록 위젯 */}
+        <ProjectListWidget projects={projects} loading={loading} error={error} />
+        {/* 프로젝트 생성 위젯 */}
+        <ProjectCreateWidget fetchProjects={fetchProjects} />
       </div>
     </ProjectContainer>
   );
