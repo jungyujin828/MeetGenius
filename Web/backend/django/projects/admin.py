@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import Project
+from .models import Project, ProjectParticipation
 
 # Register your models here.
 
@@ -11,3 +11,10 @@ class ProjectAdmin(admin.ModelAdmin):
     list_filter = ('is_inprogress', 'department')
     # 관리자 검색 기능.
     search_fields = ('name', 'description')
+
+# 프로젝트 참여자 모델 등록
+@admin.register(ProjectParticipation)
+class ProjectParticipationAdmin(admin.ModelAdmin):
+    list_display = ('id', 'project', 'participant', 'authority')
+    list_filter = ('authority', 'project')
+    search_fields = ('project__name', 'participant__username')

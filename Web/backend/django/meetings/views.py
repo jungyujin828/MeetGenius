@@ -17,10 +17,10 @@ from asgiref.sync import sync_to_async  # Django ORM을 async에서 실행할 �
 FASTAPI_BASE_URL = "http://127.0.0.1:8001"  # ✅ http:// 추가 (FastAPI 서버 주소)
 
 
-# redis 클라이언트 선언.
-redis_client = redis.Redis(host='127.0.0.1', port=6379, decode_responses=True)
+# redis 클라이언트 전역 선언. 
+redis_client = redis.from_url("redis://127.0.0.1:6379",decode_responses=True)
 
- 
+
 # REDIS KEY 모음
 MEETING_CHANNEL = 'meeting:pubsub'          # 회의 채널
 MEETING_PROJECT = 'meeting:project_id'      # 현재 회의가 속한 프로젝트 ID
@@ -38,31 +38,72 @@ meeting_in_progress : 회의중중
 '''
 MEETING_RECORD = 'meeting:agenda_record'    # 안건별 회의록
 
-# 🎤 FastAPI → Django로 STT 데이터 수신 & Redis에 `PUBLISH`
+# 
+async def get_redis():
+    redis_client = redis.from_url("redis://127.0.0.1:6379",decode_responses=True)
+    return redis_client
+
+# 🎤 FastAPI → Django로 데이터 수신 & Redis에 `PUBLISH`
 @csrf_exempt # IOT는 csrf 인증이 필요 없다고 생각.
-async def receive_stt_test(request):
+async def receive_data(request):
     """
     FastAPI에서 전송한 STT 데이터를 받아 Redis Pub/Sub을 통해 SSE로 전파
     """
     if request.method == "POST":
         try:
+            redis_client = await get_redis()
+
             data = json.loads(request.body)  # FastAPI에서 받은 데이터 읽기
-            message = data['content']
-            print(f"📡 FastAPI에서 받은 STT 데이터: {data['content']}")
+            print(data)
+            data_type = data.get('type')        # 데이터 유형 (plain, query, rag)
+            message = data.get('message','')
+            docs = data.get('docs',None)
+            print(message)
+            print(docs)
+            print(f"📡 FastAPI에서 받은 데이터: {data_type} - {message}")
 
-            # Redis List에 STT 메시지 저장
-            await redis_client.rpush(STT_LIST_KEY, message)
-        
+            # Redis 연결마다 요청 유지
+            async with redis_client:
+                # STT 데이터 처리
+                if data_type == 'plain':
+                    await redis_client.rpush(STT_LIST_KEY,message)
+                    await redis_client.publish(MEETING_CHANNEL, json.dumps({
+                        "type": "plain",
+                        "message": message
+                    }))
+                    print("✅ STT 데이터 저장 및 전송 완료")
 
-            # Redis에 PUBLISH (회의실 ID 기반)
-            await redis_client.publish(MEETING_CHANNEL, message)            
+                # 쿼리 데이터 전송 (알람)
+                elif data_type == 'query':
+                    await redis_client.publish(MEETING_CHANNEL, json.dumps({
+                        "type": "query",
+                        "message": message
+                    }))
+                    print(message)
+                    print('쿼리 알람 전송완료료')
 
-            return JsonResponse({"status": "success"}, status=200)
+                # Rag 데이터 저장 및 전송
+                elif data_type == 'rag':
+                    if not docs:
+                        print('docs not exist')
+                        return
+                    
+                    fastapi_response = {
+                        'stt_running': 'run',
+                        'agenda_docs': docs
+                    } 
+                    print(fastapi_response)
+                    await handle_fastapi_response(fastapi_response)
 
+                    return JsonResponse({
+                            'status': 'success',
+                            'message': 'Meeting started',
+                            # 'fastapi_response': fastapi_response,
+                        })
         except Exception as e:
             return JsonResponse({'error': str(e)}, status=400)
 
-    return JsonResponse({"error": "Invalid request"}, status=400)
+    return JsonResponse({"success": "good request"}, status=200)
 
 # 🔥 클라이언트(React)에서 실시간 STT 데이터를 받는 SSE 엔드포인트 (Redis `SUBSCRIBE`)
 class SSEStreamView(View):
@@ -73,17 +114,25 @@ class SSEStreamView(View):
         """
         Redis Pub/Sub을 구독하고, 새로운 메시지를 클라이언트에 전송
         """
+        redis_client = await get_redis()
+        # Redis Pub/Sub 구독독
         pubsub = redis_client.pubsub()
         await pubsub.subscribe(MEETING_CHANNEL) # 특정 채널MEETING_CHANNEL 구독
         
-        # 기존 STT 메시지 가져오기
-        messages = await redis_client.lrange(STT_LIST_KEY, 0, -1)
-    
+        # 기존 메시지 가져오기
+        cur_agenda = await redis_client.get(CUR_AGENDA)
+        agenda_list_json = await redis_client.get(AGENDA_LIST)
+        rag_list_json = await redis_client.lrange(RAG_LIST_KEY, 0, -1)
+        stt_list_json = await redis_client.lrange(STT_LIST_KEY, 0, -1)
 
-        # 먼저 보내주기
-        for message in messages:
-            yield f"data: {message}\n\n"
-
+        init_data = {
+            "cur_agenda": cur_agenda,
+            "agenda_list": json.loads(agenda_list_json) if agenda_list_json else [],
+            "rag_list": rag_list_json,
+            "stt_list": stt_list_json
+        }
+        yield f'data: {json.dumps(init_data)}\n\n'
+        
         # 실시간 데이터 수신
         async for message in pubsub.listen():
             if message["type"] == "message":
@@ -128,8 +177,11 @@ async def scheduler(request,meeting_id):
     
     if request.method == 'GET':
         # Meeting 객체 가져오기
+        await redis_client.flushdb()  # 모든 키 초기화
+
         meeting = await sync_to_async(lambda: get_object_or_404(Meeting.objects.select_related("project"), id=meeting_id))()
         project_id = meeting.project.id if meeting.project else None
+
 
         # 해당 Meeting에 연결된 Agenda 목록 가져오기
         agendas = await sync_to_async(lambda: list(Agenda.objects.filter(meeting=meeting).values("id", "title")))()
@@ -178,16 +230,16 @@ async def sent_meeting_information():
     print(url)
     print(payload['agendas'])
 
-    async with httpx.AsyncClient() as client:
-        response = await client.post(url=url, json=payload)
-        return response.json()  # FastAPI에서 받은 응답 데이터 반환
+    # async with httpx.AsyncClient() as client:
+    #     response = await client.post(url=url, json=payload)
+    #     return response.json()  # FastAPI에서 받은 응답 데이터 반환
+    print('FastAPI 응답은 일단 주석처리..')
     return {'status':'test'}
 
 # 회의 준비 버튼
 async def prepare_meeting(request):
     '''
     회의 준비 버튼
-    
     '''
     if request.method =='POST':
         # redis에서 현재 상태 확인
@@ -198,8 +250,8 @@ async def prepare_meeting(request):
         일단 개발할 동안만 주석처리
         - 
         '''
-        # if current_state == 'waiting_for_ready':
-        #     return JsonResponse({'status':'success', 'message':'already preparing state..'})
+        if current_state == 'waiting_for_ready':
+            return JsonResponse({'s tatus':'success', 'message':'already preparing state..'})
         
         # new state 갱신
         new_state = 'waiting_for_ready' if current_state == "waiting" else "waiting_for_ready"
@@ -272,45 +324,50 @@ async def get_current_agenda():
 
     return None  # 현재 진행 중인 안건을 찾지 못한 경우
 
-async def fetch_and_store_documents(document_ids):
+async def fetch_and_store_documents(document_ids, redis_client):
     """
     FastAPI에서 받은 문서 ID 리스트를 기반으로 DB에서 문서 조회 후 Redis 저장 및 Pub/Sub
     """
     if not document_ids:
         print("No document")
+        return # 문서 ID가 없으면 함수 종료
 
     # Redis에서 프로젝트 ID 조회
     project_id = await redis_client.get("meeting:project_id")
     if not project_id:
         print('ERROR : no prj id')
+        return # 프로젝트 ID가 없으면 함수 종료
 
     print(f"📌 Fetching documents for project_id: {project_id}, doc_ids: {document_ids}")
 
-    # Django ORM을 비동기 실행하여 문서 조회
-    documents = await sync_to_async(
-        lambda: list(Report.objects.filter(document_id__in=document_ids, project_id=project_id
-                    ).values("id", "title", "content")))()
+    try:
+        # Django ORM을 비동기 실행하여 문서 조회
+        documents = await sync_to_async(
+            lambda: list(Report.objects.filter(document_id__in=document_ids, project_id=project_id
+                        ).values("id", "title", "content")))()
 
-    print(documents)
-    if not documents:
-        print('No doc in DB')
-    
-    for doc in documents:
-        doc_json = json.dumps(doc)
-        await redis_client.lrem(RAG_LIST_KEY,0,doc_json) # doc문서 중복방지
+        print(documents)
 
-        await redis_client.rpush(RAG_LIST_KEY, json.dumps(doc))
-    
-    # PUBSUB
-    update_msg = json.dumps({
-        "type": "agenda_docs_update",
-        "documents": documents
-    })
+        if not documents:
+            print('No doc in DB')
+            return # DB에 문서가 없으면 함수 종료
+        
+        for doc in documents:
+            doc_json = json.dumps(doc)
+            await redis_client.lrem(RAG_LIST_KEY,0,doc_json) # doc문서 중복방지
+            await redis_client.rpush(RAG_LIST_KEY, doc_json)
 
-    # 기존 데이터 삭제 (만약 있다면)
+        
+        # PUBSUB - publish
+        update_msg = json.dumps({
+            "type": "agenda_docs_update",
+            "documents": documents
+        })
 
-    await redis_client.publish(MEETING_CHANNEL, update_msg)
-    print('문서 전달 완료 ###')
+        await redis_client.publish(MEETING_CHANNEL, update_msg)
+        print('문서 전달 완료 ###')
+    except Exception as e:
+        print(f"ERROR: Failed to fetch and store documents - {e}")
 
 
 
@@ -321,21 +378,25 @@ async def handle_fastapi_response(fastapi_response):
     1. STT 실행 여부(stt_running) → Redis 업데이트 & Pub/Sub
     2. 안건 관련 문서(agenda_docs) → DB에서 가져와 Redis RAG 저장 & Pub/Sub
     """
-    # STT 실행 여부 업데이트
+    # 1. STT 실행 여부 업데이트
     stt_running = fastapi_response.get("stt_running")
-    await redis_client.set("meeting:stt_running", str(stt_running))
+    # Redis에 등록된 현재 상태와 다르면 업데이트
+    cur_state = await redis_client.get('stt_running')
+    if cur_state != stt_running:
+        await redis_client.set("meeting:stt_running", str(stt_running))
 
     # Pub/Sub으로 클라이언트에게 상태 변경 알림
     update_msg = json.dumps({
-        "type":"stt_status",
-        "stt_running":stt_running
+        "type": "stt_status",
+        "stt_running": stt_running
     })
-    await redis_client.publish(MEETING_CHANNEL,update_msg)
+    print(update_msg,'#####')
+    await redis_client.publish(MEETING_CHANNEL, update_msg)
     print(f"📢 STT 상태 변경: {stt_running}")
 
     # 2. 문서 ID 리스트 기반 DB 조회 & Redis 저장
     document_ids = fastapi_response.get("agenda_docs", [])
-    await fetch_and_store_documents(document_ids)
+    await fetch_and_store_documents(document_ids, redis_client)  # redis_client를 fetch_and_store_documents에 넘겨주기
 
 
 
@@ -487,10 +548,12 @@ async def next_agenda(request):
             - redis RAG 문서에 넣어주기
             - publish
         '''
+        # 임시로 FastAPI 응답 지정.
         fastapi_response = {
             'stt_running': 'run',
-            'agenda_docs': [8]
-        }  # 시험..
+            'agenda_docs': [1,2]
+        }
+        # FastAPI 응답 처리 함수
         await handle_fastapi_response(fastapi_response)
 
         return JsonResponse({
@@ -503,6 +566,88 @@ async def next_agenda(request):
         return JsonResponse({"error": "Invalid request method"}, status=400)
 
         
+async def add_agenda(request):
+    """
+    새로운 안건을 추가하는 API
+    """
+    if request.method =='POST':
+        # 요청 데이터 받기
+        data = json.loads(request.body)
+        new_agenda_title = data.get('new_agenda_title')
+
+        if not new_agenda_title:
+            return JsonResponse({"error": "Agenda title is required"}, status=400)
+
+        # 비동기 진행중 redis 연결끊김 현상 해결
+        async with await get_redis() as redis_client:
+            agenda_list_json = await redis_client.get(AGENDA_LIST)
+            agenda_list = json.loads(agenda_list_json)if agenda_list_json else []
+            meeting_id = await redis_client.get('meeting:current_meeting')
+            # 새로운 안건 ID 생성 
+            new_agenda_id = len(agenda_list) + 1
+
+            # 새로운 안건 추가
+            new_agenda = {
+                "id": new_agenda_id,
+                "title":new_agenda_title
+            }
+            agenda_list.append(new_agenda)
+
+            # Redis 업데이트
+            await redis_client.set(AGENDA_LIST, json.dumps(agenda_list))
+            await redis_client.set(CUR_AGENDA, str(new_agenda_id))
+
+            # PubSub
+            update_msg = json.dumps({
+                "type":"agenda_update",
+                "agendas": agenda_list,
+                "cur_agenda":new_agenda_id
+            })
+            await redis_client.publish(MEETING_CHANNEL,update_msg)
+
+            '''
+            FastAPI에다가도 보내야함...
+            '''
+            fastapi_url = f'{FASTAPI_BASE_URL}/api/v1/meetings/{meeting_id}/next-agenda/'
+            payload = {
+                "agenda_id": new_agenda_id,
+                "agenda_title": new_agenda_title
+            }
+            print(payload)
+
+            # FastAPI로 던지기
+            # try : 
+            #     async with httpx.AsyncClient() as client:
+            #         response = await client.post(fastapi_url,json=payload)
+            #         fastapi_response = response.json()
+            # except Exception as e:
+            #     return JsonResponse({'error': str(e)}, status=500)
+            
+            # 임시로 FastAPI 응답 지정.
+            fastapi_response = {
+                'stt_running': 'run',
+                'agenda_docs': [1,2]
+            }
+            # FastAPI 응답 처리 함수
+            await handle_fastapi_response(fastapi_response)
+
+            return JsonResponse({
+                    'status': 'success',
+                    'message': 'Meeting started',
+                    # 'fastapi_response': fastapi_response,
+                })
+
+
+        return JsonResponse({
+            "status": "success",
+            "message": "Agenda added",
+            "cur_agenda": new_agenda_id,
+            "agendas": agenda_list
+        })
+        
+    
+    
+    return JsonResponse({"error": "Invalid request method"}, status=400)
 
 
 
@@ -535,68 +680,3 @@ async def stop_stt(reqeust):
     except Exception as e:
         return JsonResponse({'error':str(e)}, status=500)
     
-# 🎤 FastAPI → Django로 STT 데이터 수신
-# @csrf_exempt
-# async def receive_stt_test_x(request):
-#     """
-#     FastAPI에서 전송한 STT 데이터를 받아 Django가 SSE로 클라이언트에게 전달
-#     """
-#     if request.method == "POST":
-#         try:
-#             data = json.loads(request.body) # FastAPI에서 받은 데이터 읽기
-#             print(data['content'])
-
-#             # 연결된 모든 클라이언트에게 STT 데이터 전송
-#             for client in clients:
-#                 await client["queue"].put(json.dumps(data['content'], ensure_ascii=False) + "\n\n")
-
-#             return JsonResponse({"status": "success"}, status=200)
-
-#         except Exception as e:
-#             return JsonResponse({'error': str(e)}, status=400)
-
-#     return JsonResponse({"error": "Invalid request"}, status=400)
-
-
-# 🔥 클라이언트(React)에서 실시간 STT 데이터를 받는 SSE 엔드포인트
-# async def see_view(request):
-#     """
-#     React 등 클라이언트가 STT 데이터를 실시간으로 받을 수 있도록 SSE 스트리밍
-#     """
-#     async def stream(client): # 
-#         try:
-#             while True:
-#                 data = await client['queue'].get()  # 대기, 클라이언트 큐에서 데이터 가져오기
-#                 yield f'data: {data}\n\n'           # SSE 형식으로 메시지 전송
-#                                                     # data : '메시지\n\n' 형태
-#         # CancelledError 발생 : 클라이언트가 SSE 연결을 끊으면 (페이지 닫기 포함)
-#         except asyncio.CancelledError:              
-#             pass
-#         # clients 리스트에서 해당 클라이언트 제거
-#         finally:
-#             if client in clients:
-#                 clients.remove(client)
-#                 asyncio.create_task(broadcast_client_count()) # 백그라운드에서 함수 실행
-    
-#     queue = asyncio.Queue()     # 클라이언트가 see_view()를 호출하면, 비동기 큐 생성
-#                                 # 비동기 큐 : 여러 클라이언트가 동시에 연결되더라도 서로 다른 데이터 독립적으로 관리 가능
-#                                 # queue.put(data) : 서버에서 데이터 넣기
-#                                 # queue.get() : 클라이언트가 받음
-
-
-#     client = {'queue':queue}    # 클라이언트 정보 저장
-#     clients.append(client)      
-#     asyncio.create_task(broadcast_client_count())   
-
-#     return StreamingHttpResponse(stream(client),    # content_type을 아래와 같이 정의하여 SSE 데이터임을 명확히 지정
-#                                  content_type="text/event-stream; charset=utf-8")
-
-
-# async def broadcast_client_count():
-#     '''
-#         현재 접속자 수 broadcast하는 함수.
-#     '''
-#     message = f"현재 접속 중: {len(clients)}명"
-#     print(message)
-#     for client in clients:
-#         await client["queue"].put(message)
