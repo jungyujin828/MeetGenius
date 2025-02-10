@@ -20,9 +20,6 @@ def check_room_availability(room_id, starttime, endtime, exclude_meeting_id=None
     회의실의 특정 시간대에 다른 회의가 예약되어 있는지 확인하는 함수.
     exclude_meeting: 현재 회의를 제외할 때 사용.
     """
-    # exclude_meeting이 None이면 빈 리스트로 초기화
-    if exclude_meeting_id is None:
-        exclude_meeting_id = []
 
     # 특정 회의실(room_id)과 시간대(starttime, endtime) 비교
     conflicting_meetings = Meeting.objects.filter(
@@ -140,32 +137,32 @@ def meetingroom_list_create(request, room_id):
                 message = f"새로운 회의가 예약되었습니다. 회의실: {meeting.room}번 회의실, 회의 제목: {meeting.title}, 회의 시간: {meeting.starttime.strftime('%Y-%m-%d %H:%M')} ~ {meeting.endtime.strftime('%H:%M')}"
                 Notification.objects.create(user=user, message=message)
 
-        # agenda 처리
-        agenda_items = request_data.get("agenda_items", [])
+            # agenda 처리
+            agenda_items = request_data.get("agenda_items", [])
 
-        if isinstance(agenda_items, str):
-            try:
-                agenda_items = json.loads(agenda_items)
-            except json.JSONDecodeError:
-                return Response(
-                    {"status": "error", "message": "Invalid agenda format"},
-                    status=status.HTTP_400_BAD_REQUEST,
+            if isinstance(agenda_items, str):
+                try:
+                    agenda_items = json.loads(agenda_items)
+                except json.JSONDecodeError:
+                    return Response(
+                        {"status": "error", "message": "Invalid agenda format"},
+                        status=status.HTTP_400_BAD_REQUEST,
+                    )
+
+            for agenda_item in agenda_items:
+                order = agenda_item.get("order")
+                title = agenda_item.get("title")
+                if not title:
+                    return Response(
+                        {"status": "error", "message": "Agenda title is required"},
+                        status=status.HTTP_400_BAD_REQUEST,
+                    )
+
+                Agenda.objects.create(
+                    meeting=meeting,
+                    title=title,
+                    order=order
                 )
-
-        for agenda_item in agenda_items:
-            order = agenda_item.get("order")
-            title = agenda_item.get("title")
-            if not title:
-                return Response(
-                    {"status": "error", "message": "Agenda title is required"},
-                    status=status.HTTP_400_BAD_REQUEST,
-                )
-
-            Agenda.objects.create(
-                meeting=meeting,
-                title=title,
-                order=order
-            )
 
             return Response(serializer.data, status=status.HTTP_201_CREATED)
         return Response(
