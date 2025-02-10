@@ -7,8 +7,8 @@ from rest_framework.authtoken.models import Token
 from django.contrib.auth import authenticate, login as auth_login, logout as auth_logout
 from django.contrib.auth import get_user_model
 
-from .serializers import UserSerializer
-from .models import Notification
+from .serializers import UserSerializer, DepartmentSerializer
+from .models import Notification, Department
 
 
 User = get_user_model()
@@ -119,3 +119,9 @@ def get_users_by_department	(request, department_id):
     users = User.objects.filter(department_id = department_id)
     serializer = UserSerializer(users, many=True)
     return Response(serializer.data, status = status.HTTP_200_OK)
+
+@api_view(['GET'])
+def get_all_departments(request):
+    departments = Department.objects.all()
+    serializer = DepartmentSerializer(departments, many=True)
+    return Response(serializer.data, status=status.HTTP_200_OK)
