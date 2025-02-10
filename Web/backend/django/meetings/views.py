@@ -6,7 +6,7 @@ from django.views.decorators.csrf import csrf_exempt
 from django.views import View
 import redis.asyncio as redis # 비동기로 동작하려면 redis.asyncio 활용.
 from projects.models import Project, ProjectParticipation, Document, Report
-from meetingroom.models import Meeting, Aganda, MeetingParticipation
+from meetingroom.models import Meeting, Agenda, MeetingParticipation
 from django.shortcuts import get_object_or_404,get_list_or_404
 from rest_framework.permissions import IsAuthenticated
 from asgiref.sync import sync_to_async  # Django ORM을 async에서 실행할 수 있도록 변환
@@ -132,7 +132,7 @@ async def scheduler(request,meeting_id):
         project_id = meeting.project.id if meeting.project else None
 
         # 해당 Meeting에 연결된 Agenda 목록 가져오기
-        agendas = await sync_to_async(lambda: list(Aganda.objects.filter(meeting=meeting).values("id", "title")))()
+        agendas = await sync_to_async(lambda: list(Agenda.objects.filter(meeting=meeting).values("id", "title")))()
         print(agendas,meeting,project_id,'입니다 ###')
         await redis_client.set("meeting:state", "waiting")  # 기본 상태: 회의 준비 전전
         await redis_client.set("meeting:project_id", str(project_id))   # 프로젝트 ID 저장

@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import Meeting, Aganda, MeetingParticipation
+from .models import Meeting, Agenda, MeetingParticipation
 
 @admin.register(Meeting)
 class MeetingAdmin(admin.ModelAdmin):
@@ -8,7 +8,7 @@ class MeetingAdmin(admin.ModelAdmin):
     search_fields = ('title', 'booker__username', 'project__name')
     ordering = ('-starttime',)
 
-@admin.register(Aganda)
+@admin.register(Agenda)
 class AgandaAdmin(admin.ModelAdmin):
     list_display = ('id', 'meeting', 'title')
     search_fields = ('title', 'meeting__title')
