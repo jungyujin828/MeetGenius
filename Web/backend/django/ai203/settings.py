@@ -167,7 +167,8 @@ REST_AUTH_SERIALIZERS = {
 }
 CORS_ALLOW_CREDENTIALS = True
 CORS_ALLOWED_ORIGINS = ["http://localhost:5173"]
-CSRF_TRUSTED_ORIGINS = ["http://localhost:5173"]
+CSRF_TRUSTED_ORIGINS = ["http://localhost:5173",
+                        ]
 
 # ACCOUNT_AUTHENTICATION_METHOD = "employee_number"
 # ACCOUNT_USER_MODEL_USERNAME_FIELD = None  # username 필드 없음
@@ -176,5 +177,23 @@ CSRF_TRUSTED_ORIGINS = ["http://localhost:5173"]
 
 
 AUTHENTICATION_BACKENDS = [
-    'django.contrib.auth.backends.ModelBackend',  # 기본 인증
+    'django.contrib.auth.backends.ModelBackend',
 ]
+
+# Redis 설정
+REDIS_HOST = os.getenv("REDIS_HOST", "127.0.0.1") # 기본값 지정정
+REDIS_PORT = os.getenv("REDIS_PORT", "6379")  # Redis 기본 포트 기본값 지정
+
+# 🔥 Django 캐시 설정 (선택사항)
+CACHES = {
+    "default": {
+        "BACKEND": "django_redis.cache.RedisCache",
+        "LOCATION": f"redis://{REDIS_HOST}:{REDIS_PORT}/1",
+        "OPTIONS": {
+            "CLIENT_CLASS": "django_redis.client.DefaultClient",
+        }
+    }
+}
+
+# 🔥 Redis Pub/Sub 및 Queue 연결을 위한 기본 URL
+REDIS_URL = f"redis://{REDIS_HOST}:{REDIS_PORT}"
