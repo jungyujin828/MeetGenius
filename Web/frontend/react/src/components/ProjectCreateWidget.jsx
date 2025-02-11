@@ -74,23 +74,28 @@ const UserItem = styled.div`
   margin-bottom: 10px;
 `;
 
-const ProjectCreateWidget = ({ fetchProjects }) => {
+const ProjectCreateWidget = ({ fetchProjects, closeCreateProject }) => {
   const [projectName, setProjectName] = useState("");
   const [projectDescription, setProjectDescription] = useState("");
-  const [department, setDepartment] = useState("");
+  const [department, setDepartment] = useState("");  // 부서 상태
   const [startDate, setStartDate] = useState("");
   const [dueDate, setDueDate] = useState("");
   const [participants, setParticipants] = useState([]); // 참여자 상태
   const [users, setUsers] = useState([]); // 유저 목록
+  const [departments, setDepartments] = useState([]); // 부서 목록 상태
+  const [selectedDepartmentName, setSelectedDepartmentName] = useState(""); // 선택된 부서 이름
   const [error, setError] = useState(null); // 에러 상태
+  
 
   const dispatch = useDispatch();
 
   // 모든 유저 목록 불러오기
   useEffect(() => {
     fetchUsers();
+    fetchDepartments();  // 부서 목록 불러오기
   }, []);
 
+  // 유저 목록 불러오기
   const fetchUsers = async () => {
     try {
       const url = "http://127.0.0.1:8000/accounts/users/"; // 모든 유저 불러오는 엔드포인트
@@ -102,30 +107,70 @@ const ProjectCreateWidget = ({ fetchProjects }) => {
     }
   };
 
+  // 부서 목록 불러오기
+  const fetchDepartments = async () => {
+    const authToken = localStorage.getItem("authToken"); // 로컬스토리지에서 토큰 가져오기
+    
+    // 인증 토큰이 없는 경우 처리
+    if (!authToken) {
+      setError("로그인된 사용자만 부서 목록을 조회할 수 있습니다.");
+      return;
+    }
+
+    try {
+      const url = "http://127.0.0.1:8000/accounts/departments/"; // 모든 부서 불러오는 엔드포인트
+      const response = await axios.get(url, {
+        withCredentials: true,
+        headers: {
+          Authorization: `Token ${authToken}`, // 인증 토큰을 Authorization 헤더에 추가
+        },
+      });
+      setDepartments(response.data); // 부서 목록 상태 업데이트
+    } catch (error) {
+      setError("부서 목록을 불러오는 데 실패했습니다.");
+      console.error("부서 목록 불러오기 오류:", error);
+    }
+  };
+
+  // 날짜를 "T09:00:00+09:00" 형태로 변환
+  const formatDate = (date, time="00:00:00") => {
+    const d = new Date(date);
+    return `${d.toISOString().split('T')[0]}T${time}Z`;  // 시간과 타임존 설정
+  };
+
   // 프로젝트 생성 핸들러
   const handleCreateProject = async () => {
-    const authToken = localStorage.getItem("authToken"); // localStorage에서 토큰 가져오기
+    const authToken = localStorage.getItem("authToken"); // 로컬스토리지에서 토큰 가져오기
 
+    // 인증 토큰이 없는 경우 처리
+    if (!authToken) {
+      alert("로그인된 사용자만 프로젝트를 생성할 수 있습니다.");
+      return;
+    }
 
     const formData = {
       name: projectName,
       description: projectDescription,
-      startdate: startDate,
-      duedate: dueDate,
-      participants: participants.map((p) => ({ id: p.id, authority: p.authority })),
+      startdate: formatDate(startDate, "09:00:00"),  // 시작일 "09:00:00"
+      duedate: formatDate(dueDate, "23:59:59"), // 종료일 "23:59:59"
+      department: department,  // 부서 id만 전송
+      participants: participants.map((p) => ({ id: p.id, authority: p.authority })),  // 참가자들 id와 권한
     };
-
+    console.log(formData)
     try {
-      const response = await axiosInstance.post("/projects/", formData, {
+      // 전체 URL을 사용하여 요청 보내기
+      const response = await axios.post("http://127.0.0.1:8000/projects/", formData, {
         withCredentials: true,
         headers: {
-          "Authorization": `Token ${authToken}`, // 인증 토큰
+          Authorization: `Token ${authToken}`, // 인증 토큰 추가
         },
       });
 
       console.log("🟢 프로젝트 생성 성공:", response.data);
       dispatch(addProject(response.data));
       alert("프로젝트가 생성되었습니다.");
+      closeCreateProject();  // 프로젝트 생성 후 컴포넌트 닫기
+      fetchProjects();
     } catch (error) {
       console.error("🔴 프로젝트 생성 실패:", error);
       if (error.response) {
@@ -142,14 +187,14 @@ const ProjectCreateWidget = ({ fetchProjects }) => {
     const isChecked = event.target.checked; // 체크박스의 선택 여부
 
     // 선택된 유저를 찾음
-    const selectedUser = users.find((user) => user.employee_number === userId);
+    const selectedUser = users.find((user) => user.id === parseInt(userId));
 
     if (selectedUser) {
       if (isChecked) {
         setParticipants((prev) => [
           ...prev,
           {
-            id: userId,
+            id: selectedUser.id,  // `user.id` 값을 사용하여 participants 배열에 추가
             name: selectedUser.name,
             department: selectedUser.department,
             position: selectedUser.position,
@@ -157,7 +202,7 @@ const ProjectCreateWidget = ({ fetchProjects }) => {
           },
         ]);
       } else {
-        setParticipants((prev) => prev.filter((participant) => participant.id !== userId));
+        setParticipants((prev) => prev.filter((participant) => participant.id !== selectedUser.id));
       }
     }
   };
@@ -189,9 +234,11 @@ const ProjectCreateWidget = ({ fetchProjects }) => {
       />
       <SelectField value={department} onChange={(e) => setDepartment(e.target.value)}>
         <option value="">담당 부서 선택</option>
-        <option value="1">개발팀</option>
-        <option value="2">마케팅팀</option>
-        <option value="3">인사팀</option>
+        {departments.map((department) => (
+          <option key={department.id} value={department.id}>
+            {department.name}
+          </option>
+        ))}
       </SelectField>
       <DateInput type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} />
       <DateInput type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} />
@@ -199,12 +246,12 @@ const ProjectCreateWidget = ({ fetchProjects }) => {
         <h4>참여자 선택</h4>
         {error && <div style={{ color: "red" }}>{error}</div>}
         {users.map((user) => (
-          <UserItem key={user.employee_number}>
+          <UserItem key={user.id}>
             <label>
               <input
                 type="checkbox"
-                value={user.employee_number}
-                checked={participants.some((p) => p.id === user.employee_number)} // 체크박스 상태 확인
+                value={user.id}
+                checked={participants.some((p) => p.id === user.id)} // 체크박스 상태 확인
                 onChange={handleUserSelect} // 체크박스 선택 처리
               />
               {user.name} ({user.department} / {user.position})
@@ -214,8 +261,8 @@ const ProjectCreateWidget = ({ fetchProjects }) => {
                 마스터 권한
                 <input
                   type="checkbox"
-                  checked={participants.some((p) => p.id === user.employee_number && p.authority === 1)} // 권한 체크 상태
-                  onChange={() => handleAuthorityChange(user.employee_number)} // 권한 변경
+                  checked={participants.some((p) => p.id === user.id && p.authority === 1)} // 권한 체크 상태
+                  onChange={() => handleAuthorityChange(user.id)} // 권한 변경
                 />
               </label>
             </div>
@@ -224,7 +271,7 @@ const ProjectCreateWidget = ({ fetchProjects }) => {
       </UserSelectContainer>
       <div style={{ display: "flex", justifyContent: "space-between" }}>
         <Button onClick={handleCreateProject}>생성</Button>
-        <Button onClick={() => alert("취소")}>취소</Button>
+        <Button onClick={closeCreateProject}>취소</Button>  {/* 취소 버튼 */}
       </div>
     </ProjectFormContainer>
   );
