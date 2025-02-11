@@ -1,5 +1,5 @@
-import React from 'react';
-import styled from 'styled-components';
+import React from "react";
+import styled from "styled-components";
 
 const Td = styled.td`
   border: 1px solid #ddd;
@@ -7,6 +7,7 @@ const Td = styled.td`
   text-align: center;
   height: 30px;
   background-color: ${(props) => (props.hasMeeting ? "#ffedcc" : "white")};
+  cursor: ${(props) => (props.hasMeeting ? "pointer" : "default")};
 `;
 
 const Table = styled.table`
@@ -15,11 +16,13 @@ const Table = styled.table`
   height: 600px;
 `;
 
-const MeetingRoomBooked = ({ meetings }) => {
+const MeetingRoomBooked = ({ meetings, onMeetingClick }) => {
+  console.log("✅ onMeetingClick 전달됨:", onMeetingClick); // 🔍 콘솔 로그 추가
+
   const weekDays = ["월", "화", "수", "목", "금"];
   const timeSlots = Array.from({ length: 20 }, (_, i) => {
     const hour = Math.floor(i / 2) + 9;
-    const minute = i % 2 === 0 ? '00' : '30';
+    const minute = i % 2 === 0 ? "00" : "30";
     return `${hour}:${minute}`;
   });
 
@@ -47,8 +50,8 @@ const MeetingRoomBooked = ({ meetings }) => {
                 const meetingHourEnd = meetingEnd.getHours();
                 const meetingMinuteEnd = meetingEnd.getMinutes();
 
-                const slotHour = parseInt(time.split(':')[0], 10);
-                const slotMinute = parseInt(time.split(':')[1], 10);
+                const slotHour = parseInt(time.split(":")[0], 10);
+                const slotMinute = parseInt(time.split(":")[1], 10);
 
                 const slotTime = slotHour * 60 + slotMinute;
                 const startTime = meetingHourStart * 60 + meetingMinuteStart;
@@ -58,7 +61,11 @@ const MeetingRoomBooked = ({ meetings }) => {
               });
 
               return (
-                <Td key={dayIndex} hasMeeting={!!meeting}>
+                <Td
+                  key={dayIndex}
+                  hasMeeting={!!meeting}
+                  onClick={() => meeting && onMeetingClick(meeting.id)} // ✅ 회의 클릭 시 상세보기 실행
+                >
                   {meeting ? <strong>{meeting.title}</strong> : null}
                 </Td>
               );

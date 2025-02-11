@@ -45,7 +45,10 @@ const getWeekRange = (date) => {
   };
 };
 
-const MeetingRoomListWidget = ({ roomId }) => {
+
+
+const MeetingRoomListWidget = ({ roomId , onMeetingClick }) => {
+  console.log("✅ onMeetingClick 확인:", onMeetingClick); 
   const [meetings, setMeetings] = useState([]);
   const [selectedDate, setSelectedDate] = useState(new Date());
   const authToken = localStorage.getItem("authToken");
@@ -74,7 +77,7 @@ const MeetingRoomListWidget = ({ roomId }) => {
     };
 
     fetchMeetings();
-  }, [roomId, selectedDate]);
+  }, [roomId, selectedDate, meetings]);
 
   const { start, end } = getWeekRange(selectedDate);
 
@@ -109,7 +112,7 @@ const MeetingRoomListWidget = ({ roomId }) => {
 
       <Table>
         {/* 회의 목록을 `MeetingRoomBookedListWidget`으로 전달 */}
-        <MeetingRoomBooked meetings={meetings.length > 0 ? meetings : []} />      </Table>
+        <MeetingRoomBooked meetings={meetings.length > 0 ? meetings : []} onMeetingClick={onMeetingClick}  />      </Table>
     </ScheduleContainer>
   );
 };

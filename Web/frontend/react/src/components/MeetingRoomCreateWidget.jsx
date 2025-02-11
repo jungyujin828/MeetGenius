@@ -53,7 +53,7 @@ const UserItem = styled.div`
   margin-bottom: 5px;
 `;
 
-const MeetingRoomCreateWidget = ({ roomId, fetchMeetings }) => {
+const MeetingRoomCreateWidget = ({ roomId, setMeetings }) => {
   const [projects, setProjects] = useState([]);
   const [projectName, setProjectName] = useState("");
   const [participants, setParticipants] = useState([]);
@@ -182,14 +182,14 @@ const fetchParticipants = async (selectedProject) => {
     };
 
     try {
-      await axios.post(
+      const response = await axios.post(
         `http://127.0.0.1:8000/meetingroom/book/${roomId}/`,
         formData,
         { headers: { Authorization: `Token ${authToken}` } }
       );
       alert("회의가 예약되었습니다.");
-    // 회의 예약이 성공하면 meetings 상태를 직접 갱신
-    setMeetings((prevMeetings) => [...prevMeetings, response.data]);
+      setMeetings((prevMeetings) => [...prevMeetings, response.data]); 
+
     } catch (error) {
       console.error("🔴 회의 예약 실패:", error);
       alert("회의 예약 실패: " + (error.response?.data?.detail || "알 수 없는 오류"));
