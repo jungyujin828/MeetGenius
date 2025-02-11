@@ -5,7 +5,7 @@ from rest_framework.decorators import api_view, permission_classes, authenticati
 from rest_framework.response import Response
 from rest_framework import status
 from .models import Project, ProjectParticipation, Report, Document
-from .serializers import ProjectSerializer
+from .serializers import ProjectSerializer, DocumentSerializer
 from rest_framework.permissions import IsAuthenticatedOrReadOnly,AllowAny,IsAuthenticated
 
 from docx import Document as DocxDocument  # Word 문서 읽기용
@@ -185,3 +185,10 @@ def upload_report(request, project_id):
          'fastapi_response':response.json()}, 
          status=status.HTTP_201_CREATED)
     
+
+@api_view(['GET'])
+def all_documents(requsts, project_id):
+    project = get_object_or_404(Project, id = project_id)
+    report_documents = project.documents.filter(type=2)
+    serializer = DocumentSerializer(report_documents, many=True)
+    return Response(serializer.data)
