@@ -74,7 +74,7 @@ const UserItem = styled.div`
   margin-bottom: 10px;
 `;
 
-const ProjectCreateWidget = ({ fetchProjects }) => {
+const ProjectCreateWidget = ({ fetchProjects, closeCreateProject }) => {
   const [projectName, setProjectName] = useState("");
   const [projectDescription, setProjectDescription] = useState("");
   const [department, setDepartment] = useState("");  // 부서 상태
@@ -85,6 +85,7 @@ const ProjectCreateWidget = ({ fetchProjects }) => {
   const [departments, setDepartments] = useState([]); // 부서 목록 상태
   const [selectedDepartmentName, setSelectedDepartmentName] = useState(""); // 선택된 부서 이름
   const [error, setError] = useState(null); // 에러 상태
+  
 
   const dispatch = useDispatch();
 
@@ -168,6 +169,8 @@ const ProjectCreateWidget = ({ fetchProjects }) => {
       console.log("🟢 프로젝트 생성 성공:", response.data);
       dispatch(addProject(response.data));
       alert("프로젝트가 생성되었습니다.");
+      closeCreateProject();  // 프로젝트 생성 후 컴포넌트 닫기
+      fetchProjects();
     } catch (error) {
       console.error("🔴 프로젝트 생성 실패:", error);
       if (error.response) {
@@ -268,7 +271,7 @@ const ProjectCreateWidget = ({ fetchProjects }) => {
       </UserSelectContainer>
       <div style={{ display: "flex", justifyContent: "space-between" }}>
         <Button onClick={handleCreateProject}>생성</Button>
-        <Button onClick={() => alert("취소")}>취소</Button>
+        <Button onClick={closeCreateProject}>취소</Button>  {/* 취소 버튼 */}
       </div>
     </ProjectFormContainer>
   );
