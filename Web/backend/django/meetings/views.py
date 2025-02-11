@@ -6,7 +6,7 @@ from django.views.decorators.csrf import csrf_exempt
 from django.views import View
 import redis.asyncio as redis # 비동기로 동작하려면 redis.asyncio 활용.
 from projects.models import Project, ProjectParticipation, Document, Report
-from meetingroom.models import Meeting, Agenda, MeetingParticipation
+from meetingroom.models import Meeting, Agenda
 from django.shortcuts import get_object_or_404,get_list_or_404
 from rest_framework.permissions import IsAuthenticated
 from asgiref.sync import sync_to_async  # Django ORM을 async에서 실행할 수 있도록 변환
@@ -22,22 +22,23 @@ redis_client = redis.from_url("redis://127.0.0.1:6379",decode_responses=True)
 
 
 # REDIS KEY 모음
-MEETING_CHANNEL = 'meeting:pubsub'          # 회의 채널
-CUR_MEETING = 'meeting:meeting_id'          # 현재 미팅 id
-MEETING_PROJECT = 'meeting:project_id'      # 현재 회의가 속한 프로젝트 ID
+MEETING_CHANNEL = "meeting:pubsub"          # 회의 채널
+CUR_MEETING = "meeting:meeting_id"          # 현재 미팅 id
+CUR_PROJECT = "meeting:project_id"      # 현재 회의가 속한 프로젝트 ID
 AGENDA_LIST = "meeting:agenda_list"         # 혀재 회의 안건 목록 (JSON LIST)
-CUR_AGENDA = "meeting:cur_agenda"           # 현재 진행 중인 안건 ID
+CUR_AGENDA = "meeting:cur_agenda"           # 현재 진행 중인 안건 "D
 STT_LIST_KEY = "meeting:stt:stream"         # 현재 안건의 STT 데이터 (LIST)
 RAG_LIST_KEY = "meeting:rag"                # Rag LIST 키
-IS_READY_MEETING = 'meeting:state'          # 현재 회의 준비상태
-IS_RUNNING_STT = 'meeting:stt_running'      # stt 동작상태태
+IS_READY_MEETING = "meeting:state"          # 현재 회의 준비상태
+IS_RUNNING_STT = "meeting:stt_running"      # stt 동작상태태
 ''' 
 waiting : 기본
 waiting_for_ready : 준비하기 버튼 클릭
 waiting_for_start : 시작하기 버튼 활성화
-meeting_in_progress : 회의중중
+meeting_in_progress : 회의중
+meeting_finished : 회의 끝.
 '''
-MEETING_RECORD = 'meeting:agenda_record'    # 안건별 회의록
+MEETING_RECORD = "meeting:agenda_record"    # 안건별 회의록
 
 # 
 async def get_redis():
@@ -178,23 +179,33 @@ async def scheduler(request,meeting_id):
     
     if request.method == 'GET':
         # Meeting 객체 가져오기
-        await redis_client.flushdb()  # 모든 키 초기화
+        # await redis_client.flushdb()  # 모든 키 초기화
 
         meeting = await sync_to_async(lambda: get_object_or_404(Meeting.objects.select_related("project"), id=meeting_id))()
+        # meeting = await get_object_or_404(Meeting.objects.select_related("project"),id=meeting_id)
+        
         project_id = meeting.project.id if meeting.project else None
 
 
         # 해당 Meeting에 연결된 Agenda 목록 가져오기
         agendas = await sync_to_async(lambda: list(Agenda.objects.filter(meeting=meeting).values("id", "title")))()
+        if not agendas:
+            return JsonResponse({'status': 'error', 'message': 'No agendas found for this meeting'}, status=400)
         print(agendas,meeting,project_id,'입니다 ###')
+
+        # Redis 초기화 
+        await redis_client.flushall()
+
+        # 회의정보 Redis에 저장
         await redis_client.set("meeting:state", "waiting")  # 기본 상태: 회의 준비 전전
         await redis_client.set("meeting:project_id", str(project_id))   # 프로젝트 ID 저장
         await redis_client.set("meeting:meeting_id", str(meeting.id))   # meeting ID 저장
-        await redis_client.set("meeting:cur_agenda", "1")  # 첫 번째 안건부터 시작
+        await redis_client.set("meeting:cur_agenda", "1")  # 첫 번째 안건부터 "작
         await redis_client.set("meeting:stt_running", "stop")  # STT running 상태 default stop
         await redis_client.set("meeting:agenda_list", json.dumps(list(agendas)))  # 안건 목록 저장
-
-        return JsonResponse({'status':'success','message':'Test 시작'})
+        
+        # 상태 변경 알림
+        return JsonResponse({'status': 'success', 'message': 'Meeting scheduled and ready to start'}, status=200)
 
 # 회의 준비 함수 (to FastAPI)
 async def sent_meeting_information():
@@ -211,30 +222,32 @@ async def sent_meeting_information():
         }
     '''
     # Redis에서 회의 정보 가져오기
-    meeting_id = await redis_client.get("meeting:current_meeting")
-    project_id = await redis_client.get("meeting:project_id")
-    agenda_list_json = await redis_client.get("meeting:agenda_list")
-    agendas = json.loads(agenda_list_json) if agenda_list_json else []
-
-
-    meeting_id = await redis_client.get('meeting:meeting_id')
+    meeting_id = await redis_client.get(CUR_MEETING)
     if not meeting_id:
         return {'error': 'No active meeting found in Redis'}
+    project_id = await redis_client.get(CUR_PROJECT)
+    if not project_id:
+        return {'error': 'No project ID found in Redis'}
+    
+    agenda_list_json = await redis_client.get(AGENDA_LIST)
+    if not agenda_list_json:
+        return {'error': 'No agenda list found in Redis'}
+
+    agendas = json.loads(agenda_list_json)
+
+    # FastAPI API url 설정정
     
     url = f"{FASTAPI_BASE_URL}/api/v1/meetings/{meeting_id}/prepare/"
     payload = {
         "project_id": project_id,
         "agendas": agendas or [],
     }
-    print('# 안건정보###')
-    
-    print(url)
-    print(payload['agendas'])
+    print(payload)
 
     # async with httpx.AsyncClient() as client:
     #     response = await client.post(url=url, json=payload)
     #     return response.json()  # FastAPI에서 받은 응답 데이터 반환
-    print('FastAPI 응답은 일단 주석처리..')
+    # print('FastAPI 응답은 일단 주석처리..')
     return {'status':'test'}
 
 # 회의 준비 버튼
@@ -243,19 +256,15 @@ async def prepare_meeting(request):
     회의 준비 버튼
     '''
     if request.method =='POST':
-        # redis에서 현재 상태 확인
+        # 
         current_state = await redis_client.get(IS_READY_MEETING) or 'waiting'
         
-        # 이미 준비상태라면, 리턴. -> 
-        '''
-        일단 개발할 동안만 주석처리
-        - 
-        '''
+        # 이미 준비상태라면, 리턴. (로직의 중복 동작 방지)
         if current_state == 'waiting_for_ready':
-            return JsonResponse({'s tatus':'success', 'message':'already preparing state..'})
+            return JsonResponse({'status':'success', 'message':'already preparing state..'})
         
         # new state 갱신
-        new_state = 'waiting_for_ready' if current_state == "waiting" else "waiting_for_ready"
+        new_state = 'waiting_for_ready' 
 
         # redis에 새로운 상태 저장
         await redis_client.set(IS_READY_MEETING, new_state)
@@ -276,8 +285,9 @@ async def prepare_meeting(request):
         fastapi_response = await sent_meeting_information()
 
         # FastAPI 응답이 온다 = 모델 준비가 끝났다. 
-        # 회의 진행중으로 상태 변경
-        await redis_client.set("meeting:state", "waiting_for_start")  
+
+        # 회의 진행 중으로 상태 변경
+        await redis_client.set(IS_READY_MEETING, "waiting_for_start")  
 
         new_state = 'waiting_for_start'
         # 업데이트 메시지 생성
@@ -303,7 +313,7 @@ async def get_current_agenda():
     """
     Redis에서 현재 진행 중인 안건('cur_agenda') 가져오기
     """
-    cur_agenda = await redis_client.get('meeting:cur_agenda')
+    cur_agenda = await redis_client.get("meeting:cur_agenda")
     agenda_list_json = await redis_client.get("meeting:agenda_list")
 
     # 안건 데이터가 없으면 None 반환
@@ -350,7 +360,7 @@ async def fetch_and_store_documents(document_ids, redis_client):
         print(documents)
 
         if not documents:
-            print('No doc in DB')
+            print('No document IDs in priveded')
             return # DB에 문서가 없으면 함수 종료
         
         for doc in documents:
@@ -383,6 +393,7 @@ async def handle_fastapi_response(fastapi_response):
     stt_running = fastapi_response.get("stt_running")
     # Redis에 등록된 현재 상태와 다르면 업데이트
     cur_state = await redis_client.get('stt_running')
+
     if cur_state != stt_running:
         await redis_client.set("meeting:stt_running", str(stt_running))
 
@@ -397,7 +408,11 @@ async def handle_fastapi_response(fastapi_response):
 
     # 2. 문서 ID 리스트 기반 DB 조회 & Redis 저장
     document_ids = fastapi_response.get("agenda_docs", [])
-    await fetch_and_store_documents(document_ids, redis_client)  # redis_client를 fetch_and_store_documents에 넘겨주기
+    try :
+        # 문서 처리 함수 호출
+        await fetch_and_store_documents(document_ids, redis_client)  # redis_client를 fetch_and_store_documents에 넘겨주기
+    except Exception as e:
+        print(f"ERROR in fetching and storing documents: {e}")
 
 
 
@@ -407,70 +422,71 @@ async def start_meeting(request):
     Django -> FastAPI STT 시작 API 호출 및 회의 상태 변경경
     """
     if request.method == "POST":
-        async with redis_client:
-            current_state = await redis_client.get("meeting:state")
+        current_state = await redis_client.get("meeting:state")
 
-            # 이미 회의가 진행 중이면, 중복 요청 방지 - 일단 주석
-            # if current_state == "meeting_in_progress":
-            #     return JsonResponse({"status": "error", "message": "Meeting is already in progress."})
-            
-            meeting_id = await redis_client.get('meeting:meeting_id') # meeting id Redis 에서 조회
+        # 이미 회의가 진행 중인 경우 처리 (중복 요청 방지)
+        if current_state == "meeting_in_progress":
+            return JsonResponse({"status": "error", "message": "Meeting is already in progress."})
+        
+        # meeting_id와 현재 진행ㅈ 중인 안건 정보 조회회
+        meeting_id = await redis_client.get(CUR_MEETING) # meeting id Redis 에서 조회
 
-            # Redis에 회의 상태 업데이트 (회의 시작)
-            await redis_client.set("meeting:state", "meeting_in_progress")
+        # Redis에 회의 상태 업데이트 (회의 시작)
+        await redis_client.set(IS_READY_MEETING, "meeting_in_progress")
 
-            # 상태 변경을 Pub/Sub으로 전파
-            update_msg = json.dumps({
-                "type": "meeting_state", 
-                "state": "meeting_in_progress"
+        # 상태 변경을 Pub/Sub으로 전파
+        update_msg = json.dumps({
+            "type": "meeting_state", 
+            "state": "meeting_in_progress"
+        })
+        await redis_client.publish(MEETING_CHANNEL, update_msg)
+        # print('상태 변경 후 publish 완료')
+
+        current_agenda = await get_current_agenda() # 현재 안건 정보 가져오기
+        # print('안건정보도 가져옴',current_agenda)
+
+        # FastAPI API 주소
+        fastapi_url = f'{FASTAPI_BASE_URL}/api/v1/meetings/{meeting_id}/next-agenda/'
+        payload = {
+            "agenda_id": str(current_agenda["agenda_id"]),
+            "agenda_title": current_agenda["agenda_title"]
+        }
+        print(payload)
+
+        # FastAPI로 던지기
+        # try : 
+        #     async with httpx.AsyncClient() as client:
+        #         response = await client.post(fastapi_url,json=payload)
+        #         fastapi_response = response.json()
+        # except Exception as e:
+        #     return JsonResponse({'error': str(e)}, status=500)
+        
+        '''
+        {
+            stt_running: bool,
+            agenda_docs: list
+        } 
+        FastAPI로부터 response 위와 같은 형태로 도착.
+        1. stt_running 상태 바꿔서 web에 띄워줘야 함 : STT가 다시 진행됩니다..?
+            - redis 상태 업데이트
+            - publish
+        2. agenda_docs 
+            - DB에서 docs 관련 문서 찾아오기
+            - redis RAG 문서에 넣어주기
+            - publish
+        '''
+        fastapi_response = {
+            'stt_running': 'run',
+            'agenda_docs': [1]
+        }  # 시험..
+        print(fastapi_response)
+        await handle_fastapi_response(fastapi_response)
+
+        return JsonResponse({
+                'status': 'success',
+                'message': 'Meeting started',
+                # 'fastapi_response': fastapi_response,
             })
-            await redis_client.publish(MEETING_CHANNEL, update_msg)
-            # print('상태 변경 후 publish 완료')
-
-            current_agenda = await get_current_agenda() # 현재 안건 정보 가져오기
-            # print('안건정보도 가져옴',current_agenda)
-
-            # FastAPI API 주소
-            fastapi_url = f'{FASTAPI_BASE_URL}/api/v1/meetings/{meeting_id}/next-agenda/'
-            payload = {
-                "agenda_id": str(current_agenda["agenda_id"]),
-                "agenda_title": current_agenda["agenda_title"]
-            }
-            print(payload)
-
-            # FastAPI로 던지기
-            # try : 
-            #     async with httpx.AsyncClient() as client:
-            #         response = await client.post(fastapi_url,json=payload)
-            #         fastapi_response = response.json()
-            # except Exception as e:
-            #     return JsonResponse({'error': str(e)}, status=500)
-            
-            '''
-            {
-                stt_running: bool,
-                agenda_docs: list
-            } 
-            FastAPI로부터 response 위와 같은 형태로 도착.
-            1. stt_running 상태 바꿔서 web에 띄워줘야 함 : STT가 다시 진행됩니다..?
-                - redis 상태 업데이트
-                - publish
-            2. agenda_docs 
-                - DB에서 docs 관련 문서 찾아오기
-                - redis RAG 문서에 넣어주기
-                - publish
-            '''
-            fastapi_response = {
-                'stt_running': 'run',
-                'agenda_docs': [8]
-            }  # 시험..
-            await handle_fastapi_response(fastapi_response)
-
-            return JsonResponse({
-                    'status': 'success',
-                    'message': 'Meeting started',
-                    # 'fastapi_response': fastapi_response,
-                })
             
     else :
         return JsonResponse({'error': 'Invalid request method'}, status=400)
@@ -487,76 +503,100 @@ async def next_agenda(request):
         print('다음 안건으로 버튼이 클릭되었습니다.')
 
         # 1. 현재 진행중인 안건 가져오기
-        meeting_id = await redis_client.get('meeting:meeting_id') # meeting id Redis 에서 조회
+        meeting_id = await redis_client.get("meeting:meeting_id") # meeting id Redis 에서 조회
         if not meeting_id:
             return JsonResponse({"error": "No meeting_id in Redis"}, status=400)
+        
         cur_agenda = await redis_client.get(CUR_AGENDA)
         if not cur_agenda:
             return JsonResponse({"error": "No current agenda in Redis"}, status=400)
 
+        cur_agenda = int(cur_agenda) # int 변환
         
-        # cur_agenda = int(cur_agenda)+1
-
-        # 2. 현재 STT 데이터 DB에 저장
+        # 2. 현재 STT 데이터 DB에 저장 (삭제는 안 함)
         stt_messages = await redis_client.lrange(STT_LIST_KEY,0,-1)
-        if stt_messages:
-            current_agenda = await get_current_agenda()
-            if not current_agenda:
-                return JsonResponse({"error": "No current agenda found in Redis"}, status=400)
+        if not stt_messages:
+            stt_messages = ['no data']
 
-            agenda_result = '\n'.join(stt_messages)
-            print(f"STT 데이터 -> DB 저장: {agenda_result}")
-
-            # DB접근
-            meeting_obj = await sync_to_async(get_object_or_404)(Meeting, id=meeting_id)
-            agenda_obj = await sync_to_async(get_object_or_404)(Agenda, id=current_agenda["agenda_id"])
-
-            new_mom = await sync_to_async(Mom.objects.create)(
-                meeting=meeting_obj,
-                agenda=agenda_obj,
-                agenda_result=agenda_result,
-                completed=False
-            )
-            print(f"Mom 레코드 생성 (ID={new_mom.id}).")
-
-            await redis_client.delete(STT_LIST_KEY)
-            print(f'STT 데이터 삭제 완료료')
-        else:
-            print('sSTT 데이터가 없습니다. DB 저장 생략')
-
-        # 다음 안건으로 이동
-        cur_agenda = int(cur_agenda)
-        cur_agenda += 1
-
-        # 안건 목록 조회
+        # 3. 안건 목록 조회 : 안건 길이 비교 위함.
         agenda_list_json = await redis_client.get(AGENDA_LIST)
         if not agenda_list_json:
-            return JsonResponse({"error": "No agenda list found"}, status=400)
+            agenda_list_json = {}
 
         agenda_list = json.loads(agenda_list_json)
-        
+        print('##')
+        print(cur_agenda, len(agenda_list))
+        print('##')
 
-        # 더이상 안건이 없을 경우 return.
-        if cur_agenda > len(agenda_list):
+        
+        # 4. 더이상 안건이 없을 경우 -> 데이터 저장 연기 후 리턴
+        if cur_agenda >= len(agenda_list):
+            print("🔴 마지막 안건입니다. STT 데이터를 삭제하지 않고 유지.")
             return JsonResponse({
                 "status": "end", 
                 "message": "No more agendas available."
             })
+        
+        # 5. 다음 안건이 있으면, 현재 STT 데이터 DB에 저장.
+        if stt_messages :
+            current_agenda = await get_current_agenda()
+            if not current_agenda:
+                return JsonResponse({"error": "No current agenda found in Redis"}, status=400)
 
-        # cur_agenda 값 Redis 업데이트
+            agenda_result = '\n'.join(stt_messages) # 취합
+            print(f"STT 데이터 -> DB 저장: {agenda_result}")
+
+            # Redis -> DB 저장
+            # 관련된 meeting 객체와 안건 객체 가져오기
+            try : 
+                print('저장하러는 가니?')
+                # selected_related로 쿼리문 한 번에 다 불러오기.
+                meeting_obj = await sync_to_async(get_object_or_404)(
+                    Meeting.objects.select_related("project", "project__department"), 
+                    id=meeting_id
+                )                
+                agenda_obj = await sync_to_async(get_object_or_404)(Agenda, id=current_agenda["agenda_id"])
+                
+                # DB에 저장
+                ## Document 객체 생성
+                project_obj = meeting_obj.project
+                department_obj = meeting_obj.project.department
+                document_obj = await sync_to_async(Document.objects.create)(
+                    type = 0, # 요약전 : 0
+                    embedding = False,
+                    project = project_obj,
+                    department = department_obj
+                )
+                print(f"Document 생성 완료 (ID={document_obj.id}).")
+
+                ## MOM 객체 생성
+                new_mom = await sync_to_async(Mom.objects.create)(
+                    meeting=meeting_obj,
+                    document = document_obj,
+                    agenda=agenda_obj,
+                    agenda_result=agenda_result,
+                    completed=False
+                )
+                print(f"Mom 레코드 생성 (ID={new_mom.id}).")
+                
+                # Redis에서 STT 데이터만 삭제
+                await redis_client.delete(STT_LIST_KEY)
+                print(f'STT 데이터 삭제 완료')
+            except Exception as e:
+                return JsonResponse({'error': str(e)}, status=500)           
+
+        # 다음 안건으로 이동 
+        cur_agenda += 1
         await redis_client.set(CUR_AGENDA, cur_agenda)
+        
         update_msg = json.dumps({
             "type": "agenda_update",
             "cur_agenda": cur_agenda
         })
         await redis_client.publish(MEETING_CHANNEL,update_msg)
 
-        '''
-        다음 안건 정보 Redis에서 찾아 FASTAPI로 전송
-        '''
-        current_agenda = await get_current_agenda() # 현재 안건 정보 가져오기
-        # print('안건정보도 가져옴',current_agenda)
-
+        # 다음 안건 정보를 FastAPI로 전송.
+        current_agenda = await get_current_agenda() # 다음 안건 정보 가져오기
         # FastAPI API 주소
         fastapi_url = f'{FASTAPI_BASE_URL}/api/v1/meetings/{meeting_id}/next-agenda/'
         payload = {
@@ -609,7 +649,9 @@ async def add_agenda(request):
     """
     새로운 안건을 추가하는 API
     """
-    if request.method =='POST':
+    if request.method !='POST':
+        return JsonResponse({"error": "Invalid request method"}, status=400)
+    try:
         # 요청 데이터 받기
         data = json.loads(request.body)
         new_agenda_title = data.get('new_agenda_title')
@@ -617,76 +659,120 @@ async def add_agenda(request):
         if not new_agenda_title:
             return JsonResponse({"error": "Agenda title is required"}, status=400)
 
-        # 비동기 진행중 redis 연결끊김 현상 해결
-        async with await get_redis() as redis_client:
-            agenda_list_json = await redis_client.get(AGENDA_LIST)
-            agenda_list = json.loads(agenda_list_json)if agenda_list_json else []
-            meeting_id = await redis_client.get('meeting:current_meeting')
-            # 새로운 안건 ID 생성 
-            new_agenda_id = len(agenda_list) + 1
+        redis_client = await get_redis()
 
-            # 새로운 안건 추가
-            new_agenda = {
-                "id": new_agenda_id,
-                "title":new_agenda_title
-            }
-            agenda_list.append(new_agenda)
+        # Redis에서 진행 중인 회의 ID 가져오기
+        meeting_id = await redis_client.get(CUR_MEETING)
+        if not meeting_id:
+            return JsonResponse({"error": "No active meeting found"}, status=400)
 
-            # Redis 업데이트
-            await redis_client.set(AGENDA_LIST, json.dumps(agenda_list))
-            await redis_client.set(CUR_AGENDA, str(new_agenda_id))
+        # 이전 회의 result 가져오기
+        stt_messages = await redis_client.lrange(STT_LIST_KEY,0,-1)
+        if not stt_messages:
+            stt_messages = ['no data']
 
-            # PubSub
-            update_msg = json.dumps({
-                "type":"agenda_update",
-                "agendas": agenda_list,
-                "cur_agenda":new_agenda_id
-            })
-            await redis_client.publish(MEETING_CHANNEL,update_msg)
+        # Meeting 객체 가져오기
+        meeting_obj = await sync_to_async(get_object_or_404)(
+                    Meeting.objects.select_related("project", "project__department"), 
+                    id=meeting_id
+                )     
+        print(meeting_obj)
+        agenda_count = await sync_to_async(Agenda.objects.filter(meeting=meeting_obj).count)()
 
-            '''
-            FastAPI에다가도 보내야함...
-            '''
-            fastapi_url = f'{FASTAPI_BASE_URL}/api/v1/meetings/{meeting_id}/next-agenda/'
-            payload = {
-                "agenda_id": new_agenda_id,
-                "agenda_title": new_agenda_title
-            }
-            print(payload)
+        agenda_result = '\n'.join(stt_messages) # 취합
+        print(f"STT 데이터 -> DB 저장: {agenda_result}")
 
-            # FastAPI로 던지기
-            # try : 
-            #     async with httpx.AsyncClient() as client:
-            #         response = await client.post(fastapi_url,json=payload)
-            #         fastapi_response = response.json()
-            # except Exception as e:
-            #     return JsonResponse({'error': str(e)}, status=500)
-            
-            # 임시로 FastAPI 응답 지정.
-            fastapi_response = {
-                'stt_running': 'run',
-                'agenda_docs': [1,2]
-            }
-            # FastAPI 응답 처리 함수
-            await handle_fastapi_response(fastapi_response)
+        # 새로운 안건 DB에 추가
+        new_agenda_obj = await sync_to_async(Agenda.objects.create)(
+            meeting = meeting_obj,
+            title = new_agenda_title,
+            order = agenda_count + 1
+        )
+        new_agenda_id = new_agenda_obj.id
 
-            return JsonResponse({
-                    'status': 'success',
-                    'message': 'Meeting started',
-                    # 'fastapi_response': fastapi_response,
-                })
+        ## Document 객체 생성
+        document_obj = await sync_to_async(Document.objects.create)(
+            type = 0, # 요약전 : 0
+            embedding = False,
+            project = meeting_obj.project,
+            department = meeting_obj.project.department
+        )
+        print(f"Document 생성 완료 (ID={document_obj.id}).")
 
+        new_mom = await sync_to_async(Mom.objects.create)(
+            meeting=meeting_obj,
+            agenda=new_agenda_obj,
+            document = document_obj,
+            agenda_result=agenda_result,
+            completed=False
+        )
+        print(f"Mom 레코드 생성 (ID={new_mom.id}).")
+        
+        # Redis에서 STT 데이터만 삭제
+        await redis_client.delete(STT_LIST_KEY)
+        print(f'STT 데이터 삭제 완료')
+
+        # 기존 안건 목록 가져오기
+        agenda_list_json = await redis_client.get(AGENDA_LIST)
+        agenda_list = json.loads(agenda_list_json)if agenda_list_json else []
+        
+        # meeting_id = await redis_client.get('meeting:current_meeting')
+        # # 새로운 안건 ID 생성 
+        # new_agenda_id = len(agenda_list) + 1
+
+        # 새로운 안건 추가
+        new_agenda = {
+            "id": new_agenda_id,
+            "title":new_agenda_title
+        }
+        agenda_list.append(new_agenda)
+
+        # Redis 업데이트
+        await redis_client.set(AGENDA_LIST, json.dumps(agenda_list))
+        await redis_client.set(CUR_AGENDA, str(new_agenda_id))
+
+        # PubSub
+        update_msg = json.dumps({
+            "type":"agenda_update",
+            "agendas": agenda_list,
+            "cur_agenda":new_agenda_id
+        })
+        await redis_client.publish(MEETING_CHANNEL,update_msg)
+
+        '''
+        FastAPI로 새로운 안건 전송
+        '''
+        fastapi_url = f'{FASTAPI_BASE_URL}/api/v1/meetings/{meeting_id}/next-agenda/'
+        payload = {
+            "agenda_id": new_agenda_id,
+            "agenda_title": new_agenda_title
+        }
+        print(payload)
+
+        # FastAPI로 던지기
+        # try : 
+        #     async with httpx.AsyncClient() as client:
+        #         response = await client.post(fastapi_url,json=payload)
+        #         fastapi_response = response.json()
+        # except Exception as e:
+        #     return JsonResponse({'error': str(e)}, status=500)
+        
+        # 임시로 FastAPI 응답 지정.
+        fastapi_response = {
+            'stt_running': 'run',
+            'agenda_docs': [1,2] # 임시 데이터
+        }
+        # FastAPI 응답 처리 함수
+        await handle_fastapi_response(fastapi_response)
 
         return JsonResponse({
             "status": "success",
-            "message": "Agenda added",
+            "message": "Agenda added successfully",
             "cur_agenda": new_agenda_id,
             "agendas": agenda_list
         })
-        
-    
-    
-    return JsonResponse({"error": "Invalid request method"}, status=400)
+    except Exception as e:
+        return JsonResponse({"error": str(e)}, status=500)
 
 
 
@@ -706,7 +792,6 @@ async def stop_meeting(reqeust):
     
     try : 
         # 1 FastAPI에 STT 종료 요청 
-        # 1-1. id 찾기
         meeting_id = await redis_client.get(CUR_MEETING)
         if not meeting_id:
             return JsonResponse({"error": "Meeting ID not found in Redis"}, status=400)
@@ -721,30 +806,50 @@ async def stop_meeting(reqeust):
         stt_messages = await redis_client.lrange(STT_LIST_KEY,0,-1)
         if not stt_messages:
             print("No STT messages in Redis")
-            return JsonResponse({"status": "No STT messages in Redis"}, status=200)
-
+            stt_messages=['No data']
 
         # 3. DB에 STT 데이터 저장
         current_agenda = await get_current_agenda() 
         if not current_agenda:
             return JsonResponse({"error": "No current agenda found in Redis"}, status=400)
-        print(current_agenda)
         agenda_result = "\n".join(stt_messages)
         print(agenda_result)
 
-        # meeting 객체와 agenda 객체 조회
-        meeting_obj = await sync_to_async(get_object_or_404)(Meeting, id=meeting_id)
-        agenda_obj = await sync_to_async(get_object_or_404)(Agenda, id=current_agenda["agenda_id"])
+        # DB에 저장.
+        try : 
+            meeting_obj = await sync_to_async(get_object_or_404)(
+                    Meeting.objects.select_related("project", "project__department"), 
+                    id=meeting_id
+                )     
+            print(meeting_obj)
+
+            agenda_obj = await sync_to_async(get_object_or_404)(Agenda, id=current_agenda["agenda_id"])
+            
+            agenda_id = agenda_obj.id
+
+            ## Document 객체 생성
+            document_obj = await sync_to_async(Document.objects.create)(
+                type = 0, # 요약전 : 0
+                embedding = False,
+                project = meeting_obj.project,
+                department = meeting_obj.project.department
+            )
+            print(f"Document 생성 완료 (ID={document_obj.id}).")
+
+            # Mom 데이터 생성
+            new_mom = await sync_to_async(Mom.objects.create)(
+                meeting=meeting_obj,
+                agenda=agenda_obj,
+                agenda_result=agenda_result,
+                completed=False
+            )
+            print(f"✅ 회의 종료 시 Mom 저장 완료 (ID={new_mom.id})")
+
+        except Exception as e :
+            return JsonResponse({'error': str(e)}, status=500)
         
-        # Mom 데이터 생성
-        new_mom = await sync_to_async(Mom.objects.create)(
-            meeting=meeting_obj,
-            agenda=agenda_obj,
-            agenda_result=agenda_result,
-            completed=False
-        )
         # 4. Redis에서 STT 데이터 삭제 (메모리 정리)
-        # await redis_client.flushdb()  # 모든 키 초기화
+        await redis_client.flushdb()  # 모든 키 초기화
 
         # 5. 회의 상태 업데이트: "meeting_finished"
         update_msg = json.dumps({

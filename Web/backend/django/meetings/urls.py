@@ -7,7 +7,7 @@ urlpatterns = [
     path('start/',start_meeting),                                   # 회의 시작 버튼 연동(react)
     path('stop/',stop_meeting),                                     # 회의 중지 버튼 연동(react)
     path('prepare/', prepare_meeting, name = 'prepare_meeting'),    # 회의 준비 버튼 연동(react)
-    path('next_agenda/', next_agenda,name='next_agenda'),
+    path('next_agenda/', next_agenda,name='next_agenda'),           
     path('add_agenda/', add_agenda,name='add_agenda'),
 
     # 테스트

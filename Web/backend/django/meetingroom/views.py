@@ -8,7 +8,7 @@ from rest_framework import status
 from .models import Meeting, Agenda, MeetingParticipation
 from .serializers import MeetingReadSerializer, MeetingBookSerializer
 
-from projects.models import Project
+from projects.models import Project, Document, Mom
 from projects.serializers import ProjectSerializer, ProjectParticipationSerializer
 from accounts.models import Notification
 import json
@@ -75,12 +75,10 @@ def meetingroom_list_create(request, room_id):
     elif request.method == "POST":
         # 요청 데이터 가져오기
         request_data = request.data.copy()
-
         # meetingday와 시간 결합하여 starttime, endtime 수정
         meetingday =request_data.get("meetingday")
         starttime = request_data.get("starttime")
         endtime = request_data.get("endtime")
-
         # 잘못된 데이터 처리
         if not meetingday or not starttime or not endtime:
             return Response(
