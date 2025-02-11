@@ -173,11 +173,34 @@ const ProjectDetail = ({ projectId, onClose }) => {
         setLoading(false);
       }
     };
-    fetchProjectDetail();
-    fetchDepartments(); // 부서 목록 불러오기
-    fetchUsers(); // 유저 목록 불러오기
-  }, [projectId]); // 프로젝트 ID가 변경될 때마다 파일 목록을 갱신
+  //   fetchProjectDetail();
+  //   fetchDepartments(); // 부서 목록 불러오기
+  //   fetchUsers(); // 유저 목록 불러오기
+  // }, [projectId]); // 프로젝트 ID가 변경될 때마다 파일 목록을 갱신
+  const fetchFiles = async () => {
+    try {
+      const authToken = localStorage.getItem("authToken");
+      if (!authToken) {
+        setError("로그인된 사용자만 파일 목록을 볼 수 있습니다.");
+        return;
+      }
+      const response = await axios.get(`http://127.0.0.1:8000/projects/${projectId}/all_reports/`, {
+        headers: {
+          Authorization: `Token ${authToken}`,
+        },
+      });
+      console.log(response.data)
+      setFiles(response.data); // 파일 목록 상태 업데이트
+    } catch (error) {
+      setError("파일 목록을 불러오는 데 실패했습니다.");
+    }
+  };
 
+  fetchProjectDetail();
+  fetchDepartments(); // 부서 목록 불러오기
+  fetchUsers(); // 유저 목록 불러오기
+  fetchFiles(); // 프로젝트 상세와 함께 파일 목록도 가져옴
+}, [projectId]); // 프로젝트 ID가 변경될 때마다 파일 목록을 갱신
   // 부서 목록 불러오기
   const fetchDepartments = async () => {
     const authToken = localStorage.getItem("authToken");
@@ -218,6 +241,8 @@ const ProjectDetail = ({ projectId, onClose }) => {
     }
   };
 
+
+
   // 파일 업로드 함수
   const handleFileUpload = async (event) => {
     const formData = new FormData();
@@ -248,6 +273,8 @@ const ProjectDetail = ({ projectId, onClose }) => {
       setError("파일 업로드에 실패했습니다.");
     }
   };
+
+
 
   // 수정할 내용 저장
   const handleSaveEdit = async () => {
