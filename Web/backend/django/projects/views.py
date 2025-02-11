@@ -168,21 +168,22 @@ def upload_report(request, project_id):
             embedding_data_list.append(embedding_data)
         
         # FastAPI로 데이터 전송
-        try:
-            response = client.post(
-                f"{FASTAPI_BASE_URL}/api/embedding/process_reports/",
-                json={'reports':embedding_data_list}
-            )
-            response.raise_for_status()
-        except httpx.HTTPStatusError as http_err:
-            return Response({"error": f"FastAPI 서버 오류: {http_err}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-        except Exception as err:
-            return Response({"error": f"FastAPI 요청 실패: {err}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        # try:
+        #     response = client.post(
+        #         f"{FASTAPI_BASE_URL}/api/embedding/process_reports/",
+        #         json={'reports':embedding_data_list}
+        #     )
+        #     response.raise_for_status()
+        # except httpx.HTTPStatusError as http_err:
+        #     return Response({"error": f"FastAPI 서버 오류: {http_err}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        # except Exception as err:
+        #     return Response({"error": f"FastAPI 요청 실패: {err}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
     return Response(
         {"message": "파일 내용 저장 완료", 
          "reports": reports,
-         'fastapi_response':response.json()}, 
+        #  'fastapi_response':response.json()
+         }, 
          status=status.HTTP_201_CREATED)
     
 

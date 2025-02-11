@@ -7,7 +7,7 @@ class UserSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = User
-        fields = ['employee_number', 'name', 'email', 'department', 'position']
+        fields = ['id','employee_number', 'name', 'email', 'department', 'position']
 
     def get_department(self, obj):
         return obj.department.name if obj.department else None
