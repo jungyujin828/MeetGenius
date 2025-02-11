@@ -35,6 +35,7 @@ const MeetingRoom = () => {
   const [meetings, setMeetings] = useState([]);
   const [selectedRoom, setSelectedRoom] = useState(null);
 
+  
   // ✅ 새로운 회의 생성 함수
   const handleCreateMeeting = (newMeeting) => {
     setMeetings([...meetings, newMeeting]);
@@ -47,9 +48,11 @@ const MeetingRoom = () => {
 
   return (
     <MeetingRoomContainer>
-      {/* ✅ 회의실 선택 버튼 */}
-      <RoomSelectContainer>
-        {[1, 2, 3, 4, 5].map((roomId) => (
+      <h2>회의실 관리</h2>
+  
+      {/* 회의실 선택 버튼 */}
+      <RoomSelectContainer style={{ marginBottom: "20px" }}>
+        {[1, 2].map((roomId) => (
           <RoomButton
             key={roomId}
             active={selectedRoom === roomId}
@@ -59,14 +62,30 @@ const MeetingRoom = () => {
           </RoomButton>
         ))}
       </RoomSelectContainer>
-
-      {/* ✅ 회의 생성 컴포넌트 */}
-      <MeetingRoomCreateWidget onCreate={handleCreateMeeting} />
-
-      {/* ✅ 선택된 회의실 ID를 전달 */}
-      {selectedRoom && <MeetingRoomListWidget meetings={meetings} roomId={selectedRoom} />}
+  
+      <div style={{ display: "flex", gap: "20px", overflow: "auto", maxHeight: "calc(100% - 40px)" }}>
+        {/* ✅ 선택된 회의실 ID를 전달 */}
+        {selectedRoom && (
+          <div style={{ flex: 1 }}>
+            <MeetingRoomListWidget 
+            meetings={meetings} 
+            roomId={selectedRoom} />
+          </div>
+        )}
+        {/* ✅ 회의 생성 컴포넌트 */}
+        {selectedRoom && (
+          <div style={{ flex: 1 }}>
+            <MeetingRoomCreateWidget
+              roomId={selectedRoom}
+              fetchMeetings={handleCreateMeeting} 
+            />
+            </div>
+        )}
+  
+      </div>
     </MeetingRoomContainer>
   );
+  
 };
 
 export default MeetingRoom;

@@ -5,19 +5,23 @@ const Td = styled.td`
   border: 1px solid #ddd;
   padding: 10px;
   text-align: center;
-  height: 50px;
+  height: 30px;
   background-color: ${(props) => (props.hasMeeting ? "#ffedcc" : "white")};
 `;
 
 const Table = styled.table`
   width: 100%;
   table-layout: fixed;
-  height: 500px;
+  height: 600px;
 `;
 
 const MeetingRoomBooked = ({ meetings }) => {
   const weekDays = ["월", "화", "수", "목", "금"];
-  const hours = Array.from({ length: 10 }, (_, i) => i + 9); // 09:00 ~ 18:00
+  const timeSlots = Array.from({ length: 20 }, (_, i) => {
+    const hour = Math.floor(i / 2) + 9;
+    const minute = i % 2 === 0 ? '00' : '30';
+    return `${hour}:${minute}`;
+  });
 
   return (
     <Table>
@@ -30,34 +34,32 @@ const MeetingRoomBooked = ({ meetings }) => {
         </tr>
       </thead>
       <tbody>
-        {hours.map((hour) => (
-          <tr key={hour}>
-            <Td>{hour}:00</Td>
-            {weekDays.map((_, index) => {
-              // 각 회의의 starttime과 endtime을 비교하여 해당 시간에 예약이 있는지 확인
+        {timeSlots.map((time, timeIndex) => (
+          <tr key={timeIndex}>
+            <Td>{time}</Td>
+            {weekDays.map((_, dayIndex) => {
               const meeting = meetings.find((m) => {
                 const meetingStart = new Date(m.starttime);
                 const meetingEnd = new Date(m.endtime);
                 const meetingDay = meetingStart.getDay();
                 const meetingHourStart = meetingStart.getHours();
+                const meetingMinuteStart = meetingStart.getMinutes();
                 const meetingHourEnd = meetingEnd.getHours();
+                const meetingMinuteEnd = meetingEnd.getMinutes();
 
-                // 시작 시간이 해당 시간대에 포함되거나, 종료 시간이 해당 시간대에 포함되면 해당 셀을 예약 상태로 설정
-                return (
-                  meetingDay === index && 
-                  ((meetingHourStart <= hour && meetingHourEnd > hour) || 
-                  (meetingHourStart === hour && meetingHourEnd > hour) ||
-                  (meetingHourStart < hour && meetingHourEnd >= hour))
-                );
+                const slotHour = parseInt(time.split(':')[0], 10);
+                const slotMinute = parseInt(time.split(':')[1], 10);
+
+                const slotTime = slotHour * 60 + slotMinute;
+                const startTime = meetingHourStart * 60 + meetingMinuteStart;
+                const endTime = meetingHourEnd * 60 + meetingMinuteEnd;
+
+                return meetingDay - 1 === dayIndex && startTime <= slotTime && endTime > slotTime;
               });
 
               return (
-                <Td key={index} hasMeeting={!!meeting}>
-                  {meeting ? (
-                    <>
-                      <strong>{meeting.title}</strong> <br />
-                    </>
-                  ) : null}
+                <Td key={dayIndex} hasMeeting={!!meeting}>
+                  {meeting ? <strong>{meeting.title}</strong> : null}
                 </Td>
               );
             })}
