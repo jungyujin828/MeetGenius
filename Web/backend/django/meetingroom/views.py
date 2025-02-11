@@ -13,16 +13,12 @@ from projects.serializers import ProjectSerializer, ProjectParticipationSerializ
 from accounts.models import Notification
 import json
 from django.db.models import Q
-from django.utils.dateparse import parse_datetime
 
 def check_room_availability(room_id, starttime, endtime, exclude_meeting_id=None):
     """
     회의실의 특정 시간대에 다른 회의가 예약되어 있는지 확인하는 함수.
     exclude_meeting: 현재 회의를 제외할 때 사용.
     """
-    # exclude_meeting이 None이면 빈 리스트로 초기화
-    if exclude_meeting_id is None:
-        exclude_meeting_id = []
 
     # 특정 회의실(room_id)과 시간대(starttime, endtime) 비교
     conflicting_meetings = Meeting.objects.filter(
@@ -62,10 +58,7 @@ def meetingroom_list_create(request, room_id):
 
         # 조회된 데이터가 없을 경우 예외 처리
         if not meetings.exists():
-            return Response(
-                {"status": "error", "message": "조건에 맞는 회의가 없습니다."},
-                status=status.HTTP_404_NOT_FOUND
-            )
+            return Response([], status=status.HTTP_200_OK)
 
         serializer = MeetingReadSerializer(meetings, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
@@ -112,7 +105,11 @@ def meetingroom_list_create(request, room_id):
                     status=status.HTTP_404_NOT_FOUND,
                 )
             # 회의 객체 생성
-            meeting = serializer.save(room=room_id, booker=booker, project=project)
+            meeting = serializer.save(
+                room=room_id, 
+                booker=booker, 
+                project=project
+                )
 
 
             meeting_participants = request_data.get("participants", [])
@@ -143,32 +140,29 @@ def meetingroom_list_create(request, room_id):
                 message = f"새로운 회의가 예약되었습니다. 회의실: {meeting.room}번 회의실, 회의 제목: {meeting.title}, 회의 시간: {meeting.starttime.strftime('%Y-%m-%d %H:%M')} ~ {meeting.endtime.strftime('%H:%M')}"
                 Notification.objects.create(user=user, message=message)
 
-        # agenda 처리
-        agenda_items = request_data.get("agenda_items", [])
+            # agenda 처리
+            agenda_items = request_data.get("agenda_items", [])
 
-        if isinstance(agenda_items, str):
-            try:
-                agenda_items = json.loads(agenda_items)
-            except json.JSONDecodeError:
-                return Response(
-                    {"status": "error", "message": "Invalid agenda format"},
-                    status=status.HTTP_400_BAD_REQUEST,
+            if isinstance(agenda_items, str):
+                try:
+                    agenda_items = json.loads(agenda_items)
+                except json.JSONDecodeError:
+                    return Response(
+                        {"status": "error", "message": "Invalid agenda format"},
+                        status=status.HTTP_400_BAD_REQUEST,
+                    )
+            
+            order = 1
+            for agenda_item in agenda_items:
+                title = agenda_item.get("title")
+                if not title:
+                    continue
+                order += 1
+                Agenda.objects.create(
+                    meeting=meeting,
+                    title=title,
+                    order=order
                 )
-
-        for agenda_item in agenda_items:
-            order = agenda_item.get("order")
-            title = agenda_item.get("title")
-            if not title:
-                return Response(
-                    {"status": "error", "message": "Agenda title is required"},
-                    status=status.HTTP_400_BAD_REQUEST,
-                )
-
-            Agenda.objects.create(
-                meeting=meeting,
-                title=title,
-                order=order
-            )
 
             return Response(serializer.data, status=status.HTTP_201_CREATED)
         return Response(

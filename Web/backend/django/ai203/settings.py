@@ -77,7 +77,6 @@ MIDDLEWARE = [
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
     'allauth.account.middleware.AccountMiddleware',
-
 ]
 
 ROOT_URLCONF = 'ai203.urls'
@@ -146,7 +145,8 @@ TIME_ZONE = 'Asia/Seoul'
 
 USE_I18N = True
 
-USE_TZ = True
+# USE_TZ = True
+USE_TZ = False
 
 
 # Static files (CSS, JavaScript, Images)
@@ -169,6 +169,11 @@ CORS_ALLOW_CREDENTIALS = True
 CORS_ALLOWED_ORIGINS = ["http://localhost:5173"]
 CSRF_TRUSTED_ORIGINS = ["http://localhost:5173",
                         ]
+
+# ACCOUNT_AUTHENTICATION_METHOD = "employee_number"
+# ACCOUNT_USER_MODEL_USERNAME_FIELD = None  # username 필드 없음
+# ACCOUNT_EMAIL_REQUIRED = False  # 이메일을 필수로 하지 않음 (필요에 따라 변경)
+# ACCOUNT_USERNAME_REQUIRED = False  # username 필드를 사용하지 않음
 
 
 AUTHENTICATION_BACKENDS = [
