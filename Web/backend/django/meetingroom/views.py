@@ -13,7 +13,6 @@ from projects.serializers import ProjectSerializer, ProjectParticipationSerializ
 from accounts.models import Notification
 import json
 from django.db.models import Q
-from django.utils.dateparse import parse_datetime
 
 def check_room_availability(room_id, starttime, endtime, exclude_meeting_id=None):
     """
@@ -106,7 +105,11 @@ def meetingroom_list_create(request, room_id):
                     status=status.HTTP_404_NOT_FOUND,
                 )
             # 회의 객체 생성
-            meeting = serializer.save(room=room_id, booker=booker, project=project)
+            meeting = serializer.save(
+                room=room_id, 
+                booker=booker, 
+                project=project
+                )
 
 
             meeting_participants = request_data.get("participants", [])
@@ -148,16 +151,13 @@ def meetingroom_list_create(request, room_id):
                         {"status": "error", "message": "Invalid agenda format"},
                         status=status.HTTP_400_BAD_REQUEST,
                     )
-
+            
+            order = 1
             for agenda_item in agenda_items:
-                order = agenda_item.get("order")
                 title = agenda_item.get("title")
                 if not title:
-                    return Response(
-                        {"status": "error", "message": "Agenda title is required"},
-                        status=status.HTTP_400_BAD_REQUEST,
-                    )
-
+                    continue
+                order += 1
                 Agenda.objects.create(
                     meeting=meeting,
                     title=title,
