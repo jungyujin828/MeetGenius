@@ -10,14 +10,16 @@ from meetingroom.models import Meeting, Agenda, Mom,SummaryMom
 from django.shortcuts import get_object_or_404,get_list_or_404
 from rest_framework.permissions import IsAuthenticated
 from asgiref.sync import sync_to_async  # Django ORM을 async에서 실행할 수 있도록 변환
+import logging
 
 # Create your views here.
 
 FASTAPI_BASE_URL = "http://127.0.0.1:8001"  # ✅ http:// 추가 (FastAPI 서버 주소)
-
+# 로그 확인
+logger = logging.getLogger(__name__)
 
 # redis 클라이언트 전역 선언. 
-redis_client = redis.from_url("redis://127.0.0.1:6379",decode_responses=True)
+redis_client = redis.from_url("redis://127.0.0.1:6379", decode_responses=True)
 
 
 # REDIS KEY 모음
@@ -39,7 +41,7 @@ meeting_finished : 회의 끝.
 '''
 MEETING_RECORD = "meeting:agenda_record"    # 안건별 회의록
 
-# 
+# 레디스 연결 초기화
 async def get_redis():
     redis_client = redis.from_url("redis://127.0.0.1:6379",decode_responses=True)
     return redis_client
@@ -68,10 +70,11 @@ async def receive_data(request):
                 # STT 데이터 처리
                 if data_type == 'plain':
                     await redis_client.rpush(STT_LIST_KEY,message)
-                    await redis_client.publish(MEETING_CHANNEL, json.dumps({
+                    await redis_client.publish(MEETING_CHANNEL, json.dumps(
+                        {
                         "type": "plain",
                         "message": message
-                    }))
+                    }, ensure_ascii=False))
                     print("✅ STT 데이터 저장 및 전송 완료")
 
                 # 쿼리 데이터 전송 (알람)
@@ -79,7 +82,7 @@ async def receive_data(request):
                     await redis_client.publish(MEETING_CHANNEL, json.dumps({
                         "type": "query",
                         "message": message
-                    }))
+                    },ensure_ascii=False))
                     print(message)
                     print('쿼리 알람 전송완료료')
 
@@ -120,46 +123,60 @@ class SSEStreamView(View):
         pubsub = redis_client.pubsub()
         await pubsub.subscribe(MEETING_CHANNEL) # 특정 채널MEETING_CHANNEL 구독
         
-        # 기존 메시지 가져오기
-        cur_agenda = await redis_client.get(CUR_AGENDA)
-        agenda_list_json = await redis_client.get(AGENDA_LIST)
-        rag_list_json = await redis_client.lrange(RAG_LIST_KEY, 0, -1)
-        stt_list_json = await redis_client.lrange(STT_LIST_KEY, 0, -1)
+        try:
+            # 기존 메시지 가져오기
+            cur_agenda = await redis_client.get(CUR_AGENDA)
+            agenda_list_json = await redis_client.get(AGENDA_LIST)
+            rag_list_json = await redis_client.lrange(RAG_LIST_KEY, 0, -1)
+            if rag_list_json:
+                decode_rag_list = [json.loads(item) for item in rag_list_json]
+            stt_list_json = await redis_client.lrange(STT_LIST_KEY, 0, -1)
 
-        init_data = {
-            "cur_agenda": cur_agenda,
-            "agenda_list": json.loads(agenda_list_json) if agenda_list_json else [],
-            "rag_list": rag_list_json,
-            "stt_list": stt_list_json
-        }
-        yield f'data: {json.dumps(init_data)}\n\n'
-        
-        # 실시간 데이터 수신
-        async for message in pubsub.listen():
-            if message["type"] == "message":
-                yield f"data: {message['data']}\n\n"
+            init_data = {
+                "cur_agenda": cur_agenda,
+                "agenda_list": json.loads(agenda_list_json) if agenda_list_json else [],
+                "rag_list": decode_rag_list,
+                "stt_list": stt_list_json
+            }
+            yield f'data: {json.dumps(init_data,ensure_ascii=False)}\n\n'
+            
+            # 실시간 데이터 수신
+            async for message in pubsub.listen():
+                if message["type"] == "message":
+                    data_str = message['data']
+                    if isinstance(data_str,bytes):
+                        data_str = data_str.decode('utf-8')
+                    yield f"data: {data_str}\n\n"
+
+        except asyncio.CancelledError :
+            logger.info("SSE 연결이 클라이언트에 의해 종료됨")
+        finally :
+            await pubsub.unsubscribe(MEETING_CHANNEL)
+            await pubsub.close()
+            logger.info("Redis PubSub 리스너 종료.")
+
 
     async def get(self, request):
         """
         SSE 연결 처리 (기존 메시지 + 실시간 스트리밍)
         """
-        response = StreamingHttpResponse(self.stream(), content_type="text/event-stream")
+        response = StreamingHttpResponse(self.stream(), content_type="text/event-stream; charset=utf-8")
         response["Cache-Control"] = "no-cache"
         response["X-Accel-Buffering"] = "no"  # Nginx 환경에서 SSE 버퍼링 방지
         return response
 
 # 현재 접속자 수
-async def broadcast_client_count():
-    """
-    현재 접속 중인 클라이언트 수를 정확히 Redis Pub/Sub으로 전파
-    """
-    # 현재 `client_count_channel` 채널의 구독자 수 확인
-    subscriber_counts = await redis_client.pubsub_numsub("client_count_channel")
-    count = subscriber_counts.get("client_count_channel", 0)  # 해당 채널의 구독자 수 가져오기
+# async def broadcast_client_count():
+#     """
+#     현재 접속 중인 클라이언트 수를 정확히 Redis Pub/Sub으로 전파
+#     """
+#     # 현재 `client_count_channel` 채널의 구독자 수 확인
+#     subscriber_counts = await redis_client.pubsub_numsub("client_count_channel")
+#     count = subscriber_counts.get("client_count_channel", 0)  # 해당 채널의 구독자 수 가져오기
 
-    message = f"현재 접속 중: {count}명"
-    print(message)
-    await redis_client.publish("client_count_channel", message)
+#     message = f"현재 접속 중: {count}명"
+#     print(message)
+#     await redis_client.publish("client_count_channel", message)
 
 
 # 렌더링 테스트
@@ -250,6 +267,7 @@ async def sent_meeting_information():
     return {'status':'test'}
 
 # 회의 준비 버튼
+@permission_classes([IsAuthenticated]) # 인증되지 않은 사용자는 접근 불가
 async def prepare_meeting(request):
     '''
     회의 준비 버튼
@@ -372,7 +390,7 @@ async def fetch_and_store_documents(document_ids, redis_client):
         update_msg = json.dumps({
             "type": "agenda_docs_update",
             "documents": documents
-        })
+        },ensure_ascii=False)
 
         await redis_client.publish(MEETING_CHANNEL, update_msg)
         print('문서 전달 완료 ###')
@@ -732,7 +750,7 @@ async def add_agenda(request):
 
         # PubSub
         update_msg = json.dumps({
-            "type":"agenda_update",
+            "type":"agenda_add",
             "agendas": agenda_list,
             "cur_agenda":new_agenda_id
         })
