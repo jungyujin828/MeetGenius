@@ -56,11 +56,11 @@ class ProjectSerializer(serializers.ModelSerializer):
 User = get_user_model()
 
 class ProjectParticipationSerializer(serializers.ModelSerializer):
-    participant = serializers.PrimaryKeyRelatedField(queryset=User.objects.all())
+    id = serializers.PrimaryKeyRelatedField(queryset=User.objects.all())
 
     class Meta:
         model = ProjectParticipation
-        fields = ['id', 'project', 'participant', 'authority']
+        fields = ['id', 'authority']
 
 class ReportSerializer(serializers.ModelSerializer):
     class Meta:
