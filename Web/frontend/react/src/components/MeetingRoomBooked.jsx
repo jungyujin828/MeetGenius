@@ -17,7 +17,6 @@ const Table = styled.table`
 `;
 
 const MeetingRoomBooked = ({ meetings, onMeetingClick }) => {
-  console.log("✅ onMeetingClick 전달됨:", onMeetingClick); // 🔍 콘솔 로그 추가
 
   const weekDays = ["월", "화", "수", "목", "금"];
   const timeSlots = Array.from({ length: 20 }, (_, i) => {

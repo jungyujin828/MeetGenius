@@ -341,16 +341,19 @@ def mymeeting(request):
         user = request.user
         mymeetings = user.meeting_participations.all()
 
-        if startdate and enddate:
-            startdate = parse_datetime(startdate+ " 00:00:00")
-            enddate = parse_datetime(enddate + " 23:59:59")
-            mymeetings = mymeetings.filter(starttime__range=(startdate, enddate))
-
         # 조회된 데이터가 없을 경우 예외 처리
         if not mymeetings.exists():
             return Response([], status=status.HTTP_200_OK)
+        
+        # Meeting 객체를 필터링하기 위해 QuerySet으로 유지
+        meetings = Meeting.objects.filter(id__in=[m.meeting.id for m in mymeetings])
+
+        if startdate and enddate:
+            startdate = parse_datetime(startdate+ " 00:00:00")
+            enddate = parse_datetime(enddate + " 23:59:59")
+            meetings = meetings.filter(starttime__range=(startdate, enddate))
+
 
         # mymeetings에서 'meeting'만 추출하여 직렬화
-        meetings = [m.meeting for m in mymeetings]  # Meeting 객체 리스트로 변환
         serializer = MeetingReadSerializer(meetings, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
