@@ -60,15 +60,3 @@ class Report(models.Model):
     content = models.TextField()
     created_at = models.DateTimeField(auto_now_add=True)
 
-class Mom(models.Model):
-    meeting = models.ForeignKey('meetingroom.Meeting', on_delete=models.CASCADE, related_name='moms')
-    agenda = models.ForeignKey('meetingroom.Agenda', on_delete=models.CASCADE, related_name='moms')
-    agenda_result = models.TextField(verbose_name="회의 결과 (안건 내용)")
-    document = models.ForeignKey(Document, on_delete=models.SET_NULL, null=True, blank=True, related_name='moms')
-    completed = models.BooleanField(default=False)
-
-class SummaryMom(models.Model):
-    mom = models.OneToOneField(Mom, on_delete=models.CASCADE, related_name='summary', verbose_name='원본 회의록 ID')
-    summary_result = models.TextField(verbose_name='요약된 회의 결과')
-    document = models.ForeignKey(Document, on_delete=models.SET_NULL, null=True, blank=True, related_name='summary_moms')
-    completed = models.BooleanField(default=False)

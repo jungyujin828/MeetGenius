@@ -5,10 +5,10 @@ from django.utils.dateparse import parse_datetime
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
 from rest_framework import status
-from .models import Meeting, Agenda, MeetingParticipation
+from .models import Meeting, Agenda, MeetingParticipation, Mom
 from .serializers import MeetingReadSerializer, MeetingBookSerializer
 
-from projects.models import Project, Document, Mom
+from projects.models import Project, Document
 from projects.serializers import ProjectSerializer, ProjectParticipationSerializer
 from accounts.models import Notification
 import json
@@ -333,3 +333,23 @@ def meeting_detail(request, meeting_id):
                 status=status.HTTP_403_FORBIDDEN
             )
     
+@api_view(['GET'])
+def mymeeting(request):
+    if request.method == "GET":
+        startdate = request.GET.get("startdate")
+        enddate = request.GET.get("enddate")
+
+        user = request.user
+        mymeetings = user.meeting_participations.all()
+
+        if startdate and enddate:
+            startdate = parse_datetime(startdate+ " 00:00:00")
+            enddate = parse_datetime(enddate + " 23:59:59")
+            meetings = meetings.filter(starttime__range=(startdate, enddate))
+
+        # 조회된 데이터가 없을 경우 예외 처리
+        if not meetings.exists():
+            return Response([], status=status.HTTP_200_OK)
+
+        serializer = MeetingReadSerializer(mymeetings, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
