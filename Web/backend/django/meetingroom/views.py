@@ -26,7 +26,6 @@ def check_room_availability(room_id, starttime, endtime, exclude_meeting_id=None
         starttime__lt=endtime,  # 예약 시작 시간이 endtime 이전
         endtime__gt=starttime,   # 예약 종료 시간이 starttime 이후
     ).exclude(id=exclude_meeting_id)  # 현재 회의를 제외
-
     # 충돌하는 회의가 존재하면 False 반환
     if conflicting_meetings.exists():
         return False
@@ -82,7 +81,7 @@ def meetingroom_list_create(request, room_id):
         request_data['endtime'] = meetingday + "T" + endtime
 
         # 예약 가능한 시간인지 확인
-        if not check_room_availability(room_id, request_data['endtime'], request_data['endtime']):
+        if not check_room_availability(room_id, request_data['starttime'], request_data['endtime']):
             return Response(
                 {"status": "error", "message": "이 시간대에는 이미 회의가 예약되어 있습니다."},
                 status=status.HTTP_400_BAD_REQUEST,
