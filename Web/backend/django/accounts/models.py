@@ -31,7 +31,7 @@ class UserManager(BaseUserManager):
 class User(AbstractBaseUser, PermissionsMixin):
     employee_number = models.CharField(max_length=7, unique=True)
     name = models.CharField(max_length=50)
-    email = models.EmailField(unique=True)
+    email = models.EmailField(unique=False)
     department = models.ForeignKey(Department, on_delete=models.SET_NULL, null=True, blank=True)
     position = models.ForeignKey(Position, on_delete=models.SET_NULL, null=True, blank=True)
 
