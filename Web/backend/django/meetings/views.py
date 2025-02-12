@@ -6,11 +6,10 @@ from django.views.decorators.csrf import csrf_exempt
 from django.views import View
 import redis.asyncio as redis # 비동기로 동작하려면 redis.asyncio 활용.
 from projects.models import Project, ProjectParticipation, Document, Report
-from meetingroom.models import Meeting, Agenda
+from meetingroom.models import Meeting, Agenda, Mom,SummaryMom
 from django.shortcuts import get_object_or_404,get_list_or_404
 from rest_framework.permissions import IsAuthenticated
 from asgiref.sync import sync_to_async  # Django ORM을 async에서 실행할 수 있도록 변환
-from projects.models import Mom,SummaryMom
 
 # Create your views here.
 
