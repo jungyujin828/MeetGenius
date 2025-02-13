@@ -264,7 +264,7 @@ const ProjectCreateWidget = ({ fetchProjects, closeCreateProject }) => {
                 마스터 권한
                 <input
                   type="checkbox"
-                  checked={participants.some((p) => p.id === user.id && p.authority === 1)} // 권한 체크 상태
+                  checked={participants.some((p) => p.id === user.id && p.authority === 0)} // 권한 체크 상태
                   onChange={() => handleAuthorityChange(user.id)} // 권한 변경
                 />
               </label>

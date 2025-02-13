@@ -128,8 +128,8 @@ const MeetingRoomDetailWidget = ({ meetingId, onClose }) => {
       <DetailItem><strong>안건:</strong></DetailItem>
       {meetingDetails.meeting_agendas && meetingDetails.meeting_agendas.length > 0 ? (
         <List>
-          {meetingDetails.meeting_agendas.map((agenda, index) => (
-            <li key={index}>{agenda}</li>
+          {meetingDetails.meeting_agendas.map((item) => (
+            <li key={item.order}> {item.title}</li>
           ))}
         </List>
       ) : (

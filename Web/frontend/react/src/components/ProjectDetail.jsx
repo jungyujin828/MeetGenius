@@ -380,7 +380,7 @@ const ProjectDetail = ({ projectId, onClose }) => {
                       마스터 권한
                       <input
                         type="checkbox"
-                        checked={formData.participants.some(p => p.id === user.id && p.authority === 1)}
+                        checked={formData.participants.some(p => p.id === user.id && p.authority === 0)}
                         onChange={() => {
                           setFormData({
                             ...formData,
@@ -404,7 +404,7 @@ const ProjectDetail = ({ projectId, onClose }) => {
             <p><strong>📋 프로젝트 내용:</strong> {project.description}</p>
             <p><strong>🏢 담당부서:</strong> {project.department}</p>
             <p><strong>📅 마감일:</strong> {new Date(project.duedate).toLocaleString()}</p>
-            <p><strong>👥 참여자:</strong> {project.participants.map(p => `${p.name} (${p.authority === 1 ? '마스터' : '참여자'})`).join(", ")}</p>
+            <p><strong>👥 참여자:</strong> {project.participants.map(p => `${p.name} (${p.authority === 0 ? '마스터' : '참여자'})`).join(", ")}</p>
 
             <h4>📂 첨부 파일</h4>
             <FileList>
