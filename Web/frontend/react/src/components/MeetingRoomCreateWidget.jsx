@@ -215,9 +215,9 @@ const fetchParticipants = async (selectedProject) => {
 // 참여자 선택 핸들러
 const handleUserSelect = (userId) => {
   setParticipants((prevParticipants) => {
-    const isSelected = prevParticipants.some((p) => p.participant === userId);
+    const isSelected = prevParticipants.some((p) => p.id === userId);
     if (isSelected) {
-      return prevParticipants.filter((p) => p.participant !== userId);
+      return prevParticipants.filter((p) => p.id !== userId);
     } else {
       return [...prevParticipants, { id: userId, authority: 1 }];
     }
@@ -228,7 +228,7 @@ const handleUserSelect = (userId) => {
 const handleAuthorityChange = (userId) => {
   setParticipants((prevParticipants) =>
     prevParticipants.map((p) =>
-      p.participant === userId ? { ...p, authority: p.authority === 0 ? 1 : 0 } : p
+      p.id === userId ? { ...p, authority: p.authority === 0 ? 1 : 0 } : p
     )
   );
 };
@@ -335,7 +335,7 @@ for (let hour = 9; hour <= 18; hour++) {
               <input
                 type="checkbox"
                 value={user.participant}
-                checked={participants.some((p) => p.participant === user.id)}
+                checked={participants.some((p) => p.id === user.id)}
                 onChange={() => handleUserSelect(user.id)} // 체크박스 선택 처리
               />
               {user.name} ({user.department} / {user.position})
@@ -345,7 +345,7 @@ for (let hour = 9; hour <= 18; hour++) {
               마스터 권한
               <input
                 type="checkbox"
-                checked={participants.some((p) => p.participant === user.id && p.authority === 0)} // authority가 0일 때 체크
+                checked={participants.some((p) => p.id === user.id && p.authority === 0)} // authority가 0일 때 체크
                 onChange={() => handleAuthorityChange(user.id)} // 권한 변경
               />
             </label>
