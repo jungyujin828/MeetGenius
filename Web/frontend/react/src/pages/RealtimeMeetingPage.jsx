@@ -82,6 +82,7 @@ const RealtimeMeetingPage = () => {
         {
           headers: {
             Authorization: `Token ${authToken}`,
+            'X-CSRFToken': csrfToken,  // CSRF 토큰 추가
           },
         }
       );
@@ -116,6 +117,7 @@ const RealtimeMeetingPage = () => {
         {
           headers: {
             Authorization: `Token ${authToken}`,
+            'X-CSRFToken': csrfToken,  // CSRF 토큰 추가
           },
         }
       );
