@@ -53,7 +53,7 @@ const UserItem = styled.div`
   margin-bottom: 5px;
 `;
 
-const baseURL = process.env.REACT_APP_BASEURL;
+const baseURL = import.meta.env.VITE_APP_BASEURL;
 
 const MeetingRoomCreateWidget = ({ roomId, setMeetings }) => {
   const [projects, setProjects] = useState([]);

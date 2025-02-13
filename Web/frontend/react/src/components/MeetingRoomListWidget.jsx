@@ -31,7 +31,7 @@ const Td = styled.td`
   background-color: ${(props) => (props.hasMeeting ? "#ffedcc" : "white")};
 `;
 
-const baseURL = process.env.REACT_APP_BASEURL;
+const baseURL = import.meta.env.VITE_APP_BASEURL;
 
 
 const getWeekRange = (date) => {

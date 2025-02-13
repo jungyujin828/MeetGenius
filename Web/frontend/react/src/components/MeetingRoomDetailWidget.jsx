@@ -48,7 +48,7 @@ const Button = styled.button`
   }
 `;
 
-const baseURL = process.env.REACT_APP_BASEURL;
+const baseURL = import.meta.env.VITE_APP_BASEURL;
 
 const MeetingRoomDetailWidget = ({ meetingId, onClose }) => {
   const [meetingDetails, setMeetingDetails] = useState(null);

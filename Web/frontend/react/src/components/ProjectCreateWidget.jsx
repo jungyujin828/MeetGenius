@@ -74,7 +74,7 @@ const UserItem = styled.div`
   margin-bottom: 10px;
 `;
 
-const baseURL = process.env.REACT_APP_BASEURL;
+const baseURL = import.meta.env.VITE_APP_BASEURL;
 
 
 const ProjectCreateWidget = ({ fetchProjects, closeCreateProject }) => {

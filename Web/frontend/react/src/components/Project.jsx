@@ -15,7 +15,7 @@ const ProjectContainer = styled.div`
   overflow: hidden; // 모든 방향의 스크롤 방지
   box-sizing: border-box; // 패딩과 보더가 너비와 높이 계산에 포함되도록 설정
 `;
-const baseURL = process.env.REACT_APP_BASEURL;
+const baseURL = import.meta.env.VITE_APP_BASEURL;
 
 const Project = () => {
   const [projects, setProjects] = useState([]); // 프로젝트 목록 상태 관리

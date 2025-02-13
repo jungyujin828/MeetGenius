@@ -124,7 +124,7 @@ const UserItem = styled.div`
   align-items: center;
   margin: 10px 0;
 `;
-const baseURL = process.env.REACT_APP_BASEURL;
+const baseURL = import.meta.env.VITE_APP_BASEURL;
 
 const ProjectDetail = ({ projectId, onClose }) => {
   const [project, setProject] = useState(null);
