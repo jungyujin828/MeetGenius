@@ -31,6 +31,9 @@ const Td = styled.td`
   background-color: ${(props) => (props.hasMeeting ? "#ffedcc" : "white")};
 `;
 
+const baseURL = process.env.REACT_APP_BASEURL;
+
+
 const getWeekRange = (date) => {
   const start = new Date(date);
   start.setDate(start.getDate() - start.getDay() + 1); // 월요일
@@ -61,7 +64,7 @@ const MeetingRoomListWidget = ({ roomId , onMeetingClick }) => {
     const fetchMeetings = async () => {
       try {
         const response = await axios.get(
-          `http://127.0.0.1:8000/meetingroom/book/${roomId}/`,
+          `${baseURL}/meetingroom/book/${roomId}/`,
           {
             params: { startdate, enddate },
             headers: {

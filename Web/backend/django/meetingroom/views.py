@@ -82,7 +82,7 @@ def meetingroom_list_create(request, room_id):
         request_data['endtime'] = meetingday + "T" + endtime
 
         # 예약 가능한 시간인지 확인
-        if not check_room_availability(room_id, request_data['endtime'], request_data['endtime']):
+        if not check_room_availability(room_id, request_data['starttime'], request_data['endtime']):
             return Response(
                 {"status": "error", "message": "이 시간대에는 이미 회의가 예약되어 있습니다."},
                 status=status.HTTP_400_BAD_REQUEST,

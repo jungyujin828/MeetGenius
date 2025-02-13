@@ -1,9 +1,10 @@
 import axios from "axios";
 
-
+const baseURL = process.env.REACT_APP_BASEURL;
 // ✅ Axios 인스턴스 생성
 const axiosInstance = axios.create({
-  baseURL: "http://localhost:8000", // Django 백엔드 API URL
+  
+  baseURL: baseURL, // Django 백엔드 API URL
   headers: {
     "Content-Type": "application/json",
   },

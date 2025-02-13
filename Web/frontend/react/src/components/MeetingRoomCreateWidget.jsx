@@ -53,6 +53,8 @@ const UserItem = styled.div`
   margin-bottom: 5px;
 `;
 
+const baseURL = process.env.REACT_APP_BASEURL;
+
 const MeetingRoomCreateWidget = ({ roomId, setMeetings }) => {
   const [projects, setProjects] = useState([]);
   const [projectName, setProjectName] = useState("");
@@ -85,7 +87,7 @@ const MeetingRoomCreateWidget = ({ roomId, setMeetings }) => {
   const fetchProjects = async () => {
     const authToken = localStorage.getItem("authToken");
     try {
-      const response = await axios.get("http://127.0.0.1:8000/projects/", {
+      const response = await axios.get( `${baseURL}/projects/`, {
         headers: { Authorization: `Token ${authToken}` },
       });
       console.log(response.data);
@@ -100,7 +102,7 @@ const MeetingRoomCreateWidget = ({ roomId, setMeetings }) => {
 // 유저 목록 불러오기
 const fetchUsers = async () => {
   try {
-    const url = "http://127.0.0.1:8000/accounts/users/"; // 모든 유저 불러오는 엔드포인트
+    const url = `${baseURL}/accounts/users/`; // 모든 유저 불러오는 엔드포인트
     const response = await axios.get(url);
     setUsers(response.data);
   } catch (error) {
@@ -114,7 +116,7 @@ const fetchParticipants = async (selectedProject) => {
   const authToken = localStorage.getItem("authToken");
   try {
     const response = await axios.get(
-      `http://127.0.0.1:8000/meetingroom/project_participation/${selectedProject}/`,
+      `${baseURL}/meetingroom/project_participation/${selectedProject}/`,
       { headers: { Authorization: `Token ${authToken}` } }
     );
     console.log(response.data)
@@ -183,7 +185,7 @@ const fetchParticipants = async (selectedProject) => {
 
     try {
       const response = await axios.post(
-        `http://127.0.0.1:8000/meetingroom/book/${roomId}/`,
+        `${baseURL}/meetingroom/book/${roomId}/`,
         formData,
         { headers: { Authorization: `Token ${authToken}` } }
       );
