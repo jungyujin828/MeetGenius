@@ -1,6 +1,8 @@
 import React, { useEffect, useState } from "react";
 import axios from "axios";
 import styled from "styled-components";
+import { deleteProject } from "../api/project"; // ✅ 삭제 API 불러오기
+
 
 // 스타일 컴포넌트 정의
 const DetailContainer = styled.div`
@@ -308,6 +310,19 @@ const ProjectDetail = ({ projectId, onClose }) => {
   if (error) return <Overlay><DetailContainer>{error}</DetailContainer></Overlay>;
   if (!project) return null;
 
+  const handleDeleteProject = async () => {
+    if (!window.confirm("정말 이 프로젝트를 삭제하시겠습니까?")) {
+      return;
+    }
+  
+    try {
+      const message = await deleteProject(projectId);
+      alert(message);
+      onClose();
+    } catch (error) {
+      alert(error.message); // ❌ 백엔드 에러 메시지 표시
+    }
+  };
   return (
     <>
       <Overlay onClick={onClose} />
@@ -439,8 +454,8 @@ const ProjectDetail = ({ projectId, onClose }) => {
                 <label htmlFor="file-upload">파일 추가</label>
               </Button>
               <Button onClick={() => setEditMode(true)}>수정</Button>
-              <Button onClick={() => alert("프로젝트 삭제")}>삭제</Button>
-            </ButtonContainer>
+              <Button onClick={handleDeleteProject}>삭제</Button>
+              </ButtonContainer>
           </div>
         )}
       </DetailContainer>
