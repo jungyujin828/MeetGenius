@@ -840,6 +840,7 @@ async def stop_meeting(reqeust):
             # Mom 데이터 생성
             new_mom = await sync_to_async(Mom.objects.create)(
                 meeting=meeting_obj,
+                document = document_obj,
                 agenda=agenda_obj,
                 agenda_result=agenda_result,
                 completed=False
