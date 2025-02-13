@@ -154,12 +154,12 @@ def meetingroom_list_create(request, room_id):
                 title = agenda_item.get("title")
                 if not title:
                     continue
-                order += 1
                 Agenda.objects.create(
                     meeting=meeting,
                     title=title,
                     order=order
                 )
+                order += 1
 
             return Response(serializer.data, status=status.HTTP_201_CREATED)
         return Response(
