@@ -45,7 +45,7 @@ const Project = () => {
     }
   
     try {
-      const response = await axios.get("http://127.0.0.1:8000/projects/", {
+      const response = await axios.get(BASEURL + "/projects/", {
         headers: {
           Authorization: `Token ${authToken}`, // 헤더에 토큰을 추가합니다.
         },
