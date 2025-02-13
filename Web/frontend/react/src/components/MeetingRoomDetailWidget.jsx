@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import axios from "axios";
 import styled from "styled-components";
+import { useNavigate } from "react-router-dom"; // react-router-dom에서 useNavigate 가져오기
 
 const DetailContainer = styled.div`
   padding: 20px;
@@ -53,6 +54,7 @@ const MeetingRoomDetailWidget = ({ meetingId, onClose }) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const authToken = localStorage.getItem("authToken");
+  const navigate = useNavigate(); // navigate 정의
 
   useEffect(() => {
     const fetchMeetingDetails = async () => {
@@ -93,6 +95,12 @@ const MeetingRoomDetailWidget = ({ meetingId, onClose }) => {
     ).padStart(2, "0")}`;
   };
 
+   // 회의 참가하기 버튼 클릭 시, 실시간 회의 페이지로 이동
+   const handleJoinMeeting = () => {
+    console.log("회의 참가하기 버튼 클릭됨");
+    navigate("/realtime-meeting"); // 경로를 '/realtime-meeting'으로 설정하여 이동
+  };
+
   return (
     <DetailContainer>
       <DetailHeader>예약 내역</DetailHeader>
@@ -131,7 +139,7 @@ const MeetingRoomDetailWidget = ({ meetingId, onClose }) => {
         <Button onClick={onClose}>예약 취소</Button>
         <Button primary onClick={onClose}>예약 수정</Button>
       </ButtonContainer>
-      <Button primary style={{ width: "100%", marginTop: "10px" }} onClick={onClose}>
+      <Button primary style={{ width: "100%", marginTop: "10px" }} onClick={handleJoinMeeting}>
         회의 참가하기
       </Button>
     </DetailContainer>

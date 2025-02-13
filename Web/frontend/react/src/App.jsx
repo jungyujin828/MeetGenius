@@ -4,6 +4,7 @@ import { Provider, useSelector } from "react-redux"; // Redux Provider, useSelec
 import { store } from "./redux/store"; // Redux store 가져오기
 import LoginPage from "./pages/LoginPage"; // 로그인 페이지 컴포넌트 가져오기
 import DashboardPage from "./pages/DashboardPage"; // 대시보드 페이지 컴포넌트 가져오기
+import RealtimeMeetingPage from "./pages/RealtimeMeetingPage"; // 실시간 회의 페이지 컴포넌트 가져오기
 
 // ✅ 인증된 사용자만 접근 가능한 보호된 라우트
 const PrivateRoute = ({ children }) => {
@@ -28,6 +29,16 @@ function App() {
             element={
               <PrivateRoute>
                 <DashboardPage />
+              </PrivateRoute>
+            }
+          />
+
+          {/* 실시간 회의 페이지 (로그인된 사용자만 접근 가능) */}
+          <Route
+            path="/realtime-meeting"
+            element={
+              <PrivateRoute>
+                <RealtimeMeetingPage />
               </PrivateRoute>
             }
           />
