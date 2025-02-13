@@ -183,7 +183,7 @@ const fetchParticipants = async (selectedProject) => {
       starttime : startTime +":00" ,
       endtime : endTime +":00",
       participants: participants.map((p) => ({
-        id: p.participant,
+        id: p.id,
         authority: p.authority || 1,
       })),
       agenda_items: agendas.map((a) => ({
@@ -199,7 +199,7 @@ const fetchParticipants = async (selectedProject) => {
       );
       alert("회의가 예약되었습니다.");
       // 회의 예약 후 바로 목록 업데이트
-      await fetchMeetings(roomId, null, null);  // 회의 목록을 새로 불러오기
+      // await fetchMeetings(roomId, null, null);  // 회의 목록을 새로 불러오기
 
       // 회의 목록에 새로 예약된 회의 추가
       // setMeetings((prevMeetings) => [...prevMeetings, response.data]);
