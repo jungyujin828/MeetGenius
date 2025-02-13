@@ -66,24 +66,15 @@ const MeetingRoomListWidget = ({ roomId , onMeetingClick }) => {
 
     const fetchData  = async () => {
       try {
-        const response = await axios.get(
-          `${baseURL}/meetingroom/book/${roomId}/`,
-          {
-            params: { startdate, enddate },
-            headers: {
-              Authorization: `Token ${authToken}`,
-            },
-          }
-        );
-
-        setMeetings(response.data);
+        const data = await fetchMeetings(roomId, startdate, enddate);
+        setMeetings(data);
       } catch (error) {
         console.error("회의 목록을 불러오는 데 실패했습니다.", error);
       }
     };
 
     fetchData ();
-  }, [roomId, selectedDate]);
+  }, [roomId, selectedDate, setMeetings]);
 
   const { start, end, dates  } = getWeekRange(selectedDate);
 

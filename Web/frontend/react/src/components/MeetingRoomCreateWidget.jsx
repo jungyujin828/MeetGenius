@@ -90,9 +90,7 @@ const MeetingRoomCreateWidget = ({ roomId, setMeetings }) => {
     try {
       const response = await axios.get( `${baseURL}/projects/`, {
         headers: { Authorization: `Token ${authToken}` },
-      });
-      console.log(response.data);
-      
+      });      
       setProjects(response.data);
     } catch (error) {
       setError("프로젝트 목록을 불러오는 데 실패했습니다.");
@@ -120,7 +118,6 @@ const fetchParticipants = async (selectedProject) => {
       `${baseURL}/meetingroom/project_participation/${selectedProject}/`,
       { headers: { Authorization: `Token ${authToken}` } }
     );
-    console.log(response.data)
     // 응답 데이터에서 project_participation을 추출하여 상태 업데이트
     if (Array.isArray(response.data.project_participation)) {
       setParticipants(response.data.project_participation.map(({ participant, authority }) => ({
@@ -198,12 +195,8 @@ const fetchParticipants = async (selectedProject) => {
         { headers: { Authorization: `Token ${authToken}` } }
       );
       alert("회의가 예약되었습니다.");
-      // 회의 예약 후 바로 목록 업데이트
-      // await fetchMeetings(roomId, null, null);  // 회의 목록을 새로 불러오기
-
       // 회의 목록에 새로 예약된 회의 추가
       // setMeetings((prevMeetings) => [...prevMeetings, response.data]);
-
     } catch (error) {
       console.error("🔴 회의 예약 실패:", error);
   

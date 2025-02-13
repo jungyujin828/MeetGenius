@@ -21,20 +21,19 @@ const RoomSelectContainer = styled.div`
   justify-content: center;
   margin-bottom: 20px;
 `;
-
 const RoomButton = styled.button`
-  background-color: ${(props) => (props.active ? "#1b3a57" : "#274c77")};
-  color: white;
+  background-color: ${(props) => (props.active ? "#1b3a57" : "transparent")};  // ✅ 선택된 경우만 색상 변경
+  color: ${(props) => (props.active ? "white" : "#274c77")};  // ✅ 선택되지 않으면 글자색 유지
   padding: 12px 18px;
-  border: none;
+  border: 2px solid ${(props) => (props.active ? "#1b3a57" : "#274c77")}; // ✅ 선택되지 않은 경우 경계선 유지
   border-radius: 8px;
   cursor: pointer;
   font-size: 16px;
   font-weight: bold;
-  transition: background 0.3s ease;
+  transition: all 0.3s ease;
 
   &:hover {
-    background-color: #1b3a57;
+    background-color: ${(props) => (props.active ? "#1b3a57" : "#f0f0f0")}; // ✅ 선택되지 않은 버튼은 hover 시 연한 색상
   }
 `;
 
@@ -65,9 +64,8 @@ const SidePanel = styled.div`
   box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
 `;
 
-// ✅ 예약 버튼 스타일 (항상 보이도록 수정)
 const BookingButton = styled.button`
-  background-color: #007bff;
+  background-color: #1b3a57;  // ✅ 회의실 버튼과 조화로운 색상
   color: white;
   padding: 12px;
   border: none;
@@ -77,16 +75,23 @@ const BookingButton = styled.button`
   width: 100%;
   font-weight: bold;
   margin-bottom: 10px;
-  transition: background 0.3s ease;
-
+  letter-spacing: 0.5px;  // ✅ 텍스트 가독성 향상
+  transition: all 0.3s ease;
+  
   &:hover {
-    background-color: #0056b3;
+    background-color: #274c77;  // ✅ hover 시 색상 변경
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);  // ✅ 부드러운 그림자 추가
+  }
+
+  &:active {
+    transform: scale(0.95);  // ✅ 클릭 시 약간 작아지는 효과
   }
 `;
 
+
 const MeetingRoom = () => {
   const [meetings, setMeetings] = useState([]);
-  const [selectedRoom, setSelectedRoom] = useState(1);
+  const [selectedRoom, setSelectedRoom] = useState(0);
   const [isBookingVisible, setIsBookingVisible] = useState(false);
   const [selectedMeetingId, setSelectedMeetingId] = useState(null);
 
@@ -113,25 +118,26 @@ const MeetingRoom = () => {
     <MeetingRoomContainer>
       <h2 style={{ marginBottom: "20px", fontSize: "24px", fontWeight: "bold" }}>회의실 예약 시스템</h2>
 
-<RoomSelectContainer>
+      <RoomSelectContainer>
   {[1, 2].map((roomId) => (
     <RoomButton
       key={roomId}
       active={selectedRoom === roomId}
       onClick={() => handleSelectRoom(roomId)}
     >
-      회의실 {roomId}
+      {selectedRoom === roomId && "✔️ "}회의실 {roomId}
     </RoomButton>
   ))}
   {/* My Meetings 버튼 추가 */}
   <RoomButton
     key="mymeetings"
     active={selectedRoom === 0}
-    onClick={() => handleSelectRoom(0)}  // roomId를 0으로 설정
+    onClick={() => handleSelectRoom(0)}
   >
-    My Meetings
+    {selectedRoom === 0 && "✔️ "}My Meetings
   </RoomButton>
 </RoomSelectContainer>
+
 
 
       {/* ✅ 메인 컨텐츠 */}
@@ -147,8 +153,11 @@ const MeetingRoom = () => {
 
         {/* ✅ 예약 및 상세보기 패널 */}
         <SidePanel>
-          {/* ✅ 예약 버튼 (항상 보이게 유지) */}
-          <BookingButton onClick={handleToggleBooking}>예약하기</BookingButton>
+          {/* ✅ 예약 버튼 (회의실이 선택된 경우만 보이도록 설정) */}
+          {selectedRoom !== 0 && (
+            <BookingButton onClick={handleToggleBooking}>예약하기</BookingButton>
+          )}
+
 
           {/* ✅ 회의 상세 보기 OR 예약 폼 */}
           {selectedMeetingId ? (
