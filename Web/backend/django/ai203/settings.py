@@ -188,7 +188,7 @@ REDIS_PORT = os.getenv("REDIS_PORT", "6379")  # Redis 기본 포트 기본값 �
 CACHES = {
     "default": {
         "BACKEND": "django_redis.cache.RedisCache",
-        "LOCATION": f"redis://{REDIS_HOST}:{REDIS_PORT}/1",
+        "LOCATION": f"redis://{REDIS_HOST}:{REDIS_PORT}/2",
         "OPTIONS": {
             "CLIENT_CLASS": "django_redis.client.DefaultClient",
         }
@@ -197,3 +197,10 @@ CACHES = {
 
 # 🔥 Redis Pub/Sub 및 Queue 연결을 위한 기본 URL
 REDIS_URL = f"redis://{REDIS_HOST}:{REDIS_PORT}"
+
+# Celery는 다중 DB에서 1번을 사용하도록 설정.
+CELERY_BROKER_URL = 'redis://127.0.0.1:6379/1'
+CELERY_RESULT_BACKEND = 'redis://127.0.0.1:6379/1'
+
+# 6379/1 : 비동기 처리
+# 6379/2 : 메시지 브로커
