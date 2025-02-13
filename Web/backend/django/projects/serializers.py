@@ -56,11 +56,9 @@ class ProjectSerializer(serializers.ModelSerializer):
 User = get_user_model()
 
 class ProjectParticipationSerializer(serializers.ModelSerializer):
-    id = serializers.PrimaryKeyRelatedField(queryset=User.objects.all())
-
     class Meta:
         model = ProjectParticipation
-        fields = ['id', 'authority']
+        fields = "__all__"
 
 class ReportSerializer(serializers.ModelSerializer):
     class Meta:
