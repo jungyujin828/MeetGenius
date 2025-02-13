@@ -16,8 +16,7 @@ const Table = styled.table`
   height: 600px;
 `;
 
-const MeetingRoomBooked = ({ meetings, onMeetingClick }) => {
-  console.log("✅ onMeetingClick 전달됨:", onMeetingClick); // 🔍 콘솔 로그 추가
+const MeetingRoomBooked = ({ meetings, onMeetingClick, dates }) => {
 
   const weekDays = ["월", "화", "수", "목", "금"];
   const timeSlots = Array.from({ length: 20 }, (_, i) => {
@@ -32,7 +31,10 @@ const MeetingRoomBooked = ({ meetings, onMeetingClick }) => {
         <tr>
           <th>시간</th>
           {weekDays.map((day, index) => (
-            <th key={index}>{day}</th>
+            <th key={index}>
+            {day} <br />
+            {dates[index].toISOString().split("T")[0]} {/* 날짜 표시 */}
+          </th>
           ))}
         </tr>
       </thead>

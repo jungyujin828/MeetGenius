@@ -113,18 +113,26 @@ const MeetingRoom = () => {
     <MeetingRoomContainer>
       <h2 style={{ marginBottom: "20px", fontSize: "24px", fontWeight: "bold" }}>회의실 예약 시스템</h2>
 
-      {/* ✅ 회의실 선택 버튼 */}
-      <RoomSelectContainer>
-        {[1, 2].map((roomId) => (
-          <RoomButton
-            key={roomId}
-            active={selectedRoom === roomId}
-            onClick={() => handleSelectRoom(roomId)}
-          >
-            회의실 {roomId}
-          </RoomButton>
-        ))}
-      </RoomSelectContainer>
+<RoomSelectContainer>
+  {[1, 2].map((roomId) => (
+    <RoomButton
+      key={roomId}
+      active={selectedRoom === roomId}
+      onClick={() => handleSelectRoom(roomId)}
+    >
+      회의실 {roomId}
+    </RoomButton>
+  ))}
+  {/* My Meetings 버튼 추가 */}
+  <RoomButton
+    key="mymeetings"
+    active={selectedRoom === 0}
+    onClick={() => handleSelectRoom(0)}  // roomId를 0으로 설정
+  >
+    My Meetings
+  </RoomButton>
+</RoomSelectContainer>
+
 
       {/* ✅ 메인 컨텐츠 */}
       <ContentWrapper>

@@ -26,7 +26,6 @@ def check_room_availability(room_id, starttime, endtime, exclude_meeting_id=None
         starttime__lt=endtime,  # 예약 시작 시간이 endtime 이전
         endtime__gt=starttime,   # 예약 종료 시간이 starttime 이후
     ).exclude(id=exclude_meeting_id)  # 현재 회의를 제외
-
     # 충돌하는 회의가 존재하면 False 반환
     if conflicting_meetings.exists():
         return False
@@ -342,14 +341,19 @@ def mymeeting(request):
         user = request.user
         mymeetings = user.meeting_participations.all()
 
+        # 조회된 데이터가 없을 경우 예외 처리
+        if not mymeetings.exists():
+            return Response([], status=status.HTTP_200_OK)
+        
+        # Meeting 객체를 필터링하기 위해 QuerySet으로 유지
+        meetings = Meeting.objects.filter(id__in=[m.meeting.id for m in mymeetings])
+
         if startdate and enddate:
             startdate = parse_datetime(startdate+ " 00:00:00")
             enddate = parse_datetime(enddate + " 23:59:59")
             meetings = meetings.filter(starttime__range=(startdate, enddate))
 
-        # 조회된 데이터가 없을 경우 예외 처리
-        if not meetings.exists():
-            return Response([], status=status.HTTP_200_OK)
 
-        serializer = MeetingReadSerializer(mymeetings, many=True)
+        # mymeetings에서 'meeting'만 추출하여 직렬화
+        serializer = MeetingReadSerializer(meetings, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
