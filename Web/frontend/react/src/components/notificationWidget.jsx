@@ -162,7 +162,7 @@ const NotificationWidget = () => {
                 </p>
               )  : (
                 notifications.map((notif) => (
-                  <NotificationItem key={notif.id} unread={!notif.read} onClick={(e) => handleMarkAsReadClick(notif.id, e)}>
+                  <NotificationItem key={notif.id} unread={!notif.read}>
                   <div>
                     <p>{notif.message}</p>
                   </div>
