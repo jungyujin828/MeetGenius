@@ -123,8 +123,12 @@ const fetchParticipants = async (selectedProject) => {
     console.log(response.data)
     // 응답 데이터에서 project_participation을 추출하여 상태 업데이트
     if (Array.isArray(response.data.project_participation)) {
-      setParticipants(response.data.project_participation);  // participants 상태 업데이트
-    } else {
+      setParticipants(response.data.project_participation.map(({ participant, authority }) => ({
+        id: participant,  // participant -> id 변경
+        authority,        // authority 값 유지
+      })));
+    }
+    else {
       setError("참여자 목록이 올바르지 않습니다.");
       console.error("참여자 목록 오류:", response.data);
     }
@@ -179,7 +183,7 @@ const fetchParticipants = async (selectedProject) => {
       starttime : startTime +":00" ,
       endtime : endTime +":00",
       participants: participants.map((p) => ({
-        id: p.id,
+        id: p.participant,
         authority: p.authority || 1,
       })),
       agenda_items: agendas.map((a) => ({
@@ -211,9 +215,9 @@ const fetchParticipants = async (selectedProject) => {
 // 참여자 선택 핸들러
 const handleUserSelect = (userId) => {
   setParticipants((prevParticipants) => {
-    const isSelected = prevParticipants.some((p) => p.id === userId);
+    const isSelected = prevParticipants.some((p) => p.participant === userId);
     if (isSelected) {
-      return prevParticipants.filter((p) => p.id !== userId);
+      return prevParticipants.filter((p) => p.participant !== userId);
     } else {
       return [...prevParticipants, { id: userId, authority: 1 }];
     }
@@ -224,7 +228,7 @@ const handleUserSelect = (userId) => {
 const handleAuthorityChange = (userId) => {
   setParticipants((prevParticipants) =>
     prevParticipants.map((p) =>
-      p.id === userId ? { ...p, authority: p.authority === 0 ? 1 : 0 } : p
+      p.participant === userId ? { ...p, authority: p.authority === 0 ? 1 : 0 } : p
     )
   );
 };
@@ -331,7 +335,7 @@ for (let hour = 9; hour <= 18; hour++) {
               <input
                 type="checkbox"
                 value={user.participant}
-                checked={participants.some((p) => p.id === user.id)}
+                checked={participants.some((p) => p.participant === user.id)}
                 onChange={() => handleUserSelect(user.id)} // 체크박스 선택 처리
               />
               {user.name} ({user.department} / {user.position})
@@ -341,7 +345,7 @@ for (let hour = 9; hour <= 18; hour++) {
               마스터 권한
               <input
                 type="checkbox"
-                checked={participants.some((p) => p.id === user.id && p.authority === 0)} // authority가 0일 때 체크
+                checked={participants.some((p) => p.participant === user.id && p.authority === 0)} // authority가 0일 때 체크
                 onChange={() => handleAuthorityChange(user.id)} // 권한 변경
               />
             </label>
