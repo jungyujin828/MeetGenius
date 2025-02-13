@@ -32,6 +32,9 @@ const Td = styled.td`
   background-color: ${(props) => (props.hasMeeting ? "#ffedcc" : "white")};
 `;
 
+const baseURL = import.meta.env.VITE_APP_BASEURL;
+
+
 const getWeekRange = (date) => {
   const start = new Date(date);
   start.setDate(start.getDate() - start.getDay() + 1); // 월요일
@@ -64,8 +67,17 @@ const MeetingRoomListWidget = ({ roomId , onMeetingClick }) => {
 
     const fetchData  = async () => {
       try {
-        const data = await fetchMeetings(roomId, startdate, enddate); // API 호출
-        setMeetings(data); 
+        const response = await axios.get(
+          `${baseURL}/meetingroom/book/${roomId}/`,
+          {
+            params: { startdate, enddate },
+            headers: {
+              Authorization: `Token ${authToken}`,
+            },
+          }
+        );
+
+        setMeetings(response.data);
       } catch (error) {
         console.error("회의 목록을 불러오는 데 실패했습니다.", error);
       }

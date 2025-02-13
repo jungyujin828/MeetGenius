@@ -74,6 +74,9 @@ const UserItem = styled.div`
   margin-bottom: 10px;
 `;
 
+const baseURL = import.meta.env.VITE_APP_BASEURL;
+
+
 const ProjectCreateWidget = ({ fetchProjects, closeCreateProject }) => {
   const [projectName, setProjectName] = useState("");
   const [projectDescription, setProjectDescription] = useState("");
@@ -98,7 +101,7 @@ const ProjectCreateWidget = ({ fetchProjects, closeCreateProject }) => {
   // 유저 목록 불러오기
   const fetchUsers = async () => {
     try {
-      const url = "http://127.0.0.1:8000/accounts/users/"; // 모든 유저 불러오는 엔드포인트
+      const url = `${baseURL}/accounts/users/`; // 모든 유저 불러오는 엔드포인트
       const response = await axios.get(url, { withCredentials: true });
       setUsers(response.data);
     } catch (error) {

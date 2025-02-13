@@ -1,14 +1,14 @@
 import axios from 'axios';
 
 // API 기본 URL 설정
-const API_URL = "http://127.0.0.1:8000";
+const baseURL = import.meta.env.VITE_APP_BASEURL;
 
 // 회의 목록을 가져오는 함수
 export const fetchMeetings = async (roomId, startdate, enddate) => {
     const authToken = localStorage.getItem("authToken");
     const url = roomId
-    ? `${API_URL}/meetingroom/book/${roomId}/`  // 특정 회의실에 대한 회의 예약 목록
-    : `${API_URL}/meetingroom/mymeeting/`;  // 내 회의 예약 목록
+    ? `${baseURL}/meetingroom/book/${roomId}/`  // 특정 회의실에 대한 회의 예약 목록
+    : `${baseURL}/meetingroom/mymeeting/`;  // 내 회의 예약 목록
     // startdate와 enddate가 없으면 생략
     const params = {};
     if (startdate !== null) params.startdate = startdate;
