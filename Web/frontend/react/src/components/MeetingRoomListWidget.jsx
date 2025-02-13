@@ -57,7 +57,6 @@ const getWeekRange = (date) => {
 
 
 const MeetingRoomListWidget = ({ roomId , onMeetingClick }) => {
-  console.log(roomId)
   const [meetings, setMeetings] = useState([]);
   const [selectedDate, setSelectedDate] = useState(new Date());
   const authToken = localStorage.getItem("authToken");
