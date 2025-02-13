@@ -49,6 +49,8 @@ const Button = styled.button`
   }
 `;
 
+const baseURL = import.meta.env.VITE_APP_BASEURL;
+
 const MeetingRoomDetailWidget = ({ meetingId, onClose }) => {
   const [meetingDetails, setMeetingDetails] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -60,7 +62,7 @@ const MeetingRoomDetailWidget = ({ meetingId, onClose }) => {
     const fetchMeetingDetails = async () => {
       try {
         const response = await axios.get(
-          `http://127.0.0.1:8000/meetingroom/booked/${meetingId}/`,
+          `${baseURL}/meetingroom/booked/${meetingId}/`,
           {
             headers: {
               Authorization: `Token ${authToken}`,

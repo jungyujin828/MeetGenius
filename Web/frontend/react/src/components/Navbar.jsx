@@ -1,9 +1,11 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import styled from "styled-components";
 import { FaSearch, FaBell, FaUserCircle, FaSignOutAlt } from "react-icons/fa";
 import { useNavigate } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux"; // Redux에서 사용자 정보 가져오기
 import { logoutUser } from "../redux/authSlice"; // 로그아웃 액션
+import {getNotifications} from "../api/notification"; // 알림 API 호출 함수 가져오기
+import NotificationWidget from "./notificationWidget";
 
 // 네비게이션 바 스타일
 const NavbarContainer = styled.div`
@@ -74,17 +76,59 @@ const LogoutButton = styled.button`
   }
 `;
 
+const NotificationIcon = styled.div`
+  position: relative;
+  display: flex;
+  align-items: center;
+  font-size: 1.5rem;
+`;
+
+const Badge = styled.span`
+  position: absolute;
+  top: -5px;
+  right: -5px;
+  background-color: red;
+  color: white;
+  font-size: 12px;
+  font-weight: bold;
+  border-radius: 50%;
+  width: 18px;
+  height: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+`;
+
+
 const Navbar = () => {
   const navigate = useNavigate();
   const dispatch = useDispatch();
+  const user = useSelector((state) => state.auth.user); // Redux에서 사용자 정보 가져오기
+  const [unreadCount, setUnreadCount] = useState(0); // 읽지 않은 알림 개수 상태
 
-  // Redux에서 로그인한 사용자 정보 가져오기
-  const user = useSelector((state) => state.auth.user);
+  // ✅ 알림 개수 가져오기
+  useEffect(() => {
+    const fetchNotifications = async () => {
+      try {
+        const notifications = await getNotifications();
+        setUnreadCount(notifications.length); // 읽지 않은 알림 개수 설정
+      } catch (error) {
+        console.error("알림 가져오기 실패:", error);
+      }
+    };
+
+    fetchNotifications();
+
+    // ✅ 일정 주기로 알림 개수를 다시 가져오기 (예: 30초마다 업데이트)
+    const interval = setInterval(fetchNotifications, 30000);
+
+    return () => clearInterval(interval); // 언마운트 시 인터벌 정리
+  }, []);
 
   const handleLogout = () => {
-    dispatch(logoutUser());  // 로그아웃 액션 디스패치
-    localStorage.removeItem("authToken");  // 로컬 스토리지에서 토큰 삭제
-    navigate("/accounts/login");  // 로그아웃 후 로그인 페이지로 리디렉션
+    dispatch(logoutUser()); // 로그아웃 액션 디스패치
+    localStorage.removeItem("authToken"); // 로컬 스토리지에서 토큰 삭제
+    navigate("/accounts/login"); // 로그아웃 후 로그인 페이지로 리디렉션
   };
 
   return (
@@ -96,8 +140,10 @@ const Navbar = () => {
           <input type="text" placeholder="Search..." />
         </SearchBar>
 
-        <UserInfo>
-          <FaBell />
+        <UserInfo>       
+        {/* 알림 위젯 */}
+        <NotificationWidget />
+          
           {user ? (
             <>
               <span>{user.department}팀</span>

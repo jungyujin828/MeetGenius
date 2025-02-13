@@ -124,6 +124,7 @@ const UserItem = styled.div`
   align-items: center;
   margin: 10px 0;
 `;
+const baseURL = import.meta.env.VITE_APP_BASEURL;
 
 const ProjectDetail = ({ projectId, onClose }) => {
   const [project, setProject] = useState(null);
@@ -152,7 +153,7 @@ const ProjectDetail = ({ projectId, onClose }) => {
           setLoading(false);
           return;
         }
-        const response = await axios.get(`http://127.0.0.1:8000/projects/${projectId}/`, {
+        const response = await axios.get(`${baseURL}/projects/${projectId}/`, {
           headers: {
             Authorization: `Token ${authToken}`,
           },
@@ -184,7 +185,7 @@ const ProjectDetail = ({ projectId, onClose }) => {
         setError("로그인된 사용자만 파일 목록을 볼 수 있습니다.");
         return;
       }
-      const response = await axios.get(`http://127.0.0.1:8000/projects/${projectId}/all_reports/`, {
+      const response = await axios.get(`${baseURL}/projects/${projectId}/all_reports/`, {
         headers: {
           Authorization: `Token ${authToken}`,
         },
@@ -210,7 +211,7 @@ const ProjectDetail = ({ projectId, onClose }) => {
     }
 
     try {
-      const response = await axios.get("http://127.0.0.1:8000/accounts/departments/", {
+      const response = await axios.get(`${baseURL}/accounts/departments/`, {
         headers: {
           Authorization: `Token ${authToken}`,
         },
@@ -230,7 +231,7 @@ const ProjectDetail = ({ projectId, onClose }) => {
     }
 
     try {
-      const response = await axios.get("http://127.0.0.1:8000/accounts/users/", {
+      const response = await axios.get(`${baseURL}/accounts/users/`, {
         headers: {
           Authorization: `Token ${authToken}`,
         },
@@ -256,7 +257,7 @@ const ProjectDetail = ({ projectId, onClose }) => {
 
     try {
       const response = await axios.post(
-        `http://127.0.0.1:8000/projects/${projectId}/upload_report/`,
+        `${baseURL}/projects/${projectId}/upload_report/`,
         formData,
         {
           headers: {
@@ -286,7 +287,7 @@ const ProjectDetail = ({ projectId, onClose }) => {
 
     try {
       const response = await axios.patch(
-        `http://127.0.0.1:8000/projects/${projectId}/`,
+        `${baseURL}/projects/${projectId}/`,
         formData,
         {
           headers: {
