@@ -164,11 +164,12 @@ const ProjectDetail = ({ projectId, onClose }) => {
           name: response.data.name,
           description: response.data.description,
           department: response.data.department,
-          startdate: response.data.startdate,
-          duedate: response.data.duedate,
+          startdate: response.data.startdate.split("T")[0],
+          duedate: response.data.duedate.split("T")[0] ,
           participants: response.data.participants || []
         });
         setLoading(false);
+
       } catch (error) {
         setError("프로젝트 상세 정보를 불러오는 데 실패했습니다.");
         setLoading(false);
@@ -190,7 +191,6 @@ const ProjectDetail = ({ projectId, onClose }) => {
           Authorization: `Token ${authToken}`,
         },
       });
-      console.log(response.data)
       setFiles(response.data); // 파일 목록 상태 업데이트
     } catch (error) {
       setError("파일 목록을 불러오는 데 실패했습니다.");
@@ -332,11 +332,19 @@ const ProjectDetail = ({ projectId, onClose }) => {
               value={formData.department}
               onChange={(e) => setFormData({ ...formData, department: e.target.value })}
             >
-              <option value="">부서 선택</option>
-              {departments.map((department) => (
-                <option key={department.id} value={department.id}>
-                  {department.name}
-                </option>
+{/* ✅ 기존 부서 값이 있으면 기본값으로 추가 */}
+{formData.department && !departments.some(dept => dept === formData.department) && (
+    <option value={formData.department} selected>
+      {formData.department}
+    </option>
+  )}
+
+  <option value="">부서 선택</option>
+
+  {departments.map((department) => (
+    <option key={department.id} value={department.id}>
+      {department.name}
+    </option>
               ))}
             </SelectField>
             <Label>시작일</Label>
