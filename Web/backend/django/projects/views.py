@@ -196,7 +196,7 @@ def upload_report(request, project_id):
         try:
             response = client.post(
                 f"{FASTAPI_BASE_URL}/api/embedding/process_reports/",
-                json={'reports':embedding_data_list}
+                json={'documents':embedding_data_list}
             )
             response.raise_for_status()
         except httpx.HTTPStatusError as http_err:

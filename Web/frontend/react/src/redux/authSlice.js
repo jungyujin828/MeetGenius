@@ -61,15 +61,21 @@ export const loadUser = createAsyncThunk("auth/loadUser", async (_, thunkAPI) =>
 // ✅ 초기 상태 정의
 const initialState = {
   user: null, // 현재 로그인한 사용자 정보
-  isAuthenticated: false, // 로그인 여부
+  isAuthenticated: localStorage.getItem("authToken") ? true : false, // 초기 상태에서 로컬스토리지의 토큰 여부로 인증 상태 결정
+  authToken: localStorage.getItem("authToken") || null, // 로컬스토리지에서 토큰 불러오기
   isLoading: false, // 로딩 상태
   error: null, // 에러 메시지 저장
 };
 
+// ✅ 인증 상태 변경 액션 (setAuthenticated)
 const authSlice = createSlice({
   name: "auth",
   initialState,
-  reducers: {},
+  reducers: {
+    setAuthenticated: (state, action) => {
+      state.isAuthenticated = action.payload; // 인증 상태 변경
+    },
+  },
   extraReducers: (builder) => {
     builder
       .addCase(loginUser.pending, (state) => {
@@ -77,9 +83,10 @@ const authSlice = createSlice({
         state.error = null;
       })
       .addCase(loginUser.fulfilled, (state, action) => {
-        state.user = action.payload;
+        state.user = action.payload; // 유저 정보를 저장 (token 포함)
         state.isAuthenticated = true;
         state.isLoading = false;
+        localStorage.setItem("authToken", action.payload.token); // 로그인 성공 시 토큰 저장
         state.error = null;
       })
       .addCase(loginUser.rejected, (state, action) => {
@@ -95,6 +102,8 @@ const authSlice = createSlice({
         state.isAuthenticated = false;
         state.isLoading = false;
         state.error = null;
+        state.authToken = null;
+        localStorage.removeItem("authToken"); // 로그아웃 시 토큰 삭제
       })
 
       // 로그인 유지 (세션 체크)
@@ -102,7 +111,7 @@ const authSlice = createSlice({
         state.isLoading = true;
       })
       .addCase(loadUser.fulfilled, (state, action) => {
-        state.user = action.payload;
+        state.user = action.payload; // 로그인된 유저 정보
         state.isAuthenticated = true;
         state.isLoading = false;
       })
@@ -113,5 +122,8 @@ const authSlice = createSlice({
       });
   },
 });
+
+// `setAuthenticated` 액션 export
+export const { setAuthenticated } = authSlice.actions;
 
 export default authSlice.reducer;

@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Meeting, Agenda, MeetingParticipation
+from .models import Meeting, Agenda, MeetingParticipation, Mom
 from django.contrib.auth import get_user_model
 from projects.serializers import ProjectSerializer 
 from projects.models import Project, ProjectParticipation
@@ -59,3 +59,12 @@ class MeetingBookSerializer(serializers.ModelSerializer):
             }
             for a in obj.agenda_set.all()  # 현재 회의의 모든 안건
         ]
+
+class MomSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Mom
+        fields = ['id','meeting_title','agenda_title','agenda_result','completed']
+
+    meeting_title = serializers.CharField(source='meeting.title', read_only=True)  # 회의 제목
+    agenda_title = serializers.CharField(source='agenda.title',read_only=True)
+    # document_id = serializers.IntegerField(source = 'document.id', allow_null = True, read_only=True)

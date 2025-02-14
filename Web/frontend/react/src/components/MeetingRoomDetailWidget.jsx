@@ -59,6 +59,7 @@ const MeetingRoomDetailWidget = ({ meetingId, onClose }) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const authToken = localStorage.getItem("authToken");
+  const navigate = useNavigate(); // navigate 정의
 
   useEffect(() => {
     const fetchMeetingDetails = async () => {
@@ -119,6 +120,12 @@ const MeetingRoomDetailWidget = ({ meetingId, onClose }) => {
     } catch (error) {
       alert(error.message);
     }
+  };
+
+   // 회의 참가하기 버튼 클릭 시, 실시간 회의 페이지로 이동
+   const handleJoinMeeting = () => {
+    console.log("회의 참가하기 버튼 클릭됨");
+    navigate("/realtime-meeting"); // 경로를 '/realtime-meeting'으로 설정하여 이동
   };
 
    // 회의 참가하기 버튼 클릭 시, 실시간 회의 페이지로 이동
