@@ -36,7 +36,6 @@ height: 600px;
 
 const MeetingRoomBooked = ({onMeetingClick, dates }) => {
   const meetings = useSelector((state) => state.meetings.meetings); // 리덕스에서 meetings 상태 가져오기
-  console.log(meetings)
   const weekDays = ["월", "화", "수", "목", "금"];
   const timeSlots = Array.from({ length: 20 }, (_, i) => {
     const hour = Math.floor(i / 2) + 9;

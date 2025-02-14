@@ -57,10 +57,10 @@ const getWeekRange = (date) => {
 
 
 
-const { startdate, enddate, dates, start, end } = getWeekRange(selectedDate);
 const MeetingRoomListWidget = ({ roomId , onMeetingClick }) => {
   const dispatch = useDispatch();
   const [selectedDate, setSelectedDate] = useState(new Date());
+  const { startdate, enddate, dates, start, end } = getWeekRange(selectedDate);
 
   useEffect(() => {
 

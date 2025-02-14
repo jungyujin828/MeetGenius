@@ -187,8 +187,7 @@ const fetchParticipants = async (selectedProject) => {
         title: a.title,
       })),
     };
-    console.log("회의 예약 데이터:", formData); // 여기에 상태 데이터를 출력하여 문제의 원인 확인
-
+    
     try {
       const response = await axios.post(
         `${baseURL}/meetingroom/book/${roomId}/`,
@@ -197,8 +196,7 @@ const fetchParticipants = async (selectedProject) => {
       );
       alert("회의가 예약되었습니다.");
       // 회의 목록에 새로 예약된 회의 추가
-      console.log(response.data);
-      
+      console.log("회의 예약 데이터:", formData); // 여기에 상태 데이터를 출력하여 문제의 원인 확인      
       dispatch(addMeeting(response.data));
     } catch (error) {
       console.error("🔴 회의 예약 실패:", error);
