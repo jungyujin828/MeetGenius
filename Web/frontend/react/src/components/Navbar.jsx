@@ -4,7 +4,6 @@ import { FaSearch, FaBell, FaUserCircle, FaSignOutAlt } from "react-icons/fa";
 import { useNavigate } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux"; // Redux에서 사용자 정보 가져오기
 import { logoutUser } from "../redux/authSlice"; // 로그아웃 액션
-import {getNotifications} from "../api/notification"; // 알림 API 호출 함수 가져오기
 import NotificationWidget from "./notificationWidget";
 
 // 네비게이션 바 스타일

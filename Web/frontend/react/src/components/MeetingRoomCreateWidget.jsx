@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useDispatch } from "react-redux";
 import { addMeeting } from "../redux/meetingSlice"; // 리덕스 액션 import
+import { getNotifications, markAsRead } from "../api/notification"; // 알림 관련 함수
 import axios from "axios";
 import styled from "styled-components";
 
@@ -198,6 +199,8 @@ const fetchParticipants = async (selectedProject) => {
       // 회의 목록에 새로 예약된 회의 추가
       console.log("회의 예약 데이터:", formData); // 여기에 상태 데이터를 출력하여 문제의 원인 확인      
       dispatch(addMeeting(response.data));
+      await getNotifications(dispatch); // 회의 생성 후 알림 갱신
+
     } catch (error) {
       console.error("🔴 회의 예약 실패:", error);
   
