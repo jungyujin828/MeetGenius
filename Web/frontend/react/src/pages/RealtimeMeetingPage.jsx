@@ -62,6 +62,14 @@ const RealtimeMeetingPage = () => {
   const [isModalOpen, setIsModalOpen] = useState(true); // 모달 열림 상태
   const navigate = useNavigate();
 
+  // // CSRF 토큰을 쿠키에서 가져오는 함수
+  // const getCookie = (name) => {
+  //   const value = `; ${document.cookie}`;
+  //   const parts = value.split(`; ${name}=`);
+  //   if (parts.length === 2) return parts.pop().split(";").shift();
+  //   return null;
+  // };
+
   // 회의 준비 버튼 클릭 시 호출되는 함수
   const handlePrepareMeeting = async () => {
     setIsPreparing(true);
@@ -69,27 +77,30 @@ const RealtimeMeetingPage = () => {
   
     try {
       const authToken = localStorage.getItem("authToken");
-      console.log("Auth Token:", authToken);  // 토큰이 제대로 저장되어 있는지 확인
       if (!authToken) {
         setError("로그인이 필요합니다.");
         return;
       }
-
   
-      const response = await axios.post(
-        "http://127.0.0.1:8000/meetings/prepare/",
-        {}, // 필요한 데이터가 있으면 추가
+      // const csrfToken = getCookie("csrftoken");  // CSRF 토큰을 쿠키에서 가져옴
+      // if (!csrfToken) {
+      //   setError("CSRF 토큰이 누락되었습니다.");
+      //   return;
+      // }
+  
+      const response = await axios.post("http://127.0.0.1:8000/meetings/prepare/", 
+        {}, // 필요한 데이터 추가
         {
           headers: {
             Authorization: `Token ${authToken}`,
-            'X-CSRFToken': csrfToken,  // CSRF 토큰 추가
+            // 'X-CSRFToken': csrfToken,  // CSRF 토큰 헤더에 추가
           },
         }
       );
-      
+  
       if (response.status === 200) {
-        setIsModalOpen(false); // 모달 닫기
-        setIsMeetingStarted(true); // 회의 시작 버튼 활성화
+        setIsModalOpen(false);  // 모달 닫기
+        setIsMeetingStarted(true);  // 회의 시작 버튼 활성화
       } else {
         setError("회의 준비 중 문제가 발생했습니다.");
       }
@@ -100,8 +111,6 @@ const RealtimeMeetingPage = () => {
     }
   };
   
-
-  // 회의 시작 버튼 클릭 시 호출되는 함수
   const handleStartMeeting = async () => {
     try {
       const authToken = localStorage.getItem("authToken");
@@ -109,20 +118,24 @@ const RealtimeMeetingPage = () => {
         setError("로그인이 필요합니다.");
         return;
       }
-      
-      // 회의 시작 요청
-      const response = await axios.post(
-        "http://127.0.0.1:8000/meetings/stt/start/",
-        {},
+  
+      // const csrfToken = getCookie("csrftoken");  // CSRF 토큰을 쿠키에서 가져옴
+      // if (!csrfToken) {
+      //   setError("CSRF 토큰이 누락되었습니다.");
+      //   return;
+      // }
+  
+      const response = await axios.post("http://127.0.0.1:8000/meetings/start/",
+        {},  // 빈 데이터
         {
           headers: {
             Authorization: `Token ${authToken}`,
-            'X-CSRFToken': csrfToken,  // CSRF 토큰 추가
+            // 'X-CSRFToken': csrfToken,  // CSRF 토큰 헤더에 추가
           },
         }
       );
+  
       if (response.status === 200) {
-        // 회의 시작 후 STT와 RAG 활성화
         alert("회의가 시작되었습니다.");
       } else {
         setError("회의 시작에 실패했습니다.");
