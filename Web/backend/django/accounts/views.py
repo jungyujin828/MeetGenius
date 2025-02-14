@@ -125,3 +125,11 @@ def get_all_departments(request):
     departments = Department.objects.all()
     serializer = DepartmentSerializer(departments, many=True)
     return Response(serializer.data, status=status.HTTP_200_OK)
+
+@api_view(['GET'])
+def get_user_info(request):
+    if request.method =="GET":
+        # 현재 요청한 사용자의 user 객체
+        user = request.user
+        serializer = UserSerializer(user)
+        return Response(serializer.data)

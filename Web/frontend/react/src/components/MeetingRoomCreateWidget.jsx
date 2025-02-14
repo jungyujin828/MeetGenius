@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import axios from "axios";
 import styled from "styled-components";
+import { fetchMeetings } from "../api/fetchMeetings"; // 분리된 API 요청 함수 임포트
 
 // 스타일 컴포넌트 설정
 const MeetingFormContainer = styled.div`
@@ -53,6 +54,8 @@ const UserItem = styled.div`
   margin-bottom: 5px;
 `;
 
+const baseURL = import.meta.env.VITE_APP_BASEURL;
+
 const MeetingRoomCreateWidget = ({ roomId, setMeetings }) => {
   const [projects, setProjects] = useState([]);
   const [projectName, setProjectName] = useState("");
@@ -85,7 +88,7 @@ const MeetingRoomCreateWidget = ({ roomId, setMeetings }) => {
   const fetchProjects = async () => {
     const authToken = localStorage.getItem("authToken");
     try {
-      const response = await axios.get("http://127.0.0.1:8000/projects/", {
+      const response = await axios.get( `${baseURL}/projects/`, {
         headers: { Authorization: `Token ${authToken}` },
       });
       console.log(response.data);
@@ -100,7 +103,7 @@ const MeetingRoomCreateWidget = ({ roomId, setMeetings }) => {
 // 유저 목록 불러오기
 const fetchUsers = async () => {
   try {
-    const url = "http://127.0.0.1:8000/accounts/users/"; // 모든 유저 불러오는 엔드포인트
+    const url = `${baseURL}/accounts/users/`; // 모든 유저 불러오는 엔드포인트
     const response = await axios.get(url);
     setUsers(response.data);
   } catch (error) {
@@ -114,14 +117,18 @@ const fetchParticipants = async (selectedProject) => {
   const authToken = localStorage.getItem("authToken");
   try {
     const response = await axios.get(
-      `http://127.0.0.1:8000/meetingroom/project_participation/${selectedProject}/`,
+      `${baseURL}/meetingroom/project_participation/${selectedProject}/`,
       { headers: { Authorization: `Token ${authToken}` } }
     );
     console.log(response.data)
     // 응답 데이터에서 project_participation을 추출하여 상태 업데이트
     if (Array.isArray(response.data.project_participation)) {
-      setParticipants(response.data.project_participation);  // participants 상태 업데이트
-    } else {
+      setParticipants(response.data.project_participation.map(({ participant, authority }) => ({
+        id: participant,  // participant -> id 변경
+        authority,        // authority 값 유지
+      })));
+    }
+    else {
       setError("참여자 목록이 올바르지 않습니다.");
       console.error("참여자 목록 오류:", response.data);
     }
@@ -154,7 +161,10 @@ const fetchParticipants = async (selectedProject) => {
   // 회의 예약 핸들러
   const handleCreateMeeting = async () => {
     const authToken = localStorage.getItem("authToken");
-
+    if (!roomId) {
+      alert("예약할 회의실 번호를 선택해주세요");
+      return;
+    }
     if (!authToken) {
       alert("로그인된 사용자만 회의를 예약할 수 있습니다.");
       return;
@@ -173,7 +183,7 @@ const fetchParticipants = async (selectedProject) => {
       starttime : startTime +":00" ,
       endtime : endTime +":00",
       participants: participants.map((p) => ({
-        id: p.participant,
+        id: p.id,
         authority: p.authority || 1,
       })),
       agenda_items: agendas.map((a) => ({
@@ -183,24 +193,31 @@ const fetchParticipants = async (selectedProject) => {
 
     try {
       const response = await axios.post(
-        `http://127.0.0.1:8000/meetingroom/book/${roomId}/`,
+        `${baseURL}/meetingroom/book/${roomId}/`,
         formData,
         { headers: { Authorization: `Token ${authToken}` } }
       );
       alert("회의가 예약되었습니다.");
-      setMeetings((prevMeetings) => [...prevMeetings, response.data]); 
+      // 회의 예약 후 바로 목록 업데이트
+      // await fetchMeetings(roomId, null, null);  // 회의 목록을 새로 불러오기
+
+      // 회의 목록에 새로 예약된 회의 추가
+      // setMeetings((prevMeetings) => [...prevMeetings, response.data]);
 
     } catch (error) {
       console.error("🔴 회의 예약 실패:", error);
-      alert("회의 예약 실패: " + (error.response?.data?.detail || "알 수 없는 오류"));
+  
+      const errorMessage = error.response?.data?.message || "알 수 없는 오류";
+      
+      alert(`회의 예약 실패: ${errorMessage}`);
     }
   };
 // 참여자 선택 핸들러
 const handleUserSelect = (userId) => {
   setParticipants((prevParticipants) => {
-    const isSelected = prevParticipants.some((p) => p.participant === userId);
+    const isSelected = prevParticipants.some((p) => p.id === userId);
     if (isSelected) {
-      return prevParticipants.filter((p) => p.participant !== userId);
+      return prevParticipants.filter((p) => p.id !== userId);
     } else {
       return [...prevParticipants, { id: userId, authority: 1 }];
     }
@@ -211,7 +228,7 @@ const handleUserSelect = (userId) => {
 const handleAuthorityChange = (userId) => {
   setParticipants((prevParticipants) =>
     prevParticipants.map((p) =>
-      p.participant === userId ? { ...p, authority: p.authority === 0 ? 1 : 0 } : p
+      p.id === userId ? { ...p, authority: p.authority === 0 ? 1 : 0 } : p
     )
   );
 };
@@ -318,7 +335,7 @@ for (let hour = 9; hour <= 18; hour++) {
               <input
                 type="checkbox"
                 value={user.participant}
-                checked={participants.some((p) => p.participant === user.id)}
+                checked={participants.some((p) => p.id === user.id)}
                 onChange={() => handleUserSelect(user.id)} // 체크박스 선택 처리
               />
               {user.name} ({user.department} / {user.position})
@@ -328,7 +345,7 @@ for (let hour = 9; hour <= 18; hour++) {
               마스터 권한
               <input
                 type="checkbox"
-                checked={participants.some((p) => p.participant === user.id && p.authority === 0)} // authority가 0일 때 체크
+                checked={participants.some((p) => p.id === user.id && p.authority === 0)} // authority가 0일 때 체크
                 onChange={() => handleAuthorityChange(user.id)} // 권한 변경
               />
             </label>

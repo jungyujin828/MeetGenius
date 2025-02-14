@@ -203,6 +203,7 @@ async def scheduler(request,meeting_id):
         await redis_client.set("meeting:meeting_id", str(meeting.id))   # meeting ID 저장
         await redis_client.set("meeting:cur_agenda", "1")  # 첫 번째 안건부터 "작
         await redis_client.set("meeting:stt_running", "stop")  # STT running 상태 default stop
+        
         await redis_client.set("meeting:agenda_list", json.dumps(list(agendas)))  # 안건 목록 저장
         
         # 상태 변경 알림
@@ -321,7 +322,6 @@ async def get_current_agenda():
 
     # 현재 진행 중인 안건 찾기
     for agenda in agenda_list:
-        # if str(agenda["id"]) == cur_agenda:
         if str(agenda["order"]) == cur_agenda:
             return {
                 "agenda_id": agenda["id"],
@@ -440,7 +440,7 @@ async def start_meeting(request):
         # print('상태 변경 후 publish 완료')
 
         current_agenda = await get_current_agenda() # 현재 안건 정보 가져오기
-        # print('안건정보도 가져옴',current_agenda)
+        print('안건정보도 가져옴',current_agenda)
 
         # FastAPI API 주소
         fastapi_url = f'{FASTAPI_BASE_URL}/api/v1/meetings/{meeting_id}/next-agenda/'
@@ -838,6 +838,7 @@ async def stop_meeting(reqeust):
             # Mom 데이터 생성
             new_mom = await sync_to_async(Mom.objects.create)(
                 meeting=meeting_obj,
+                document = document_obj,
                 agenda=agenda_obj,
                 agenda_result=agenda_result,
                 completed=False

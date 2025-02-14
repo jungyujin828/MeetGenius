@@ -5,14 +5,21 @@ from django.utils.dateparse import parse_datetime
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
 from rest_framework import status
-from .models import Meeting, Agenda, MeetingParticipation, Mom
-from .serializers import MeetingReadSerializer, MeetingBookSerializer
+from .models import Meeting, Agenda, MeetingParticipation, Mom, SummaryMom
+from .serializers import MeetingReadSerializer, MeetingBookSerializer,MomSerializer
 
 from projects.models import Project, Document
 from projects.serializers import ProjectSerializer, ProjectParticipationSerializer
 from accounts.models import Notification
-import json
+import json, httpx
 from django.db.models import Q
+from asgiref.sync import sync_to_async
+from rest_framework.request import Request
+from django.http import JsonResponse
+
+from meetingroom.tasks import process_meeting_update
+
+FASTAPI_URL = ''
 
 def check_room_availability(room_id, starttime, endtime, exclude_meeting_id=None):
     """
@@ -26,7 +33,6 @@ def check_room_availability(room_id, starttime, endtime, exclude_meeting_id=None
         starttime__lt=endtime,  # 예약 시작 시간이 endtime 이전
         endtime__gt=starttime,   # 예약 종료 시간이 starttime 이후
     ).exclude(id=exclude_meeting_id)  # 현재 회의를 제외
-
     # 충돌하는 회의가 존재하면 False 반환
     if conflicting_meetings.exists():
         return False
@@ -82,7 +88,7 @@ def meetingroom_list_create(request, room_id):
         request_data['endtime'] = meetingday + "T" + endtime
 
         # 예약 가능한 시간인지 확인
-        if not check_room_availability(room_id, request_data['endtime'], request_data['endtime']):
+        if not check_room_availability(room_id, request_data['starttime'], request_data['endtime']):
             return Response(
                 {"status": "error", "message": "이 시간대에는 이미 회의가 예약되어 있습니다."},
                 status=status.HTTP_400_BAD_REQUEST,
@@ -342,14 +348,202 @@ def mymeeting(request):
         user = request.user
         mymeetings = user.meeting_participations.all()
 
+        # 조회된 데이터가 없을 경우 예외 처리
+        if not mymeetings.exists():
+            return Response([], status=status.HTTP_200_OK)
+        
+        # Meeting 객체를 필터링하기 위해 QuerySet으로 유지
+        meetings = Meeting.objects.filter(id__in=[m.meeting.id for m in mymeetings])
+
         if startdate and enddate:
             startdate = parse_datetime(startdate+ " 00:00:00")
             enddate = parse_datetime(enddate + " 23:59:59")
             meetings = meetings.filter(starttime__range=(startdate, enddate))
 
-        # 조회된 데이터가 없을 경우 예외 처리
-        if not meetings.exists():
-            return Response([], status=status.HTTP_200_OK)
 
         serializer = MeetingReadSerializer(mymeetings, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
+
+
+@api_view(['GET'])
+def get_moms_by_project(request, project_id):
+    """
+    특정 프로젝트의 원본 회의록 조회
+    """
+    # 프로젝트 조회
+    project = get_object_or_404(Project, id=project_id)
+
+    # 프로젝트에 속한 회의 조회
+    ## 조회한 project 객체에서 'id' 필드값만 가져옴.
+    ## flat=True : list형태로 반환 (안쓰면 튜플형태)
+    meeting_ids = Meeting.objects.filter(project=project).values_list('id', flat=True)
+    # meeting ids에 속한 moms들 한 번에 가져옴
+    moms = Mom.objects.filter(meeting_id__in=meeting_ids)
+
+    serializer = MomSerializer(moms, many=True)
+    return Response(serializer.data, status = status.HTTP_200_OK)
+
+
+@api_view(['GET','PATCH'])
+def get_or_update_moms_by_meeting(request, meeting_id):
+    """
+    특정 회의의 원본 회의록 조회
+    "GET" : 특정 회의에 속한 모든 회의록 조회
+    "PATCH" : 
+        1. 전달받은 데이터로 각 Mom의 agenda_result 업데이트 (bulk_update 사용)
+        2. meeting_id에 속한 모든 Mom의 completed 필드를 True로 변경
+        3. 해당 meeting의 모든 Mom 데이터를 FastAPI에 전송하여 요약 요청  
+        4. FastAPI 응답에 따라 SummaryMom 모델에 요약 결과를 저장
+    """
+
+
+    
+    moms = Mom.objects.filter(meeting_id=meeting_id)
+    print(moms)
+
+    if not moms:
+        return Response({'error':'해당 회의에 회의록이 존재하지 않습니다.'},
+                        status=status.HTTP_404_NOT_FOUND)
+    
+    # # GET 요청 처리 (조회)
+    if request.method =="GET": 
+        serializer = MomSerializer(moms, many=True)
+        return Response(serializer.data, status = 200)
+    
+    # # PATCH 요청 처리 (수정)
+    elif request.method == "PATCH":
+        update_data = request.data.get("moms", [])
+        print('자 가보자#####')
+        print('####',update_data,'####')
+
+        task = process_meeting_update.delay(meeting_id, update_data)
+
+        return Response({
+            "message": "업데이트 작업이 백그라운드에서 처리되고 있습니다.",
+            "task_id": task.id
+        }, status=status.HTTP_202_ACCEPTED)
+    #     try:
+    #         body = await sync_to_async(lambda: json.loads(request.body.decode('utf-8')))()
+    #     except json.JSONDecodeError:
+    #         return Response({"error": "Invalid JSON"}, status=400)
+    #     print(body)
+
+    #     update_data = request.data.get("moms", [])
+
+    #     '''
+    #     이 방식은 쿼리 너무 많이 보냄.
+    #     나중에 시간 비교하려고 남겨두겠습니다.
+    #     '''
+    #     # 모든 회의록의 agenda_result 수정
+    #     # 하나씩 id 찾아서 매칭칭
+    #     updated_moms = []
+    #     for update_mom in update_data:
+    #         print(update_mom)
+    #         mom_id = update_mom.get("id")
+    #         mom_data = update_mom.get('agenda_result')
+    #         print(mom_id, mom_data)
+
+    #         mom = get_object_or_404(Mom, id=mom_id, meeting_id = meeting_id)
+    #         print(mom)
+
+    #         serializer = MomSerializer(mom, data = update_mom, partial=True)
+    #         if serializer.is_valid():
+    #             serializer.save()
+    #             updated_moms.append(serializer.data)
+    #         else :
+    #             return Response(serializer.errors, status = status.HTTP_400_BAD_REQUEST)
+    #     '''
+    #     그래서 바꿈.
+    #     '''
+    #     update_data = body.get("moms", [])
+    #     print(update_data)
+    #     # 업데이트할 Mom ID 리스트 추출 
+    #     mom_ids = [update_mom["id"] for update_mom in update_data] 
+        
+    #     # SELECT 한 번으로 모든 MOM 객체 가져오기 (딕셔너리)
+    #     # moms_dict = {mom.id: mom for mom in Mom.objects.filter(id__in=mom_ids, meeting_id=meeting_id)}/
+    #     moms_dict = await sync_to_async(lambda: {mom.id: mom for mom in Mom.objects.filter(id__in=mom_ids, meeting_id=meeting_id)})()
+    
+
+    #     # 전달된 데이터대로 각 Mom의 (회의록)agenda_result 업데이트.
+    #     updated_moms=[]
+    #     for update_mom in update_data:
+    #         mom_id = update_mom["id"]
+    #         if mom_id in moms_dict:
+    #             mom = moms_dict[mom_id]
+    #             mom.agenda_result = update_mom["agenda_result"]
+    #             updated_moms.append(mom)
+
+    #     if updated_moms:
+    #         # bulk_update() : 여러 개의 UPDATE 쿼리 한 번에 실행 
+    #         # (iterable, ['field'] 업데이트할 필드명)
+    #         await sync_to_async(Mom.objects.bulk_update)(updated_moms, ['agenda_result'])
+
+    #     # 임시. 해당 meeting_id 에 속한 모든 Mom 객체의 completed를 True로 변경 (쿼리 1번)
+    #     await sync_to_async(Mom.objects.filter(meeting_id=meeting_id).update)(completed=True)
+
+    #     ''' 
+    #     여기부터 FastAPI로 던질 준비
+    #     - 요약 준비
+    #     '''
+    #     # 해당 미팅에 속한 모든 Mom의 agenda_title과 agenda_result를 포함하는 payload 생성
+    #     all_moms = await sync_to_async(list)(Mom.objects.filter(meeting_id=meeting_id))
+    #     payload = {
+    #         "items":[
+    #             {
+    #                 "agenda_title": mom.agenda_title,
+    #                 "agenda_result": mom.agenda_result
+    #             }
+    #             for mom in all_moms
+    #         ]
+    #     }
+    #     print(payload)
+
+    #     # 호출
+    #     fastapi_response = await send_moms_to_fastapi(payload, meeting_id) 
+
+    #     if fastapi_response is None:
+    #         return Response(
+    #             {"detail":"FastAPI 요청 처리 중 오류 발생"},
+    #             status=status.HTTP_400_BAD_REQUEST
+    #         )
+        
+    #     summaries = fastapi_response.get("summaries", [])
+        
+        
+    #     for summary in summaries:
+    #         agenda_title = summary.get("agenda_title")
+    #         agenda_summary = summary.get('summary')
+    #         # meeting_id와 agenda_title이 일치하는 Mom 객체 찾기
+    #         # mom = Mom.objects.filter(meeting_id=meeting_id, agenda_title=agenda_title).first()
+    #         mom = await sync_to_async(lambda: Mom.objects.filter(meeting_id=meeting_id, agenda_title=agenda_title).first())()
+    #         if mom :
+    #             # Document 먼저 생성 (요약 후 회의록 type = 1)
+    #             document = await sync_to_async(Document.objects.create)(
+    #                 type = 1,
+    #                 embedding = False,
+    #                 project = mom.meeting.project,
+    #                 department = mom.meeting.department
+    #             )
+
+    #             await sync_to_async(SummaryMom.objects.create)(
+    #                 mom=mom,
+    #                 summary_result=agenda_summary,
+    #                 document = document,
+    #                 completed=True
+    #             )
+
+
+
+    #     # SummaryMom 모델에 요약 결과 저장
+
+    #     return Response({
+    #         "message":f"{len(updated_moms)}개 회의록 수정 완료",
+    #         "summaries":summaries
+    #     },status = status.HTTP_200_OK)
+    # return Response({'test':'test'})
+
+
+
+
+    
