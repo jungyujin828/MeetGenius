@@ -48,6 +48,8 @@ const Button = styled.button`
   }
 `;
 
+const baseURL = import.meta.env.VITE_APP_BASEURL;
+
 const MeetingRoomDetailWidget = ({ meetingId, onClose }) => {
   const [meetingDetails, setMeetingDetails] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -58,7 +60,7 @@ const MeetingRoomDetailWidget = ({ meetingId, onClose }) => {
     const fetchMeetingDetails = async () => {
       try {
         const response = await axios.get(
-          `http://127.0.0.1:8000/meetingroom/booked/${meetingId}/`,
+          `${baseURL}/meetingroom/booked/${meetingId}/`,
           {
             headers: {
               Authorization: `Token ${authToken}`,
@@ -118,8 +120,8 @@ const MeetingRoomDetailWidget = ({ meetingId, onClose }) => {
       <DetailItem><strong>안건:</strong></DetailItem>
       {meetingDetails.meeting_agendas && meetingDetails.meeting_agendas.length > 0 ? (
         <List>
-          {meetingDetails.meeting_agendas.map((agenda, index) => (
-            <li key={index}>{agenda}</li>
+          {meetingDetails.meeting_agendas.map((item) => (
+            <li key={item.order}> {item.title}</li>
           ))}
         </List>
       ) : (

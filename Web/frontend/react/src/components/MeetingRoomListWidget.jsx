@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import axios from "axios";
 import styled from "styled-components";
 import MeetingRoomBooked from "./MeetingRoomBooked"; // 컴포넌트 임포트
+import { fetchMeetings } from "../api/fetchMeetings"; // 분리된 API 요청 함수 임포트
 
 const ScheduleContainer = styled.div`
   display: flex;
@@ -31,37 +32,42 @@ const Td = styled.td`
   background-color: ${(props) => (props.hasMeeting ? "#ffedcc" : "white")};
 `;
 
+const baseURL = import.meta.env.VITE_APP_BASEURL;
+
+
 const getWeekRange = (date) => {
   const start = new Date(date);
   start.setDate(start.getDate() - start.getDay() + 1); // 월요일
   const end = new Date(start);
   end.setDate(start.getDate() + 4); // 금요일
-
+  const dates = [];
+  for (let i = 0; i < 5; i++) {
+    const newDate = new Date(start);
+    newDate.setDate(start.getDate() + i);
+    dates.push(newDate);
+  }
   return {
     startdate: start.toISOString().split("T")[0],
     enddate: end.toISOString().split("T")[0],
     start,
-    end,
+    end,dates,
   };
 };
 
 
 
 const MeetingRoomListWidget = ({ roomId , onMeetingClick }) => {
-  console.log("✅ onMeetingClick 확인:", onMeetingClick); 
   const [meetings, setMeetings] = useState([]);
   const [selectedDate, setSelectedDate] = useState(new Date());
   const authToken = localStorage.getItem("authToken");
 
   useEffect(() => {
-    if (!roomId) return; // 회의실이 선택되지 않으면 요청 안 함
-
     const { startdate, enddate } = getWeekRange(selectedDate);
 
-    const fetchMeetings = async () => {
+    const fetchData  = async () => {
       try {
         const response = await axios.get(
-          `http://127.0.0.1:8000/meetingroom/book/${roomId}/`,
+          `${baseURL}/meetingroom/book/${roomId}/`,
           {
             params: { startdate, enddate },
             headers: {
@@ -76,10 +82,10 @@ const MeetingRoomListWidget = ({ roomId , onMeetingClick }) => {
       }
     };
 
-    fetchMeetings();
-  }, [roomId, selectedDate, meetings]);
+    fetchData ();
+  }, [roomId, selectedDate]);
 
-  const { start, end } = getWeekRange(selectedDate);
+  const { start, end, dates  } = getWeekRange(selectedDate);
 
   return (
     <ScheduleContainer>
@@ -112,7 +118,7 @@ const MeetingRoomListWidget = ({ roomId , onMeetingClick }) => {
 
       <Table>
         {/* 회의 목록을 `MeetingRoomBookedListWidget`으로 전달 */}
-        <MeetingRoomBooked meetings={meetings.length > 0 ? meetings : []} onMeetingClick={onMeetingClick}  />      </Table>
+        <MeetingRoomBooked meetings={meetings.length > 0 ? meetings : []} onMeetingClick={onMeetingClick} dates={dates} />      </Table>
     </ScheduleContainer>
   );
 };
