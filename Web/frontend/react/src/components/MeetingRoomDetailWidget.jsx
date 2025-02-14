@@ -128,12 +128,6 @@ const MeetingRoomDetailWidget = ({ meetingId, onClose }) => {
     navigate("/realtime-meeting"); // 경로를 '/realtime-meeting'으로 설정하여 이동
   };
 
-   // 회의 참가하기 버튼 클릭 시, 실시간 회의 페이지로 이동
-   const handleJoinMeeting = () => {
-    console.log("회의 참가하기 버튼 클릭됨");
-    navigate("/realtime-meeting"); // 경로를 '/realtime-meeting'으로 설정하여 이동
-  };
-
   return (
     <DetailContainer>
       <DetailHeader>예약 내역</DetailHeader>
