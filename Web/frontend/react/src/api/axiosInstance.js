@@ -10,7 +10,6 @@ const axiosInstance = axios.create({
   },
 });
 
-// ✅ 요청 인터셉터 추가 (모든 요청에 CSRF 토큰 및 인증 헤더 추가)
 axiosInstance.interceptors.request.use((config) => {
   const authToken = localStorage.getItem("authToken");
   if (authToken) {
