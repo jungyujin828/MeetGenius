@@ -13,11 +13,7 @@ class MeetingReadSerializer(serializers.ModelSerializer):
             'id','project', 'title','room','starttime', 'endtime',
         ]
     def get_project(self, obj):
-        # project를 { name:, id: } 형식으로 반환
-        return {
-            'name': obj.project.name,
-            'id': obj.project.id
-        }
+        return obj.project.name,
 
 User = get_user_model()
 
