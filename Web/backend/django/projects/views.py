@@ -182,7 +182,7 @@ def upload_report(request, project_id):
     return Response(
         {"message": "파일 내용 저장 완료", 
          "reports": reports,
-        #  'fastapi_response':response.json()
+         'fastapi_response':response.json()
          }, 
          status=status.HTTP_201_CREATED)
     
