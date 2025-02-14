@@ -6,14 +6,11 @@ from projects.models import Project, ProjectParticipation
 
 # 모델과 연결.
 class MeetingReadSerializer(serializers.ModelSerializer):
-    project = serializers.SerializerMethodField()
     class Meta:
         model = Meeting
         fields = [
-            'id','project', 'title','room','starttime', 'endtime',
+            'id', 'title','room','starttime', 'endtime',
         ]
-    def get_project(self, obj):
-        return obj.project.name,
 
 User = get_user_model()
 

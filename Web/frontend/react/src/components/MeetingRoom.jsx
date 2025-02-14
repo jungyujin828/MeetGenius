@@ -1,5 +1,7 @@
 import React, { useState } from "react";
 import styled from "styled-components";
+import { useDispatch, useSelector } from "react-redux";
+import { addMeeting, setMeetings } from "../redux/meetingSlice"; // 리덕스 액션 import
 import MeetingRoomCreateWidget from "./MeetingRoomCreateWidget";
 import MeetingRoomListWidget from "./MeetingRoomListWidget";
 import MeetingRoomDetailWidget from "./MeetingRoomDetailWidget";
@@ -90,7 +92,8 @@ const BookingButton = styled.button`
 
 
 const MeetingRoom = () => {
-  const [meetings, setMeetings] = useState([]);
+  const dispatch = useDispatch();
+  const meetings = useSelector((state) => state.meetings); // 리덕스에서 meetings 상태 가져오기
   const [selectedRoom, setSelectedRoom] = useState(0);
   const [isBookingVisible, setIsBookingVisible] = useState(false);
   const [selectedMeetingId, setSelectedMeetingId] = useState(null);
@@ -124,7 +127,7 @@ const MeetingRoom = () => {
       key={roomId}
       active={selectedRoom === roomId}
       onClick={() => handleSelectRoom(roomId)}
-    >
+      >
       {selectedRoom === roomId && "✔️ "}회의실 {roomId}
     </RoomButton>
   ))}
@@ -165,8 +168,8 @@ const MeetingRoom = () => {
           ) : (
             <>
               {/* ✅ 예약 폼은 토글 */}
-              {isBookingVisible && <MeetingRoomCreateWidget roomId={selectedRoom} setMeetings={setMeetings} />}
-            </>
+              {isBookingVisible && <MeetingRoomCreateWidget roomId={selectedRoom} />}
+              </>
           )}
         </SidePanel>
       </ContentWrapper>
