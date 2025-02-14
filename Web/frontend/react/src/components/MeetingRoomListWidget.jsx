@@ -5,7 +5,7 @@ import { useDispatch, useSelector } from "react-redux";
 import { setMeetings } from "../redux/meetingSlice"; // 리덕스 액션 import
 
 import MeetingRoomBooked from "./MeetingRoomBooked"; // 컴포넌트 임포트
-import { fetchMeetings } from "../api/fetchMeetings"; // 분리된 API 요청 함수 임포트
+import { fetchMeetings } from "../api/meetingRoom"; // 분리된 API 요청 함수 임포트
 
 
 const ScheduleContainer = styled.div`

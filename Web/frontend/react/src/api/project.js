@@ -21,4 +21,14 @@ export const deleteReport = async (projectId, ReportId) => {
       throw new Error(error.response?.data?.message || "문서서 삭제에 실패했습니다.");
     }
   };
+
+ // 프로젝트 목록을 가져오는 함수
+  export  const fetchProjects = async () => {
+    try {
+      const response = await axiosInstance.get(`/projects/`);
+      return response.data
+    } catch (error) {
+      throw new Error(error.response?.data?.message ||"프로젝트 목록을 불러오는 데 실패했습니다.");
+    }
+  };
   
