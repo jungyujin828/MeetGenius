@@ -161,12 +161,12 @@ def meetingroom_list_create(request, room_id):
                 title = agenda_item.get("title")
                 if not title:
                     continue
-                order += 1
                 Agenda.objects.create(
                     meeting=meeting,
                     title=title,
                     order=order
                 )
+                order += 1
 
             return Response(serializer.data, status=status.HTTP_201_CREATED)
         return Response(
@@ -332,8 +332,6 @@ def meeting_detail(request, meeting_id):
                 status=status.HTTP_404_NOT_FOUND
             )
         else:
-            authority = participation.authority
-            participant = participation.participant
             return Response(
                 {"status": "error", "message": "삭제 권한이 없습니다.",},
                 status=status.HTTP_403_FORBIDDEN

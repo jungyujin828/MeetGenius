@@ -1,7 +1,10 @@
 import React, { useState, useEffect } from "react";
 import axios from "axios";
 import styled from "styled-components";
+import { deleteMeetingRoomBooking, updateMeetingRoomBooking } from "../api/meetingRoom"; // 예약 취소 및 수정 API 호출
 import { useNavigate } from "react-router-dom"; // react-router-dom에서 useNavigate 가져오기
+
+
 
 const DetailContainer = styled.div`
   padding: 20px;
@@ -81,7 +84,7 @@ const MeetingRoomDetailWidget = ({ meetingId, onClose }) => {
     if (meetingId) {
       fetchMeetingDetails();
     }
-  }, [meetingId, authToken]);
+  }, [meetingId]);
 
   if (loading) return <p>회의 정보를 불러오는 중...</p>;
   if (error) return <p>{error}</p>;
@@ -95,6 +98,34 @@ const MeetingRoomDetailWidget = ({ meetingId, onClose }) => {
     ).padStart(2, "0")} | ${String(date.getHours()).padStart(2, "0")}:${String(
       date.getMinutes()
     ).padStart(2, "0")}`;
+  };
+  const handleDeleteBooking = async () => {
+    if (!window.confirm("정말 이 회의를 취소하시겠습니까?")) {
+      return;
+    }
+
+    try {
+      const message = await deleteMeetingRoomBooking(meetingId);
+      alert(message);
+      onClose(); // 취소 후 창 닫기
+    } catch (error) {
+      alert(error.message);
+    }
+  };
+
+  const handleUpdateBooking = async () => {
+    try {
+      const message = await updateMeetingRoomBooking(meetingId, formData);
+      alert(message);
+    } catch (error) {
+      alert(error.message);
+    }
+  };
+
+   // 회의 참가하기 버튼 클릭 시, 실시간 회의 페이지로 이동
+   const handleJoinMeeting = () => {
+    console.log("회의 참가하기 버튼 클릭됨");
+    navigate("/realtime-meeting"); // 경로를 '/realtime-meeting'으로 설정하여 이동
   };
 
    // 회의 참가하기 버튼 클릭 시, 실시간 회의 페이지로 이동
@@ -138,8 +169,8 @@ const MeetingRoomDetailWidget = ({ meetingId, onClose }) => {
 
       {/* 버튼 */}
       <ButtonContainer>
-        <Button onClick={onClose}>예약 취소</Button>
-        <Button primary onClick={onClose}>예약 수정</Button>
+      <Button onClick={handleDeleteBooking}>예약 취소</Button>
+      <Button onClick={handleUpdateBooking}>예약 수정</Button>
       </ButtonContainer>
       <Button primary style={{ width: "100%", marginTop: "10px" }} onClick={handleJoinMeeting}>
         회의 참가하기

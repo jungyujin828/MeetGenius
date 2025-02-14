@@ -1,9 +1,10 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import styled from "styled-components";
 import { FaBell, FaTimes } from "react-icons/fa";
-// import axiosInstance from "./api/axiosInstance"; // Axios 인스턴스 가져오기
-import { getNotifications, markAsRead } from "../api/notification"; // named import로 가져오기
 
+import { useDispatch, useSelector } from "react-redux"; // useDispatch, useSelector 추가
+import { getNotifications, markAsRead } from "../api/notification"; // named import로 가져오기
+import { setNotifications, markAsReadInStore } from "../redux/notificationSlice"; // 리덕스 액션 가져오기
 
 
 // 알림창 스타일
@@ -94,27 +95,26 @@ const MarkAsReadButton = styled.button`
 `;
 
 const NotificationWidget = () => {
-    const [notifications, setNotifications] = useState([]);
-    const [isOpen, setIsOpen] = useState(false);
-    const [unreadCount, setUnreadCount] = useState(0);
+  const dispatch = useDispatch();
+  const notifications = useSelector((state) => state.notifications.notifications); // 리덕스에서 알림 가져오기
+  const unreadCount = useSelector((state) => state.notifications.unreadCount); // 리덕스에서 읽지 않은 알림 개수 가져오기
+  const [isOpen, setIsOpen] = useState(false);
+  // 이전 알림 상태 추적용 ref
+  const prevNotificationsRef = useRef();
+
 
     // 알림 목록 가져오기
     useEffect(() => {
       const fetchNotifications = async () => {
         try {
-          const notificationsData = await getNotifications();
-          setNotifications(notificationsData);
-          setUnreadCount(notificationsData.filter((notif) => !notif.read).length);
+          await getNotifications(dispatch); // 리덕스에 알림 데이터 설정
         } catch (error) {
           console.error("알림 가져오기 실패:", error);
         }
       };
   
       fetchNotifications();
-      const interval = setInterval(fetchNotifications, 30000); // 30초마다 알림 새로고침
-  
-      return () => clearInterval(interval); // 컴포넌트 언마운트 시 interval 정리
-    }, []);
+    }, [dispatch]);
   
     // 알림 아이콘 클릭 시 열기/닫기
     const toggleNotificationWidget = () => {
@@ -125,14 +125,8 @@ const NotificationWidget = () => {
       event.preventDefault(); // 클릭 시 페이지 이동을 막기 위해 추가
     
       try {
-        await markAsRead(notifId); // 읽음 처리 API 호출
+        await markAsRead(notifId, dispatch); // 리덕스에서 읽음 처리
         // 상태 업데이트: 해당 알림을 읽음 처리
-        setNotifications((prevNotifications) =>
-          prevNotifications.map((notif) =>
-            notif.id === notifId ? { ...notif, read: true } : notif
-          )
-        );
-        setUnreadCount((prevCount) => prevCount - 1); // unreadCount 감소
       } catch (error) {
         console.error("알림 읽음 처리 실패:", error);
       }

@@ -1,6 +1,8 @@
 import React, { useEffect, useState } from "react";
 import axios from "axios";
 import styled from "styled-components";
+import { deleteProject, deleteReport } from "../api/project"; // ✅ 삭제 API 불러오기
+
 
 // 스타일 컴포넌트 정의
 const DetailContainer = styled.div`
@@ -159,16 +161,17 @@ const ProjectDetail = ({ projectId, onClose }) => {
           },
         });
         setProject(response.data);
-        setFiles(response.data.files || []);
+        // setFiles(response.data.files || []);
         setFormData({
           name: response.data.name,
           description: response.data.description,
           department: response.data.department,
-          startdate: response.data.startdate,
-          duedate: response.data.duedate,
+          startdate: response.data.startdate.split("T")[0],
+          duedate: response.data.duedate.split("T")[0] ,
           participants: response.data.participants || []
         });
         setLoading(false);
+
       } catch (error) {
         setError("프로젝트 상세 정보를 불러오는 데 실패했습니다.");
         setLoading(false);
@@ -190,17 +193,16 @@ const ProjectDetail = ({ projectId, onClose }) => {
           Authorization: `Token ${authToken}`,
         },
       });
-      console.log(response.data)
       setFiles(response.data); // 파일 목록 상태 업데이트
     } catch (error) {
       setError("파일 목록을 불러오는 데 실패했습니다.");
     }
   };
 
+  fetchFiles(); // 프로젝트 상세와 함께 파일 목록도 가져옴
   fetchProjectDetail();
   fetchDepartments(); // 부서 목록 불러오기
   fetchUsers(); // 유저 목록 불러오기
-  fetchFiles(); // 프로젝트 상세와 함께 파일 목록도 가져옴
 }, [projectId]); // 프로젝트 ID가 변경될 때마다 파일 목록을 갱신
   // 부서 목록 불러오기
   const fetchDepartments = async () => {
@@ -308,6 +310,32 @@ const ProjectDetail = ({ projectId, onClose }) => {
   if (error) return <Overlay><DetailContainer>{error}</DetailContainer></Overlay>;
   if (!project) return null;
 
+  const handleDeleteProject = async () => {
+    if (!window.confirm("정말 이 프로젝트를 삭제하시겠습니까?")) {
+      return;
+    }
+  
+    try {
+      const message = await deleteProject(projectId);
+      alert(message);
+      onClose();
+    } catch (error) {
+      alert(error.message);
+    }
+  };
+
+  const handleDeletReport = async (fileId) => {
+    try {
+      // 파일 삭제 요청
+      const message = await deleteReport(projectId, fileId);
+      alert(message);
+      // 파일 목록에서 삭제된 파일 제거
+      setFiles(files.filter(file => file.id !== fileId));
+    } catch (error) {
+      console.error("파일 삭제 실패:", error);
+    }
+  };
+
   return (
     <>
       <Overlay onClick={onClose} />
@@ -332,11 +360,19 @@ const ProjectDetail = ({ projectId, onClose }) => {
               value={formData.department}
               onChange={(e) => setFormData({ ...formData, department: e.target.value })}
             >
-              <option value="">부서 선택</option>
-              {departments.map((department) => (
-                <option key={department.id} value={department.id}>
-                  {department.name}
-                </option>
+{/* ✅ 기존 부서 값이 있으면 기본값으로 추가 */}
+{formData.department && !departments.some(dept => dept === formData.department) && (
+    <option value={formData.department} selected>
+      {formData.department}
+    </option>
+  )}
+
+  <option value="">부서 선택</option>
+
+  {departments.map((department) => (
+    <option key={department.id} value={department.id}>
+      {department.name}
+    </option>
               ))}
             </SelectField>
             <Label>시작일</Label>
@@ -412,8 +448,8 @@ const ProjectDetail = ({ projectId, onClose }) => {
                 files.map((file, index) => (
                   <FileItem key={index}>
                     {file.title}
-                    <DeleteIcon onClick={() => alert(`파일 삭제: ${file.title}`)}>❌</DeleteIcon>
-                  </FileItem>
+                    <DeleteIcon onClick={() => handleDeletReport(file.id)}>❌</DeleteIcon>
+                    </FileItem>
                 ))
               ) : (
                 <p>첨부된 파일이 없습니다.</p>
@@ -431,8 +467,8 @@ const ProjectDetail = ({ projectId, onClose }) => {
                 <label htmlFor="file-upload">파일 추가</label>
               </Button>
               <Button onClick={() => setEditMode(true)}>수정</Button>
-              <Button onClick={() => alert("프로젝트 삭제")}>삭제</Button>
-            </ButtonContainer>
+              <Button onClick={handleDeleteProject}>삭제</Button>
+              </ButtonContainer>
           </div>
         )}
       </DetailContainer>

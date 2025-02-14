@@ -60,7 +60,7 @@ def project_list_create(request):
         )
     
 
-@api_view(['GET','PATCH'])
+@api_view(['GET','PATCH','DELETE'])
 @permission_classes([IsAuthenticated]) # 인증되지 않은 사용자는 접근 불가
 def project_update(request, project_id):
     
@@ -75,28 +75,53 @@ def project_update(request, project_id):
         serializer = ProjectSerializer(project)
         return Response(serializer.data, status=status.HTTP_200_OK)
 
-    elif request.method =='PATCH':
-        serializer = ProjectSerializer(project, data=request.data, partial =(request.method =='PATCH'))
+    user = request.user
+    # participation = get_object_or_404(ProjectParticipation, project=project, participant=user)
+    participation = ProjectParticipation.objects.filter(project=project, participant=user).first()
+    
+    if participation and participation.authority == 0:  # '0'은 마스터 권한을 의미
 
-        if serializer.is_valid():
-            serializer.save() # Django의 ManyToManyField는 이 메소드만으로는 업데이트 되지 않음.
+        if request.method =='PATCH':
+            serializer = ProjectSerializer(project, data=request.data, partial =(request.method =='PATCH'))
 
-            if "participants" in request.data:
-                participants = request.data.get("participants", []) # 리스트로 받아옴
-                project.participants.all().delete() # 기존 참여자 제거
+            if serializer.is_valid():
+                serializer.save() # Django의 ManyToManyField는 이 메소드만으로는 업데이트 되지 않음.
 
-                for participant in participants:
-                    user_id = participant.get("id")
-                    authority = participant.get("authority",1)
+                if "participants" in request.data:
+                    participants = request.data.get("participants", []) # 리스트로 받아옴
+                    project.participants.all().delete() # 기존 참여자 제거
 
-                    user = get_object_or_404(User, id=user_id)
-                    ProjectParticipation.objects.create(
-                        project=project,participant=user,authority=authority
-                    )
+                    for participant in participants:
+                        user_id = participant.get("id")
+                        authority = participant.get("authority",1)
 
-            return Response(serializer.data, status=status.HTTP_200_OK)
-        return Response({'status':'error','message':serializer.errors},status=status.HTTP_400_BAD_REQUEST)
+                        user = get_object_or_404(User, id=user_id)
+                        ProjectParticipation.objects.create(
+                            project=project,participant=user,authority=authority
+                        )
 
+                return Response(serializer.data, status=status.HTTP_200_OK)
+            return Response({'status':'error','message':serializer.errors},status=status.HTTP_400_BAD_REQUEST)
+
+        elif request.method == 'DELETE':
+            project.delete()
+            return Response(
+            {"status": "success", "message": "성공적으로 프로젝트가 취소되었습니다."},
+            status=status.HTTP_204_NO_CONTENT
+            )
+    
+    else:
+        # 참여 정보가 없거나, 권한이 없는 경우
+        if participation is None:
+            return Response(
+                {"status": "error", "message": "참여 정보가 없습니다."},
+                status=status.HTTP_404_NOT_FOUND
+            )
+        else:
+            return Response(
+                {"status": "error", "message": "삭제 권한이 없습니다.",},
+                status=status.HTTP_403_FORBIDDEN
+            )
 
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
@@ -188,8 +213,39 @@ def upload_report(request, project_id):
     
 
 @api_view(['GET'])
-def all_reports(requsts, project_id):
+def all_reports(request, project_id):
     project = get_object_or_404(Project, id=project_id)  # 프로젝트 가져오기
     reports = project.reports.all()  # 프로젝트에 속하는 모든 보고서 가져오기
     serializer = ReportSerializer(reports, many=True)
     return Response(serializer.data)
+
+@api_view(['DELETE'])
+def report(request, project_id, report_id):
+    project = get_object_or_404(Project, id=project_id)
+    report = get_object_or_404(Report, id =report_id)
+    
+    user = request.user
+    participation = ProjectParticipation.objects.filter(project=project, participant=user).first()
+    
+    if participation and participation.authority == 0:  # '0'은 마스터 권한을 의미
+
+
+        if request.method == 'DELETE':
+            report.delete()
+            return Response(
+            {"status": "success", "message": "문서를 성공적으로 삭제했습니다."},
+            status=status.HTTP_204_NO_CONTENT
+            )
+    
+    else:
+        # 참여 정보가 없거나, 권한이 없는 경우
+        if participation is None:
+            return Response(
+                {"status": "error", "message": "참여 정보가 없습니다."},
+                status=status.HTTP_404_NOT_FOUND
+            )
+        else:
+            return Response(
+                {"status": "error", "message": "삭제 권한이 없습니다.",},
+                status=status.HTTP_403_FORBIDDEN
+            )

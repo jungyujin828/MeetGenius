@@ -1,7 +1,12 @@
 import React, { useState, useEffect } from "react";
+import { useDispatch } from "react-redux";
+import { addMeeting } from "../redux/meetingSlice"; // 리덕스 액션 import
+import { getNotifications, markAsRead } from "../api/notification"; // 알림 관련 함수
+import { fetchParticipants } from "../api/meetingRoom"; // 알림 관련 함수
+import { fetchProjects } from "../api/project"; // 알림 관련 함수
+import { fetchUserInfo } from "../api/userApi"; // 알림 관련 함수
 import axios from "axios";
 import styled from "styled-components";
-import { fetchMeetings } from "../api/fetchMeetings"; // 분리된 API 요청 함수 임포트
 
 // 스타일 컴포넌트 설정
 const MeetingFormContainer = styled.div`
@@ -56,7 +61,7 @@ const UserItem = styled.div`
 
 const baseURL = import.meta.env.VITE_APP_BASEURL;
 
-const MeetingRoomCreateWidget = ({ roomId, setMeetings }) => {
+const MeetingRoomCreateWidget = ({roomId}) => {
   const [projects, setProjects] = useState([]);
   const [projectName, setProjectName] = useState("");
   const [participants, setParticipants] = useState([]);
@@ -68,76 +73,55 @@ const MeetingRoomCreateWidget = ({ roomId, setMeetings }) => {
   const [endTime, setEndTime] = useState("");
   const [error, setError] = useState(null);
 
+  
+  const dispatch = useDispatch(); // 리덕스 디스패치 사용
+
   useEffect(() => {
-    fetchUsers();
-    fetchProjects();
-  }, []);
+    const fetchData = async () => {
+      try {
+        // 비동기 함수 결과를 기다리고, 데이터를 가져온 후 상태 업데이트
+        const usersData = await fetchUserInfo();  // 사용자 정보 가져오기
+        console.log("회원 목록입니다.", usersData);
+        setUsers(usersData);  // 사용자 목록 상태 업데이트
+  
+        const projectsData = await fetchProjects();  // 프로젝트 목록 가져오기
+        console.log("프로젝트 목록입니다", projectsData);
+        setProjects(projectsData);  // 프로젝트 목록 상태 업데이트
+      } catch (error) {
+        console.error("데이터를 불러오는 데 실패했습니다.", error);
+      }
+    };
+  
+    fetchData();  // 비동기 함수 호출
+  }, []);  // 빈 배열로 처음 한 번만 실행되도록 설정
 
   // 프로젝트 이름 변경 시 참가자 가져오기
   useEffect(() => {
-    if (projectName) {
-      fetchParticipants(projectName);
-    }
-  }, [projectName]); // projectName이 변경될 때마다 실행
-  
-  useEffect(() => {
-    console.log("참여자 상태 업데이트:", participants);
-  }, [participants]);
-  
-  // 프로젝트 목록 불러오기
-  const fetchProjects = async () => {
-    const authToken = localStorage.getItem("authToken");
-    try {
-      const response = await axios.get( `${baseURL}/projects/`, {
-        headers: { Authorization: `Token ${authToken}` },
-      });
-      console.log(response.data);
-      
-      setProjects(response.data);
-    } catch (error) {
-      setError("프로젝트 목록을 불러오는 데 실패했습니다.");
-      console.error("프로젝트 목록 불러오기 오류:", error);
-    }
-  };
+    const fetchParticipantsData = async () => {
+      if (projectName) {
+        try {
+          const projectParticipant = await fetchParticipants(projectName);
+          // 데이터가 존재하는지 확인
+          if (projectParticipant && Array.isArray(projectParticipant)) {
+            setParticipants(
+              projectParticipant.map(({ participant, authority }) => ({
+                id: participant,  // participant -> id 변경
+                authority,        // authority 값 유지
+              }))
+            );
+          } else {
+            setError("참여자 목록이 올바르지 않습니다.");
+            return; // 오류 발생 시 추가 작업 방지
+          }
+        } catch (error) {
+          setError("참여자 목록을 불러오는 데 실패했습니다.");
+          console.error("참여자 목록 불러오기 오류:", error);
+        }
+      }
+    };
 
-// 유저 목록 불러오기
-const fetchUsers = async () => {
-  try {
-    const url = `${baseURL}/accounts/users/`; // 모든 유저 불러오는 엔드포인트
-    const response = await axios.get(url);
-    setUsers(response.data);
-  } catch (error) {
-    setError("유저 목록을 불러오는 데 실패했습니다.");
-    console.error("유저 목록 불러오기 오류:", error);
-  }
-};
-
-// 선택한 프로젝트의 참여자 불러오기
-const fetchParticipants = async (selectedProject) => {
-  const authToken = localStorage.getItem("authToken");
-  try {
-    const response = await axios.get(
-      `${baseURL}/meetingroom/project_participation/${selectedProject}/`,
-      { headers: { Authorization: `Token ${authToken}` } }
-    );
-    console.log(response.data)
-    // 응답 데이터에서 project_participation을 추출하여 상태 업데이트
-    if (Array.isArray(response.data.project_participation)) {
-      setParticipants(response.data.project_participation.map(({ participant, authority }) => ({
-        id: participant,  // participant -> id 변경
-        authority,        // authority 값 유지
-      })));
-    }
-    else {
-      setError("참여자 목록이 올바르지 않습니다.");
-      console.error("참여자 목록 오류:", response.data);
-    }
-  } catch (error) {
-    setError("프로젝트 참여자 목록을 불러오는 데 실패했습니다.");
-    console.error("프로젝트 참여자 목록 불러오기 오류:", error);
-  }
-};
-
+    fetchParticipantsData(); // 데이터 불러오기 호출
+  }, [projectName]); // 프로젝트 이름이 변경될 때마다 실행
 
   // 안건 변경 핸들러
   const handleAgendaChange = (index, value) => {
@@ -159,8 +143,8 @@ const fetchParticipants = async (selectedProject) => {
   };
 
   // 회의 예약 핸들러
-  const handleCreateMeeting = async () => {
-    const authToken = localStorage.getItem("authToken");
+  const handleCreateMeeting = async (roomId) => {
+    const authToken = localStorage.getItem("authToken");    
     if (!roomId) {
       alert("예약할 회의실 번호를 선택해주세요");
       return;
@@ -174,7 +158,7 @@ const fetchParticipants = async (selectedProject) => {
       alert("모든 필수 항목을 입력해주세요.");
       return;
     }
-
+    console.log("roomId", roomId)
     const formData = {
       room: roomId,
       title: meetingTitle,
@@ -184,13 +168,13 @@ const fetchParticipants = async (selectedProject) => {
       endtime : endTime +":00",
       participants: participants.map((p) => ({
         id: p.id,
-        authority: p.authority || 1,
+        authority: p.authority,
       })),
       agenda_items: agendas.map((a) => ({
         title: a.title,
       })),
     };
-
+    
     try {
       const response = await axios.post(
         `${baseURL}/meetingroom/book/${roomId}/`,
@@ -198,11 +182,10 @@ const fetchParticipants = async (selectedProject) => {
         { headers: { Authorization: `Token ${authToken}` } }
       );
       alert("회의가 예약되었습니다.");
-      // 회의 예약 후 바로 목록 업데이트
-      // await fetchMeetings(roomId, null, null);  // 회의 목록을 새로 불러오기
-
       // 회의 목록에 새로 예약된 회의 추가
-      // setMeetings((prevMeetings) => [...prevMeetings, response.data]);
+      console.log("회의 예약 데이터:", formData); // 여기에 상태 데이터를 출력하여 문제의 원인 확인      
+      dispatch(addMeeting(response.data));
+      await getNotifications(dispatch); // 회의 생성 후 알림 갱신
 
     } catch (error) {
       console.error("🔴 회의 예약 실패:", error);
@@ -355,8 +338,8 @@ for (let hour = 9; hour <= 18; hour++) {
         ))}
       </UserSelectContainer>
 
-      <Button onClick={handleCreateMeeting}>회의 예약</Button>
-    </MeetingFormContainer>
+      <Button onClick={() => handleCreateMeeting(roomId)}>회의 예약</Button>
+      </MeetingFormContainer>
   );
 };
 
