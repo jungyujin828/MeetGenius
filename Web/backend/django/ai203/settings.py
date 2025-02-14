@@ -106,13 +106,15 @@ WSGI_APPLICATION = 'ai203.wsgi.application'
 # DB - mariadb
 DATABASES = {
     'default': {
-        'ENGINE': 'django.db.backends.mysql',
+        'ENGINE': 'django.db.backends.mysql',  # 또는 'django.db.backends.mysql' (MariaDB도 MySQL 드라이버 사용)
+        # 'NAME': 'root',
         'NAME': os.getenv('DATABASENAME','test_maria'),
-        'USER': 'root',
-        'PASSWORD':os.getenv('DATABASEPASSWORD',''),
-        'HOST': 'localhost',
-        'PORT': os.getenv('DATABASEPORT',''),
-
+        'USER': 'admin',
+        # 'PASSWORD':os.getenv('DATABASEPASSWORD',''),
+        'PASSWORD': 'admin',
+        'HOST': 'db',      # 'localhost'가 아니라 MariaDB 컨테이너의 서비스 이름을 사용합니다.
+        # 'PORT': os.getenv('DATABASEPORT',''),
+        'PORT': '3306',    # 기본 MySQL/MariaDB 포트
     }
 }
 
@@ -166,9 +168,12 @@ REST_AUTH_SERIALIZERS = {
     'LOGIN_SERIALIZER': 'accounts.serializers.LoginSerializer',
 }
 CORS_ALLOW_CREDENTIALS = True
-CORS_ALLOWED_ORIGINS = ["http://localhost:5173"]
-CSRF_TRUSTED_ORIGINS = ["http://localhost:5173",
-                        ]
+CORS_ALLOWED_ORIGINS = [
+    "http://localhost:5173",
+    "http://192.168.31.48:5173"]
+CSRF_TRUSTED_ORIGINS = [
+    "http://localhost:5173",
+    "http://192.168.31.48:5173"]
 
 # ACCOUNT_AUTHENTICATION_METHOD = "employee_number"
 # ACCOUNT_USER_MODEL_USERNAME_FIELD = None  # username 필드 없음
@@ -188,7 +193,7 @@ REDIS_PORT = os.getenv("REDIS_PORT", "6379")  # Redis 기본 포트 기본값 �
 CACHES = {
     "default": {
         "BACKEND": "django_redis.cache.RedisCache",
-        "LOCATION": f"redis://{REDIS_HOST}:{REDIS_PORT}/2",
+        "LOCATION": os.getenv('REDIS_BASE_URL') + '/1',
         "OPTIONS": {
             "CLIENT_CLASS": "django_redis.client.DefaultClient",
         }
@@ -196,11 +201,4 @@ CACHES = {
 }
 
 # 🔥 Redis Pub/Sub 및 Queue 연결을 위한 기본 URL
-REDIS_URL = f"redis://{REDIS_HOST}:{REDIS_PORT}"
-
-# Celery는 다중 DB에서 1번을 사용하도록 설정.
-CELERY_BROKER_URL = 'redis://127.0.0.1:6379/1'
-CELERY_RESULT_BACKEND = 'redis://127.0.0.1:6379/1'
-
-# 6379/1 : 비동기 처리
-# 6379/2 : 메시지 브로커
+REDIS_URL = os.getenv('REDIS_BASE_URL')

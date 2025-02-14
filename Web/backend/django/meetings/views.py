@@ -10,14 +10,16 @@ from meetingroom.models import Meeting, Agenda, Mom,SummaryMom
 from django.shortcuts import get_object_or_404,get_list_or_404
 from rest_framework.permissions import IsAuthenticated
 from asgiref.sync import sync_to_async  # Django ORM을 async에서 실행할 수 있도록 변환
-
+import os
+from dotenv import load_dotenv
+load_dotenv()
 # Create your views here.
 
-FASTAPI_BASE_URL = "http://127.0.0.1:8001"  # ✅ http:// 추가 (FastAPI 서버 주소)
+FASTAPI_BASE_URL = os.getenv('FASTAPI_BASE_URL')  # ✅ http:// 추가 (FastAPI 서버 주소)
 
 
 # redis 클라이언트 전역 선언. 
-redis_client = redis.from_url("redis://127.0.0.1:6379",decode_responses=True)
+redis_client = redis.from_url(os.getenv('REDIS_BASE_URL'),decode_responses=True)
 
 
 # REDIS KEY 모음
@@ -41,7 +43,7 @@ MEETING_RECORD = "meeting:agenda_record"    # 안건별 회의록
 
 # 
 async def get_redis():
-    redis_client = redis.from_url("redis://127.0.0.1:6379",decode_responses=True)
+    redis_client = redis.from_url(os.getenv('REDIS_BASE_URL'),decode_responses=True)
     return redis_client
 
 # 🎤 FastAPI → Django로 데이터 수신 & Redis에 `PUBLISH`
@@ -90,7 +92,8 @@ async def receive_data(request):
                         return
                     
                     fastapi_response = {
-                        'stt_running': 'run',
+                        'data_type' : 'rag',
+                        'message': '답변입니다.',
                         'agenda_docs': docs
                     } 
                     print(fastapi_response)
@@ -181,16 +184,14 @@ async def scheduler(request,meeting_id):
         # await redis_client.flushdb()  # 모든 키 초기화
 
         meeting = await sync_to_async(lambda: get_object_or_404(Meeting.objects.select_related("project"), id=meeting_id))()
-        # meeting = await get_object_or_404(Meeting.objects.select_related("project"),id=meeting_id)
         
         project_id = meeting.project.id if meeting.project else None
 
 
         # 해당 Meeting에 연결된 Agenda 목록 가져오기
-        agendas = await sync_to_async(lambda: list(Agenda.objects.filter(meeting=meeting).values("id","order", "title")))()
-        print(agendas)
-        # if not agendas:
-        #     return JsonResponse({'status': 'error', 'message': 'No agendas found for this meeting'}, status=400)
+        agendas = await sync_to_async(lambda: list(Agenda.objects.filter(meeting=meeting).values("id", "order", "title")))()
+        if not agendas:
+            return JsonResponse({'status': 'error', 'message': 'No agendas found for this meeting'}, status=400)
         print(agendas,meeting,project_id,'입니다 ###')
 
         # Redis 초기화 
@@ -211,16 +212,7 @@ async def scheduler(request,meeting_id):
 # 회의 준비 함수 (to FastAPI)
 async def sent_meeting_information():
     '''
-        안건 목록 fastAPI로 쏴줘야 함.
-        {
-            "project_id": str,
-            "agendas": [
-                {
-                    "agenda_id": str,
-                    "agenda_title": str
-                }, {}, {}, ...
-            ]
-        }
+        안건 목록을 fastAPI로 쏴주는 함수.
     '''
     # Redis에서 회의 정보 가져오기
     meeting_id = await redis_client.get(CUR_MEETING)
@@ -245,11 +237,13 @@ async def sent_meeting_information():
     }
     print(payload)
 
-    # async with httpx.AsyncClient() as client:
-    #     response = await client.post(url=url, json=payload)
-    #     return response.json()  # FastAPI에서 받은 응답 데이터 반환
-    # print('FastAPI 응답은 일단 주석처리..')
-    return {'status':'test'}
+    try : 
+        # async with httpx.AsyncClient() as client:
+        async with httpx.AsyncClient(timeout=httpx.Timeout(50.0)) as client:
+            response = await client.post(url=url, json=payload)
+            return response.json()  # FastAPI에서 받은 응답 데이터 반환
+    except Exception as e :
+        return JsonResponse({'error':'unexpecteed error occured'},status=500)
 
 # 회의 준비 버튼
 async def prepare_meeting(request):
@@ -336,7 +330,7 @@ async def get_current_agenda():
 
     return None  # 현재 진행 중인 안건을 찾지 못한 경우
 
-async def fetch_and_store_documents(document_ids, redis_client):
+async def fetch_and_store_documents(document_ids, redis_client, message):
     """
     FastAPI에서 받은 문서 ID 리스트를 기반으로 DB에서 문서 조회 후 Redis 저장 및 Pub/Sub
     """
@@ -373,6 +367,7 @@ async def fetch_and_store_documents(document_ids, redis_client):
         # PUBSUB - publish
         update_msg = json.dumps({
             "type": "agenda_docs_update",
+            "message" : message,
             "documents": documents
         })
 
@@ -394,6 +389,7 @@ async def handle_fastapi_response(fastapi_response):
     stt_running = fastapi_response.get("stt_running")
     # Redis에 등록된 현재 상태와 다르면 업데이트
     cur_state = await redis_client.get('stt_running')
+    message = await redis_client.get('message')
 
     if cur_state != stt_running:
         await redis_client.set("meeting:stt_running", str(stt_running))
@@ -411,7 +407,7 @@ async def handle_fastapi_response(fastapi_response):
     document_ids = fastapi_response.get("agenda_docs", [])
     try :
         # 문서 처리 함수 호출
-        await fetch_and_store_documents(document_ids, redis_client)  # redis_client를 fetch_and_store_documents에 넘겨주기
+        await fetch_and_store_documents(document_ids, redis_client, message)  # redis_client를 fetch_and_store_documents에 넘겨주기
     except Exception as e:
         print(f"ERROR in fetching and storing documents: {e}")
 
@@ -449,18 +445,18 @@ async def start_meeting(request):
         # FastAPI API 주소
         fastapi_url = f'{FASTAPI_BASE_URL}/api/v1/meetings/{meeting_id}/next-agenda/'
         payload = {
-            "agenda_id": str(current_agenda["agenda_id"]),
-            "agenda_title": current_agenda["agenda_title"]
+            "id": int(current_agenda["agenda_id"]),
+            "title": current_agenda["agenda_title"]
         }
         print(payload)
 
         # FastAPI로 던지기
-        # try : 
-        #     async with httpx.AsyncClient() as client:
-        #         response = await client.post(fastapi_url,json=payload)
-        #         fastapi_response = response.json()
-        # except Exception as e:
-        #     return JsonResponse({'error': str(e)}, status=500)
+        try : 
+            async with httpx.AsyncClient() as client:
+                response = await client.post(fastapi_url,json=payload)
+                fastapi_response = response.json()
+        except Exception as e:
+            return JsonResponse({'error': str(e)}, status=500)
         
         '''
         {
@@ -476,17 +472,13 @@ async def start_meeting(request):
             - redis RAG 문서에 넣어주기
             - publish
         '''
-        fastapi_response = {
-            'stt_running': 'run',
-            'agenda_docs': [1]
-        }  # 시험..
         print(fastapi_response)
         await handle_fastapi_response(fastapi_response)
 
         return JsonResponse({
                 'status': 'success',
                 'message': 'Meeting started',
-                # 'fastapi_response': fastapi_response,
+                'fastapi_response': fastapi_response,
             })
             
     else :
@@ -551,6 +543,7 @@ async def next_agenda(request):
             # 관련된 meeting 객체와 안건 객체 가져오기
             try : 
                 print('저장하러는 가니?')
+
                 # selected_related로 쿼리문 한 번에 다 불러오기.
                 meeting_obj = await sync_to_async(get_object_or_404)(
                     Meeting.objects.select_related("project", "project__department"), 
@@ -607,12 +600,12 @@ async def next_agenda(request):
         print(payload)
 
         # FastAPI로 던지기
-        # try : 
-        #     async with httpx.AsyncClient() as client:
-        #         response = await client.post(fastapi_url,json=payload)
-        #         fastapi_response = response.json()
-        # except Exception as e:
-        #     return JsonResponse({'error': str(e)}, status=500)
+        try : 
+            async with httpx.AsyncClient() as client:
+                response = await client.post(fastapi_url,json=payload)
+                fastapi_response = response.json()
+        except Exception as e:
+            return JsonResponse({'error': str(e)}, status=500)
         
         '''
         {
@@ -629,17 +622,17 @@ async def next_agenda(request):
             - publish
         '''
         # 임시로 FastAPI 응답 지정.
-        fastapi_response = {
-            'stt_running': 'run',
-            'agenda_docs': [1,2]
-        }
+        # fastapi_response = {
+        #     'stt_running': 'run',
+        #     'agenda_docs': [1,2]
+        # }
         # FastAPI 응답 처리 함수
         await handle_fastapi_response(fastapi_response)
 
         return JsonResponse({
                 'status': 'success',
                 'message': 'Meeting started',
-                # 'fastapi_response': fastapi_response,
+                'fastapi_response': fastapi_response,
             })
 
     else :
@@ -678,11 +671,14 @@ async def add_agenda(request):
                     id=meeting_id
                 )     
         print(meeting_obj)
+        # 새로운 안건 번호를 위한 연산.
         agenda_count = await sync_to_async(Agenda.objects.filter(meeting=meeting_obj).count)()
 
         agenda_result = '\n'.join(stt_messages) # 취합
         print(f"STT 데이터 -> DB 저장: {agenda_result}")
-
+        '''
+        DB 저장장
+        '''
         # 새로운 안건 DB에 추가
         new_agenda_obj = await sync_to_async(Agenda.objects.create)(
             meeting = meeting_obj,
@@ -690,7 +686,7 @@ async def add_agenda(request):
             order = agenda_count + 1
         )
         new_agenda_id = new_agenda_obj.id
-
+        
         ## Document 객체 생성
         document_obj = await sync_to_async(Document.objects.create)(
             type = 0, # 요약전 : 0
@@ -699,7 +695,9 @@ async def add_agenda(request):
             department = meeting_obj.project.department
         )
         print(f"Document 생성 완료 (ID={document_obj.id}).")
-
+        '''
+        mom 객체 생성.
+        '''
         new_mom = await sync_to_async(Mom.objects.create)(
             meeting=meeting_obj,
             agenda=new_agenda_obj,
@@ -708,7 +706,9 @@ async def add_agenda(request):
             completed=False
         )
         print(f"Mom 레코드 생성 (ID={new_mom.id}).")
-        
+        '''
+        STT 초기화
+        '''
         # Redis에서 STT 데이터만 삭제
         await redis_client.delete(STT_LIST_KEY)
         print(f'STT 데이터 삭제 완료')
@@ -716,15 +716,13 @@ async def add_agenda(request):
         # 기존 안건 목록 가져오기
         agenda_list_json = await redis_client.get(AGENDA_LIST)
         agenda_list = json.loads(agenda_list_json)if agenda_list_json else []
-        
-        # meeting_id = await redis_client.get('meeting:current_meeting')
-        # # 새로운 안건 ID 생성 
-        # new_agenda_id = len(agenda_list) + 1
 
         # 새로운 안건 추가
         new_agenda = {
             "id": new_agenda_id,
+            # "agenda_id": new_agenda_id,
             "title":new_agenda_title
+            # "agenda_title":new_agenda_title
         }
         agenda_list.append(new_agenda)
 
@@ -751,18 +749,18 @@ async def add_agenda(request):
         print(payload)
 
         # FastAPI로 던지기
-        # try : 
-        #     async with httpx.AsyncClient() as client:
-        #         response = await client.post(fastapi_url,json=payload)
-        #         fastapi_response = response.json()
-        # except Exception as e:
-        #     return JsonResponse({'error': str(e)}, status=500)
+        try : 
+            async with httpx.AsyncClient() as client:
+                response = await client.post(fastapi_url,json=payload)
+                fastapi_response = response.json()
+        except Exception as e:
+            return JsonResponse({'error': str(e)}, status=500)
         
         # 임시로 FastAPI 응답 지정.
-        fastapi_response = {
-            'stt_running': 'run',
-            'agenda_docs': [1,2] # 임시 데이터
-        }
+        # fastapi_response = {
+        #     'stt_running': 'run',
+        #     'agenda_docs': [1,2] # 임시 데이터
+        # }
         # FastAPI 응답 처리 함수
         await handle_fastapi_response(fastapi_response)
 
@@ -798,11 +796,11 @@ async def stop_meeting(reqeust):
             return JsonResponse({"error": "Meeting ID not found in Redis"}, status=400)
         
         # 1-2. fastAPI로 api 요청. 
-        # async with httpx.AsyncClient() as client:
-        #     fastapi_stop_url = f'{FASTAPI_BASE_URL}/api/v1/meetings/{meeting_id}/end'
-        #     response = await client.post(fastapi_stop_url)
-        #     fastapi_stop_response = response.json()
-
+        async with httpx.AsyncClient() as client:
+            fastapi_stop_url = f'{FASTAPI_BASE_URL}/api/v1/meetings/{meeting_id}/end'
+            response = await client.post(fastapi_stop_url)
+            fastapi_stop_response = response.json()
+        print(fastapi_stop_response)
         # 2. Redis에서 저장된 STT 메시지 조회
         stt_messages = await redis_client.lrange(STT_LIST_KEY,0,-1)
         if not stt_messages:
