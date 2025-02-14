@@ -149,6 +149,7 @@ def test_page(request):
 
 
 # 스케쥴러 역할 API 테스트
+@permission_classes([IsAuthenticated])
 async def scheduler(request,meeting_id):
     '''
     스케쥴러에 의해 특정 시간이 되면, 해당 'meeting_id' 에 따라
@@ -474,6 +475,7 @@ async def start_meeting(request):
 
 
 # 다음 안건
+@permission_classes([IsAuthenticated])
 async def next_agenda(request):
     """ 
     1. 현재 안건의 STT 데이터를 회의록으로 저장
@@ -625,7 +627,7 @@ async def next_agenda(request):
     else :
         return JsonResponse({"error": "Invalid request method"}, status=400)
 
-        
+@permission_classes([IsAuthenticated])
 async def add_agenda(request):
     """
     새로운 안건을 추가하는 API
@@ -758,6 +760,7 @@ async def add_agenda(request):
 
 
 # 회의 종료
+@permission_classes([IsAuthenticated])
 async def stop_meeting(reqeust):
     """
     동작 순서:
