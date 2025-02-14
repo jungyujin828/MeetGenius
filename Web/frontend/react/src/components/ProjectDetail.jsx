@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import axios from "axios";
 import styled from "styled-components";
-import { deleteProject } from "../api/project"; // ✅ 삭제 API 불러오기
+import { deleteProject, deleteReport } from "../api/project"; // ✅ 삭제 API 불러오기
 
 
 // 스타일 컴포넌트 정의
@@ -161,7 +161,7 @@ const ProjectDetail = ({ projectId, onClose }) => {
           },
         });
         setProject(response.data);
-        setFiles(response.data.files || []);
+        // setFiles(response.data.files || []);
         setFormData({
           name: response.data.name,
           description: response.data.description,
@@ -199,10 +199,10 @@ const ProjectDetail = ({ projectId, onClose }) => {
     }
   };
 
+  fetchFiles(); // 프로젝트 상세와 함께 파일 목록도 가져옴
   fetchProjectDetail();
   fetchDepartments(); // 부서 목록 불러오기
   fetchUsers(); // 유저 목록 불러오기
-  fetchFiles(); // 프로젝트 상세와 함께 파일 목록도 가져옴
 }, [projectId]); // 프로젝트 ID가 변경될 때마다 파일 목록을 갱신
   // 부서 목록 불러오기
   const fetchDepartments = async () => {
@@ -320,9 +320,22 @@ const ProjectDetail = ({ projectId, onClose }) => {
       alert(message);
       onClose();
     } catch (error) {
-      alert(error.message); // ❌ 백엔드 에러 메시지 표시
+      alert(error.message);
     }
   };
+
+  const handleDeletReport = async (fileId) => {
+    try {
+      // 파일 삭제 요청
+      const message = await deleteReport(projectId, fileId);
+      alert(message);
+      // 파일 목록에서 삭제된 파일 제거
+      setFiles(files.filter(file => file.id !== fileId));
+    } catch (error) {
+      console.error("파일 삭제 실패:", error);
+    }
+  };
+
   return (
     <>
       <Overlay onClick={onClose} />
@@ -435,8 +448,8 @@ const ProjectDetail = ({ projectId, onClose }) => {
                 files.map((file, index) => (
                   <FileItem key={index}>
                     {file.title}
-                    <DeleteIcon onClick={() => alert(`파일 삭제: ${file.title}`)}>❌</DeleteIcon>
-                  </FileItem>
+                    <DeleteIcon onClick={() => handleDeletReport(file.id)}>❌</DeleteIcon>
+                    </FileItem>
                 ))
               ) : (
                 <p>첨부된 파일이 없습니다.</p>

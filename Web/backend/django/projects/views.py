@@ -118,8 +118,6 @@ def project_update(request, project_id):
                 status=status.HTTP_404_NOT_FOUND
             )
         else:
-            authority = participation.authority
-            participant = participation.participant
             return Response(
                 {"status": "error", "message": "삭제 권한이 없습니다.",},
                 status=status.HTTP_403_FORBIDDEN
@@ -215,8 +213,39 @@ def upload_report(request, project_id):
     
 
 @api_view(['GET'])
-def all_reports(requsts, project_id):
+def all_reports(request, project_id):
     project = get_object_or_404(Project, id=project_id)  # 프로젝트 가져오기
     reports = project.reports.all()  # 프로젝트에 속하는 모든 보고서 가져오기
     serializer = ReportSerializer(reports, many=True)
     return Response(serializer.data)
+
+@api_view(['DELETE'])
+def report(request, project_id, report_id):
+    project = get_object_or_404(Project, id=project_id)
+    report = get_object_or_404(Report, id =report_id)
+    
+    user = request.user
+    participation = ProjectParticipation.objects.filter(project=project, participant=user).first()
+    
+    if participation and participation.authority == 0:  # '0'은 마스터 권한을 의미
+
+
+        if request.method == 'DELETE':
+            report.delete()
+            return Response(
+            {"status": "success", "message": "문서를 성공적으로 삭제했습니다."},
+            status=status.HTTP_204_NO_CONTENT
+            )
+    
+    else:
+        # 참여 정보가 없거나, 권한이 없는 경우
+        if participation is None:
+            return Response(
+                {"status": "error", "message": "참여 정보가 없습니다."},
+                status=status.HTTP_404_NOT_FOUND
+            )
+        else:
+            return Response(
+                {"status": "error", "message": "삭제 권한이 없습니다.",},
+                status=status.HTTP_403_FORBIDDEN
+            )
