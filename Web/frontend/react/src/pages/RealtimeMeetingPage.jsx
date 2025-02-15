@@ -455,7 +455,7 @@ const RealtimeMeetingPage = () => {
             />
           </LeftPanel>
           <RightPanel>
-            <RealtimeDoc />
+            <RealtimeDoc meetingInfo={meetingInfo} />
           </RightPanel>
         </>
       ) : (
