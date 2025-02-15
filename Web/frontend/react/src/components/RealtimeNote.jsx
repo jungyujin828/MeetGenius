@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import styled from "styled-components";
 import { useParams } from "react-router-dom";
 import axiosInstance from '../api/axiosInstance';
@@ -48,12 +48,38 @@ const RightPanel = styled.div`
 `;
 
 const TextMessage = styled.div`
-  margin-bottom: 10px;
-  font-size: 16px;
-  color: #555;
-  padding: 8px;
-  background-color: #f1f1f1;
-  border-radius: 6px;
+  margin: 10px 0;
+  padding: 12px 16px;
+  border-radius: 8px;
+  font-size: 14px;
+  line-height: 1.4;
+
+  ${props => props.type === "plain" && `
+    background-color: #f8f9fa;
+    color: #212529;
+  `}
+
+  ${props => props.type === "query" && `
+    background-color: #e7f5ff;
+    color: #1864ab;
+    border-left: 4px solid #1864ab;
+    
+    &::before {
+      content: "❓";
+      margin-right: 8px;
+    }
+  `}
+
+  ${props => props.type === "agenda_docs_update" && `
+    background-color: #ebfbee;
+    color: #2b8a3e;
+    border-left: 4px solid #2b8a3e;
+    
+    &::before {
+      content: "📄";
+      margin-right: 8px;
+    }
+  `}
 `;
 
 const Button = styled.button`
@@ -126,7 +152,7 @@ const InfoItem = styled.div`
 
 const RealtimeNote = () => {
   const { meetingId } = useParams();  // URL에서 meetingId 가져오기
-  const [sttText, setSttText] = useState([]); // 실시간 STT 텍스트를 배열로 저장
+  const [sttText, setSttText] = useState([]);
   const [queryMessage, setQueryMessage] = useState(""); // 쿼리 메시지
   const [documents, setDocuments] = useState([]); // RAG 문서 목록
   const [meetingState, setMeetingState] = useState(""); // 회의 상태
@@ -134,9 +160,26 @@ const RealtimeNote = () => {
   const [error, setError] = useState(null);
   const [meetingInfo, setMeetingInfo] = useState(null);
 
-  useEffect(() => {
-    console.log("sttText가 업데이트되었습니다:", sttText); // 배열이 잘 업데이트 되는지 확인
-  }, [sttText]); // sttText가 업데이트될 때마다 실행
+  // 메시지 수신 처리
+  const handleMessage = useCallback((message) => {
+    console.log('받은 메시지:', message);
+    
+    if (message.type && message.message) {
+      setSttText(prev => [...prev, {
+        type: message.type,
+        message: message.message
+      }]);
+    }
+  }, []);
+
+  // 메시지 렌더링
+  const renderMessages = () => {
+    return sttText.map((item, index) => (
+      <TextMessage key={index} type={item.type}>
+        {item.message}
+      </TextMessage>
+    ));
+  };
 
   useEffect(() => {
     // SSE 연결 (서버에서 보내는 실시간 데이터 받기)
@@ -151,13 +194,19 @@ const RealtimeNote = () => {
       if (message.stt_list && message.stt_list.length > 0) {
         setSttText((prevText) => {
           // 기존 배열과 새로운 stt_list를 병합해서 상태 업데이트
-          return [...prevText, ...message.stt_list];
+          return [...prevText, ...message.stt_list.map(text => ({
+            type: "plain",
+            message: text
+          }))];
         });
       }
 
       // 받은 단일 메시지가 있을 경우 추가하기
       if (message.message) {
-        setSttText((prevText) => [...prevText, message.message]);
+        setSttText((prevText) => [...prevText, {
+          type: "plain",
+          message: message.message
+        }]);
       }
 
       // type별로 분기하여 처리
@@ -165,7 +214,10 @@ const RealtimeNote = () => {
         case "plain":
           if (message.stt_list) {
             // stt_list가 배열로 들어오기 때문에 이를 배열에 추가
-            setSttText((prevText) => [...prevText, ...message.stt_list]);  // stt_list의 텍스트 추가
+            setSttText((prevText) => [...prevText, ...message.stt_list.map(text => ({
+              type: "plain",
+              message: text
+            }))]);  // stt_list의 텍스트 추가
           }
           break;
         case "query":
@@ -201,7 +253,7 @@ const RealtimeNote = () => {
     return () => {
       eventSource.close(); // 컴포넌트가 언마운트될 때 SSE 종료
     };
-  }, []); // 빈 배열을 넣어 컴포넌트가 처음 렌더링될 때만 실행되도록 함
+  }, []);
 
   // 회의 정보 불러오기
   useEffect(() => {
@@ -234,89 +286,59 @@ const RealtimeNote = () => {
 
   return (
     <Container>
-      {error && <div style={{ color: 'red', marginBottom: '20px' }}>{error}</div>}
-      
-      {meetingInfo && (
-        <MeetingInfo>
-          <InfoGrid>
-            <InfoItem>
-              <h4>회의명</h4>
-              <p>{meetingInfo.title}</p>
-            </InfoItem>
-            <InfoItem>
-              <h4>프로젝트</h4>
-              <p>{meetingInfo.project.name}</p>
-            </InfoItem>
-            <InfoItem>
-              <h4>회의 시간</h4>
-              <p>
-                {formatDateTime(meetingInfo.starttime)} ~ {formatDateTime(meetingInfo.endtime)}
-              </p>
-            </InfoItem>
-            <InfoItem>
-              <h4>주최자</h4>
-              <p>{meetingInfo.booker}</p>
-            </InfoItem>
-            <InfoItem>
-              <h4>참가자</h4>
-              <p>{meetingInfo.meeting_participants.map(p => p.name).join(', ')}</p>
-            </InfoItem>
-            <InfoItem>
-              <h4>안건</h4>
-              <p>{meetingInfo.meeting_agendas.map((a, index) => 
-                `${index + 1}. ${a.title}`
-              ).join(', ')}</p>
-            </InfoItem>
-          </InfoGrid>
-        </MeetingInfo>
-      )}
-
       <Header>실시간 회의록 (STT)</Header>
       <Panel>
         <LeftPanel>
-          {/* sttText 배열을 하나씩 출력 */}
           {sttText.length > 0 ? (
-            sttText.map((text, index) => (
-              <TextMessage key={index}>{text}</TextMessage> // 각 항목의 텍스트와 인덱스 출력
-            ))
+            sttText.map((text, index) => {
+              switch(text.type) {
+                case "plain":
+                  return (
+                    <TextMessage key={index} type="plain">
+                      {text.message}
+                    </TextMessage>
+                  );
+                case "query":
+                  return (
+                    <TextMessage key={index} type="query">
+                      {text.message.startsWith('질문 :') ? text.message : `질문 : ${text.message}`}
+                    </TextMessage>
+                  );
+                case "agenda_docs_update":
+                  return (
+                    <TextMessage key={index} type="agenda_docs_update">
+                      {text.message}
+                      {text.documents && text.documents.length > 0 && (
+                        <div style={{ marginTop: '8px', fontSize: '13px' }}>
+                          {text.documents.map((doc, docIndex) => (
+                            <a 
+                              key={docIndex}
+                              href={doc}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              style={{
+                                display: 'block',
+                                marginTop: '4px',
+                                color: '#2b8a3e',
+                                textDecoration: 'underline'
+                              }}
+                            >
+                              관련 문서 #{docIndex + 1}
+                            </a>
+                          ))}
+                        </div>
+                      )}
+                    </TextMessage>
+                  );
+                default:
+                  return null;
+              }
+            })
           ) : (
-            <p>로딩 중...</p> // sttText가 비어있을 때 로딩 메시지를 표시
+            <p>로딩 중...</p>
           )}
         </LeftPanel>
-
-        <RightPanel>
-          {/* 쿼리 메시지 */}
-          <h3>쿼리 메시지</h3>
-          {queryMessage && <QueryMessage>{queryMessage}</QueryMessage>} {/* 받은 쿼리 메시지 표시 */}
-
-          {/* RAG 문서 */}
-          <h3>RAG 문서</h3>
-          {documents.length > 0 ? (
-            documents.map((doc, index) => (
-              <DocumentLink key={index} href={doc} target="_blank" rel="noopener noreferrer">
-                문서 {index + 1}
-              </DocumentLink>
-            ))
-          ) : (
-            <p>문서가 없습니다.</p>
-          )}
-
-          <h3>새로운 RAG 문서</h3>
-          {ragList.length > 0 ? (
-            ragList.map((doc, index) => (
-              <DocumentLink key={index} href={doc} target="_blank" rel="noopener noreferrer">
-                문서 {index + 1}
-              </DocumentLink>
-            ))
-          ) : (
-            <p>새로운 RAG 문서가 없습니다.</p>
-          )}
-        </RightPanel>
       </Panel>
-
-      <h3>회의 상태</h3>
-      <div>{meetingState}</div> {/* 회의 상태 표시 */}
-
     </Container>
   );
 };
