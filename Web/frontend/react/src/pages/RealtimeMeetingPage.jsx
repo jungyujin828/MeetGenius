@@ -179,7 +179,7 @@ const RealtimeMeetingPage = () => {
   const [isModalOpen, setIsModalOpen] = useState(true);
   const [showMeetingScreen, setShowMeetingScreen] = useState(false);
   const [meetingInfo, setMeetingInfo] = useState(null);
-  const [currentAgenda, setCurrentAgenda] = useState(null);
+  const [currentAgendaNum, setCurrentAgendaNum] = useState(1);
   const navigate = useNavigate();
   const [eventSource, setEventSource] = useState(null);
   const [sttText, setSttText] = useState([]);
@@ -237,6 +237,10 @@ const RealtimeMeetingPage = () => {
             const newDocs = data.documents.filter(doc => !prev.includes(doc));
             return [...prev, ...newDocs];
           });
+        }
+
+        if (data.cur_agenda_num) {
+          setCurrentAgendaNum(data.cur_agenda_num);
         }
       } catch (error) {
         console.error('메시지 처리 오류:', error);
@@ -445,7 +449,10 @@ const RealtimeMeetingPage = () => {
                 </InfoRow>
               </MeetingInfoContainer>
             )}
-            <RealtimeNote onMeetingInfo={handleMeetingInfo} />
+            <RealtimeNote 
+              meetingInfo={meetingInfo} 
+              currentAgendaNum={currentAgendaNum}
+            />
           </LeftPanel>
           <RightPanel>
             <RealtimeDoc />

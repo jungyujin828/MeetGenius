@@ -62,7 +62,7 @@ const TextMessage = styled.div`
   ${props => props.type === "query" && `
     background-color: #e7f5ff;
     color: #1864ab;
-    border-left: 4px solid #1864ab;
+    border-left: 2px solid #1864ab;
     
     &::before {
       content: "❓";
@@ -150,126 +150,186 @@ const InfoItem = styled.div`
   }
 `;
 
-const RealtimeNote = () => {
-  const { meetingId } = useParams();  // URL에서 meetingId 가져오기
+const AgendaHeader = styled.h2`
+  font-size: 24px;
+  color: #1a73e8;
+  margin-bottom: 20px;
+  padding-bottom: 10px;
+  border-bottom: 2px solid #1a73e8;
+`;
+
+const ButtonContainer = styled.div`
+  margin-top: 20px;
+  display: flex;
+  justify-content: flex-end;
+`;
+
+const BaseButton = styled.button`
+  padding: 12px 24px;
+  border-radius: 6px;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+`;
+
+const NextButton = styled(BaseButton)`
+  background-color: #1a73e8;
+  color: white;
+  border: none;
+
+  &:hover {
+    background-color: #1557b0;
+  }
+`;
+
+const EndButton = styled(BaseButton)`
+  background-color: #dc3545;
+  color: white;
+  border: none;
+
+  &:hover {
+    background-color: #bb2d3b;
+  }
+`;
+
+const DocumentList = styled.div`
+  margin-top: 8px;
+`;
+
+const RealtimeNote = ({ meetingInfo, currentAgendaNum }) => {
+  const { meetingId } = useParams();
   const [sttText, setSttText] = useState([]);
   const [queryMessage, setQueryMessage] = useState(""); // 쿼리 메시지
   const [documents, setDocuments] = useState([]); // RAG 문서 목록
   const [meetingState, setMeetingState] = useState(""); // 회의 상태
   const [ragList, setRagList] = useState([]); // 새로운 RAG 문서 목록
   const [error, setError] = useState(null);
-  const [meetingInfo, setMeetingInfo] = useState(null);
+  const [currentAgenda, setCurrentAgenda] = useState(null);
+  const [groupedMessages, setGroupedMessages] = useState([]);
 
-  // 메시지 수신 처리
-  const handleMessage = useCallback((message) => {
-    console.log('받은 메시지:', message);
+  // SSE 메시지 수신 처리
+  useEffect(() => {
+    const baseUrl = axiosInstance.defaults.baseURL;
+    const eventSource = new EventSource(`${baseUrl}/meetings/stream/`);
     
-    if (message.type && message.message) {
-      setSttText(prev => [...prev, {
-        type: message.type,
-        message: message.message
-      }]);
+    eventSource.onmessage = (event) => {
+      try {
+        const data = JSON.parse(event.data);
+        console.log('[SSE] 받은 데이터:', data);
+
+        // 초기 데이터 처리 (Redis에 저장된 기존 데이터)
+        if (data.stt_list) {
+          console.log('[SSE] 초기 STT 리스트 설정:', data.stt_list);
+          setSttText(data.stt_list);
+          return;
+        }
+
+        // 실시간 메시지 처리
+        if (data.type && data.message) {
+          const messageWithTimestamp = {
+            ...data,
+            timestamp: new Date().toISOString()
+          };
+
+          setSttText(prevMessages => {
+            const newMessages = [...prevMessages, messageWithTimestamp];
+            const sortedMessages = newMessages.sort((a, b) => 
+              new Date(a.timestamp) - new Date(b.timestamp)
+            );
+            
+            console.log('[SSE] 업데이트된 메시지 목록:', sortedMessages);
+            localStorage.setItem(`meeting_${meetingId}_stt`, JSON.stringify(sortedMessages));
+            
+            return sortedMessages;
+          });
+        }
+      } catch (error) {
+        console.error('[SSE] 메시지 처리 오류:', error);
+      }
+    };
+
+    eventSource.onerror = (error) => {
+      console.error('[SSE] 연결 에러:', error);
+      eventSource.close();
+    };
+
+    // 로컬 스토리지에서 이전 데이터 복원
+    const savedSTT = localStorage.getItem(`meeting_${meetingId}_stt`);
+    if (savedSTT) {
+      try {
+        const parsedSTT = JSON.parse(savedSTT);
+        console.log('[LocalStorage] 저장된 데이터 복원:', parsedSTT);
+        setSttText(parsedSTT);
+      } catch (error) {
+        console.error('[LocalStorage] 데이터 복원 중 에러:', error);
+      }
     }
+
+    return () => eventSource.close();
+  }, [meetingId]);
+
+  // 메시지 그룹화 처리
+  const groupMessages = useCallback((messages) => {
+    const grouped = [];
+    let currentGroup = null;
+
+    messages.forEach((msg) => {
+      if (!currentGroup || currentGroup.type !== msg.type) {
+        if (currentGroup) {
+          grouped.push(currentGroup);
+        }
+        currentGroup = {
+          type: msg.type,
+          messages: [msg.message],
+          documents: msg.documents,
+          timestamp: new Date()
+        };
+      } else {
+        currentGroup.messages.push(msg.message);
+        if (msg.documents) {
+          currentGroup.documents = [...(currentGroup.documents || []), ...msg.documents];
+        }
+      }
+    });
+
+    if (currentGroup) {
+      grouped.push(currentGroup);
+    }
+
+    return grouped;
   }, []);
 
-  // 메시지 렌더링
-  const renderMessages = () => {
-    return sttText.map((item, index) => (
-      <TextMessage key={index} type={item.type}>
-        {item.message}
-      </TextMessage>
-    ));
+  // 현재 안건 정보 설정
+  useEffect(() => {
+    if (meetingInfo?.meeting_agendas) {
+      const agenda = meetingInfo.meeting_agendas.find(a => a.order === currentAgendaNum);
+      setCurrentAgenda(agenda);
+    }
+  }, [meetingInfo, currentAgendaNum]);
+
+  // 다음 안건으로 이동
+  const handleNextAgenda = async () => {
+    try {
+      const response = await axiosInstance.post('meetings/agenda/next_agenda/');
+      console.log("다음 안건 응답:", response.data);
+      // 상위 컴포넌트에서 currentAgendaNum 업데이트
+    } catch (error) {
+      console.error("다음 안건 이동 중 오류:", error);
+    }
   };
 
+  // sttText 상태가 변경될 때마다 로그
   useEffect(() => {
-    // SSE 연결 (서버에서 보내는 실시간 데이터 받기)
-    const eventSource = new EventSource("http://127.0.0.1:8000/meetings/stream/");
+    console.log('[State] 현재 STT 텍스트 상태:', sttText);
+  }, [sttText]);
 
-    // 서버에서 보내는 메시지를 실시간으로 받음
-    eventSource.onmessage = (event) => {
-      const message = JSON.parse(event.data);  // JSON 형식으로 파싱
-      console.log("받은 메시지:", message);
-      console.log("STT 리스트:", message.stt_list); // stt_list 배열 확인
-
-      if (message.stt_list && message.stt_list.length > 0) {
-        setSttText((prevText) => {
-          // 기존 배열과 새로운 stt_list를 병합해서 상태 업데이트
-          return [...prevText, ...message.stt_list.map(text => ({
-            type: "plain",
-            message: text
-          }))];
-        });
-      }
-
-      // 받은 단일 메시지가 있을 경우 추가하기
-      if (message.message) {
-        setSttText((prevText) => [...prevText, {
-          type: "plain",
-          message: message.message
-        }]);
-      }
-
-      // type별로 분기하여 처리
-      switch (message.type) {
-        case "plain":
-          if (message.stt_list) {
-            // stt_list가 배열로 들어오기 때문에 이를 배열에 추가
-            setSttText((prevText) => [...prevText, ...message.stt_list.map(text => ({
-              type: "plain",
-              message: text
-            }))]);  // stt_list의 텍스트 추가
-          }
-          break;
-        case "query":
-          setQueryMessage(message.message);  // 쿼리 메시지 처리
-          break;
-        case "agenda_docs_update":
-          setDocuments((prevDocs) => {
-            const newDocs = message.documents.filter(doc => !prevDocs.includes(doc)); // 중복 방지
-            return [...prevDocs, ...newDocs];  // RAG 문서 업데이트
-          });
-          break;
-        case "meeting_state":
-          setMeetingState(message.meeting_state);  // 회의 상태 업데이트
-          break;
-        case "rag":
-          setRagList((prevRagList) => {
-            const newRagDocs = message.documents || [];  // RAG 문서가 없을 경우 빈 배열 처리
-            return [...prevRagList, ...newRagDocs];
-          });
-          break;
-        default:
-          console.log("알 수 없는 타입:", message.type);
-      }
-    };
-
-    // 오류 처리
-    eventSource.onerror = (error) => {
-      console.error("SSE Error: ", error);
-      setError("서버와 연결할 수 없습니다. 다시 시도해주세요.");  // 오류 메시지 표시
-      eventSource.close(); // 오류 발생 시 연결 종료
-    };
-
-    return () => {
-      eventSource.close(); // 컴포넌트가 언마운트될 때 SSE 종료
-    };
-  }, []);
-
-  // 회의 정보 불러오기
+  // 메시지 그룹화 처리
   useEffect(() => {
-    const fetchMeetingInfo = async () => {
-      try {
-        const response = await axiosInstance.get(`/meetingroom/booked/${meetingId}/`);
-        console.log("회의 정보:", response.data);
-        setMeetingInfo(response.data);
-      } catch (error) {
-        console.error("회의 정보 로드 중 오류:", error);
-        setError("회의 정보를 불러오는데 실패했습니다.");
-      }
-    };
-
-    fetchMeetingInfo();
-  }, [meetingId]);
+    if (sttText.length > 0) {
+      setGroupedMessages(groupMessages(sttText));
+    }
+  }, [sttText, groupMessages]);
 
   // 날짜 포맷팅 함수
   const formatDateTime = (dateString) => {
@@ -286,47 +346,45 @@ const RealtimeNote = () => {
 
   return (
     <Container>
-      <Header>실시간 회의록 (STT)</Header>
+      {currentAgenda && (
+        <AgendaHeader>
+          안건 {currentAgendaNum}: {currentAgenda.title}
+        </AgendaHeader>
+      )}
+      
       <Panel>
         <LeftPanel>
-          {sttText.length > 0 ? (
-            sttText.map((text, index) => {
-              switch(text.type) {
+          {groupedMessages.length > 0 ? (
+            groupedMessages.map((group, index) => {
+              switch(group.type) {
                 case "plain":
                   return (
                     <TextMessage key={index} type="plain">
-                      {text.message}
+                      {group.messages.join('\n')}
                     </TextMessage>
                   );
                 case "query":
                   return (
                     <TextMessage key={index} type="query">
-                      {text.message.startsWith('질문 :') ? text.message : `질문 : ${text.message}`}
+                      {group.messages.map((msg, i) => (
+                        <div key={i}>
+                          {msg.startsWith('질문 :') ? msg : `질문 : ${msg}`}
+                        </div>
+                      ))}
                     </TextMessage>
                   );
                 case "agenda_docs_update":
                   return (
                     <TextMessage key={index} type="agenda_docs_update">
-                      {text.message}
-                      {text.documents && text.documents.length > 0 && (
-                        <div style={{ marginTop: '8px', fontSize: '13px' }}>
-                          {text.documents.map((doc, docIndex) => (
-                            <a 
-                              key={docIndex}
-                              href={doc}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              style={{
-                                display: 'block',
-                                marginTop: '4px',
-                                color: '#2b8a3e',
-                                textDecoration: 'underline'
-                              }}
-                            >
+                      {group.messages[0]}
+                      {group.documents && (
+                        <DocumentList>
+                          {group.documents.map((doc, docIndex) => (
+                            <DocumentLink key={docIndex}>
                               관련 문서 #{docIndex + 1}
-                            </a>
+                            </DocumentLink>
                           ))}
-                        </div>
+                        </DocumentList>
                       )}
                     </TextMessage>
                   );
@@ -335,10 +393,22 @@ const RealtimeNote = () => {
               }
             })
           ) : (
-            <p>로딩 중...</p>
+            <p>아직 기록된 내용이 없습니다.</p>
           )}
         </LeftPanel>
       </Panel>
+
+      <ButtonContainer>
+        {meetingInfo?.meeting_agendas?.length === currentAgendaNum ? (
+          <EndButton onClick={handleEndMeeting}>
+            회의 종료
+          </EndButton>
+        ) : (
+          <NextButton onClick={handleNextAgenda}>
+            다음 안건으로
+          </NextButton>
+        )}
+      </ButtonContainer>
     </Container>
   );
 };
