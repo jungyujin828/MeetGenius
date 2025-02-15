@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from "react";
 import styled from "styled-components";
+import { useParams } from "react-router-dom";
+import axiosInstance from '../api/axiosInstance';
 
 const Container = styled.div`
   display: flex;
@@ -90,13 +92,47 @@ const DocumentLink = styled.a`
   }
 `;
 
+const MeetingInfo = styled.div`
+  background-color: #fff;
+  padding: 20px;
+  border-radius: 8px;
+  box-shadow: 0px 4px 6px rgba(0, 0, 0, 0.1);
+  margin-bottom: 20px;
+`;
+
+const InfoGrid = styled.div`
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 15px;
+  margin-bottom: 15px;
+`;
+
+const InfoItem = styled.div`
+  h4 {
+    color: #274c77;
+    margin-bottom: 5px;
+    font-size: 14px;
+    font-weight: bold;
+  }
+  p {
+    color: #333;
+    font-size: 16px;
+    background-color: #f8f9fa;
+    padding: 8px;
+    border-radius: 4px;
+    margin: 0;
+  }
+`;
+
 const RealtimeNote = () => {
+  const { meetingId } = useParams();  // URL에서 meetingId 가져오기
   const [sttText, setSttText] = useState([]); // 실시간 STT 텍스트를 배열로 저장
   const [queryMessage, setQueryMessage] = useState(""); // 쿼리 메시지
   const [documents, setDocuments] = useState([]); // RAG 문서 목록
   const [meetingState, setMeetingState] = useState(""); // 회의 상태
   const [ragList, setRagList] = useState([]); // 새로운 RAG 문서 목록
-  const [error, setError] = useState(""); // 오류 메시지 처리
+  const [error, setError] = useState(null);
+  const [meetingInfo, setMeetingInfo] = useState(null);
 
   useEffect(() => {
     console.log("sttText가 업데이트되었습니다:", sttText); // 배열이 잘 업데이트 되는지 확인
@@ -167,8 +203,74 @@ const RealtimeNote = () => {
     };
   }, []); // 빈 배열을 넣어 컴포넌트가 처음 렌더링될 때만 실행되도록 함
 
+  // 회의 정보 불러오기
+  useEffect(() => {
+    const fetchMeetingInfo = async () => {
+      try {
+        const response = await axiosInstance.get(`/meetingroom/booked/${meetingId}/`);
+        console.log("회의 정보:", response.data);
+        setMeetingInfo(response.data);
+      } catch (error) {
+        console.error("회의 정보 로드 중 오류:", error);
+        setError("회의 정보를 불러오는데 실패했습니다.");
+      }
+    };
+
+    fetchMeetingInfo();
+  }, [meetingId]);
+
+  // 날짜 포맷팅 함수
+  const formatDateTime = (dateString) => {
+    const date = new Date(dateString);
+    return date.toLocaleString('ko-KR', {
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false
+    });
+  };
+
   return (
     <Container>
+      {error && <div style={{ color: 'red', marginBottom: '20px' }}>{error}</div>}
+      
+      {meetingInfo && (
+        <MeetingInfo>
+          <InfoGrid>
+            <InfoItem>
+              <h4>회의명</h4>
+              <p>{meetingInfo.title}</p>
+            </InfoItem>
+            <InfoItem>
+              <h4>프로젝트</h4>
+              <p>{meetingInfo.project.name}</p>
+            </InfoItem>
+            <InfoItem>
+              <h4>회의 시간</h4>
+              <p>
+                {formatDateTime(meetingInfo.starttime)} ~ {formatDateTime(meetingInfo.endtime)}
+              </p>
+            </InfoItem>
+            <InfoItem>
+              <h4>주최자</h4>
+              <p>{meetingInfo.booker}</p>
+            </InfoItem>
+            <InfoItem>
+              <h4>참가자</h4>
+              <p>{meetingInfo.meeting_participants.map(p => p.name).join(', ')}</p>
+            </InfoItem>
+            <InfoItem>
+              <h4>안건</h4>
+              <p>{meetingInfo.meeting_agendas.map((a, index) => 
+                `${index + 1}. ${a.title}`
+              ).join(', ')}</p>
+            </InfoItem>
+          </InfoGrid>
+        </MeetingInfo>
+      )}
+
       <Header>실시간 회의록 (STT)</Header>
       <Panel>
         <LeftPanel>
@@ -214,8 +316,6 @@ const RealtimeNote = () => {
 
       <h3>회의 상태</h3>
       <div>{meetingState}</div> {/* 회의 상태 표시 */}
-
-      {error && <div style={{ color: "red" }}>{error}</div>} {/* 오류 메시지 표시 */}
 
     </Container>
   );
