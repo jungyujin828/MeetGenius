@@ -1,6 +1,8 @@
 import React, { useEffect, useState } from "react";
 import axios from "axios";
 import styled from "styled-components";
+import { deleteProject, deleteReport } from "../api/project"; // ✅ 삭제 API 불러오기
+
 
 // 스타일 컴포넌트 정의
 const DetailContainer = styled.div`
@@ -130,9 +132,9 @@ const ProjectDetail = ({ projectId, onClose }) => {
   const [project, setProject] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [files, setFiles] = useState([]);
+  const [files, setFiles] = useState([]); // 파일 목록 상태
 
-  const [editMode, setEditMode] = useState(false);
+  const [editMode, setEditMode] = useState(false); // 수정 모드 상태
   const [formData, setFormData] = useState({
     name: '',
     description: '',
@@ -140,44 +142,9 @@ const ProjectDetail = ({ projectId, onClose }) => {
     startdate: '',
     duedate: '',
     participants: []
-  });
-  const [departments, setDepartments] = useState([]);
-  const [users, setUsers] = useState([]);
-
-  const fetchFiles = async () => {
-    const authToken = localStorage.getItem("authToken");
-    if (!authToken) {
-      console.error('[파일 목록 조회] 인증 토큰 없음');
-      return;
-    }
-
-    try {
-      console.log('[파일 목록 조회] 시작:', { projectId });
-      
-      const response = await axios.get(
-        `${baseURL}/projects/${projectId}/all_reports/`,
-        {
-          headers: {
-            Authorization: `Token ${authToken}`,
-          }
-        }
-      );
-
-      console.log('[파일 목록] 응답:', response.data);
-      if (Array.isArray(response.data)) {
-        setFiles(response.data);
-      } else {
-        console.error('[파일 목록] 예상치 못한 응답 형식:', response.data);
-      }
-    } catch (error) {
-      console.error('[파일 목록 조회] 에러:', {
-        status: error.response?.status,
-        data: error.response?.data,
-        message: error.message,
-        projectId
-      });
-    }
-  };
+  }); // 수정할 폼 데이터
+  const [departments, setDepartments] = useState([]); // 부서 목록
+  const [users, setUsers] = useState([]); // 유저 목록
 
   useEffect(() => {
     const fetchProjectDetail = async () => {
@@ -194,27 +161,50 @@ const ProjectDetail = ({ projectId, onClose }) => {
           },
         });
         setProject(response.data);
+        // setFiles(response.data.files || []);
         setFormData({
           name: response.data.name,
           description: response.data.description,
           department: response.data.department,
-          startdate: response.data.startdate,
-          duedate: response.data.duedate,
+          startdate: response.data.startdate.split("T")[0],
+          duedate: response.data.duedate.split("T")[0] ,
           participants: response.data.participants || []
         });
         setLoading(false);
+
       } catch (error) {
         setError("프로젝트 상세 정보를 불러오는 데 실패했습니다.");
         setLoading(false);
       }
     };
+  //   fetchProjectDetail();
+  //   fetchDepartments(); // 부서 목록 불러오기
+  //   fetchUsers(); // 유저 목록 불러오기
+  // }, [projectId]); // 프로젝트 ID가 변경될 때마다 파일 목록을 갱신
+  const fetchFiles = async () => {
+    try {
+      const authToken = localStorage.getItem("authToken");
+      if (!authToken) {
+        setError("로그인된 사용자만 파일 목록을 볼 수 있습니다.");
+        return;
+      }
+      const response = await axios.get(`${baseURL}/projects/${projectId}/all_reports/`, {
+        headers: {
+          Authorization: `Token ${authToken}`,
+        },
+      });
+      setFiles(response.data); // 파일 목록 상태 업데이트
+    } catch (error) {
+      setError("파일 목록을 불러오는 데 실패했습니다.");
+    }
+  };
 
-    fetchProjectDetail();
-    fetchDepartments();
-    fetchUsers();
-    fetchFiles();
-  }, [projectId]);
-
+  fetchFiles(); // 프로젝트 상세와 함께 파일 목록도 가져옴
+  fetchProjectDetail();
+  fetchDepartments(); // 부서 목록 불러오기
+  fetchUsers(); // 유저 목록 불러오기
+}, [projectId]); // 프로젝트 ID가 변경될 때마다 파일 목록을 갱신
+  // 부서 목록 불러오기
   const fetchDepartments = async () => {
     const authToken = localStorage.getItem("authToken");
     if (!authToken) {
@@ -234,6 +224,7 @@ const ProjectDetail = ({ projectId, onClose }) => {
     }
   };
 
+  // 유저 목록 불러오기
   const fetchUsers = async () => {
     const authToken = localStorage.getItem("authToken");
     if (!authToken) {
@@ -253,37 +244,20 @@ const ProjectDetail = ({ projectId, onClose }) => {
     }
   };
 
+
+
+  // 파일 업로드 함수
   const handleFileUpload = async (event) => {
-    const file = event.target.files[0];
-    if (!file) {
-      alert("파일을 선택해주세요.");
-      return;
-    }
-
-    const allowedExtensions = ['.txt', '.docx'];
-    const fileExtension = file.name.toLowerCase().slice((file.name.lastIndexOf(".") - 1 >>> 0) + 2);
-    if (!allowedExtensions.includes(`.${fileExtension}`)) {
-      alert("txt 또는 docx 파일만 업로드 가능합니다.");
-      event.target.value = '';
-      return;
-    }
-
     const formData = new FormData();
-    formData.append("files", file);
+    formData.append("files", event.target.files[0]); // 파일 추가
 
     const authToken = localStorage.getItem("authToken");
     if (!authToken) {
-      alert("로그인된 사용자만 파일을 업로드할 수 있습니다.");
+      setError("로그인된 사용자만 파일을 업로드할 수 있습니다.");
       return;
     }
 
     try {
-      console.log('[파일 업로드] 시작:', {
-        fileName: file.name,
-        fileType: file.type,
-        projectId: projectId
-      });
-
       const response = await axios.post(
         `${baseURL}/projects/${projectId}/upload_report/`,
         formData,
@@ -291,35 +265,21 @@ const ProjectDetail = ({ projectId, onClose }) => {
           headers: {
             "Content-Type": "multipart/form-data",
             Authorization: `Token ${authToken}`,
-          }
+          },
         }
       );
-      
-      console.log('[파일 업로드] 응답:', response.data);
-      
       if (response.data.reports) {
-        alert("파일 업로드가 완료되었습니다.");
-        await fetchFiles();
+        setFiles((prevFiles) => [...prevFiles, ...response.data.reports]);
       }
-      
+      alert("파일 업로드가 완료되었습니다.");
     } catch (error) {
-      console.error('[파일 업로드] 에러:', {
-        status: error.response?.status,
-        data: error.response?.data,
-        projectId: projectId
-      });
-      
-      if (error.response?.data?.error?.includes('FastAPI')) {
-        alert("파일이 업로드되었습니다.");
-        await fetchFiles();
-      } else {
-        alert(error.response?.data?.error || "파일 업로드에 실패했습니다.");
-      }
-    } finally {
-      event.target.value = '';
+      setError("파일 업로드에 실패했습니다.");
     }
   };
 
+
+
+  // 수정할 내용 저장
   const handleSaveEdit = async () => {
     const authToken = localStorage.getItem("authToken");
     if (!authToken) {
@@ -338,8 +298,8 @@ const ProjectDetail = ({ projectId, onClose }) => {
           },
         }
       );
-      setProject(response.data);
-      setEditMode(false);
+      setProject(response.data);  // 서버에서 반환된 데이터로 프로젝트 업데이트
+      setEditMode(false);  // 수정 모드 종료
       alert("프로젝트 수정이 완료되었습니다.");
     } catch (error) {
       setError("프로젝트 수정에 실패했습니다.");
@@ -349,6 +309,32 @@ const ProjectDetail = ({ projectId, onClose }) => {
   if (loading) return <Overlay><DetailContainer>로딩 중...</DetailContainer></Overlay>;
   if (error) return <Overlay><DetailContainer>{error}</DetailContainer></Overlay>;
   if (!project) return null;
+
+  const handleDeleteProject = async () => {
+    if (!window.confirm("정말 이 프로젝트를 삭제하시겠습니까?")) {
+      return;
+    }
+  
+    try {
+      const message = await deleteProject(projectId);
+      alert(message);
+      onClose();
+    } catch (error) {
+      alert(error.message);
+    }
+  };
+
+  const handleDeletReport = async (fileId) => {
+    try {
+      // 파일 삭제 요청
+      const message = await deleteReport(projectId, fileId);
+      alert(message);
+      // 파일 목록에서 삭제된 파일 제거
+      setFiles(files.filter(file => file.id !== fileId));
+    } catch (error) {
+      console.error("파일 삭제 실패:", error);
+    }
+  };
 
   return (
     <>
@@ -374,11 +360,19 @@ const ProjectDetail = ({ projectId, onClose }) => {
               value={formData.department}
               onChange={(e) => setFormData({ ...formData, department: e.target.value })}
             >
-              <option value="">부서 선택</option>
-              {departments.map((department) => (
-                <option key={department.id} value={department.id}>
-                  {department.name}
-                </option>
+{/* ✅ 기존 부서 값이 있으면 기본값으로 추가 */}
+{formData.department && !departments.some(dept => dept === formData.department) && (
+    <option value={formData.department} selected>
+      {formData.department}
+    </option>
+  )}
+
+  <option value="">부서 선택</option>
+
+  {departments.map((department) => (
+    <option key={department.id} value={department.id}>
+      {department.name}
+    </option>
               ))}
             </SelectField>
             <Label>시작일</Label>
@@ -454,8 +448,8 @@ const ProjectDetail = ({ projectId, onClose }) => {
                 files.map((file, index) => (
                   <FileItem key={index}>
                     {file.title}
-                    <DeleteIcon onClick={() => alert(`파일 삭제: ${file.title}`)}>❌</DeleteIcon>
-                  </FileItem>
+                    <DeleteIcon onClick={() => handleDeletReport(file.id)}>❌</DeleteIcon>
+                    </FileItem>
                 ))
               ) : (
                 <p>첨부된 파일이 없습니다.</p>
@@ -469,15 +463,12 @@ const ProjectDetail = ({ projectId, onClose }) => {
                   id="file-upload"
                   onChange={handleFileUpload}
                   style={{ display: "none" }}
-                  accept=".txt,.docx"
                 />
-                <label htmlFor="file-upload" style={{ cursor: "pointer" }}>
-                  파일 추가 (.txt, .docx)
-                </label>
+                <label htmlFor="file-upload">파일 추가</label>
               </Button>
               <Button onClick={() => setEditMode(true)}>수정</Button>
-              <Button onClick={() => alert("프로젝트 삭제")}>삭제</Button>
-            </ButtonContainer>
+              <Button onClick={handleDeleteProject}>삭제</Button>
+              </ButtonContainer>
           </div>
         )}
       </DetailContainer>
