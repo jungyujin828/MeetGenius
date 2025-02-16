@@ -359,8 +359,10 @@ def mymeeting(request):
             meetings = meetings.filter(starttime__range=(startdate, enddate))
 
 
-        serializer = MeetingReadSerializer(mymeetings, many=True)
+        # mymeetings에서 'meeting'만 추출하여 직렬화
+        serializer = MeetingReadSerializer(meetings, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
+
 
 
 @api_view(['GET'])
@@ -400,8 +402,7 @@ def get_or_update_moms_by_meeting(request, meeting_id):
     print(moms)
 
     if not moms:
-        return Response({'error':'해당 회의에 회의록이 존재하지 않습니다.'},
-                        status=status.HTTP_404_NOT_FOUND)
+        return Response([],status = status.HTTP_200_OK)
     
     # # GET 요청 처리 (조회)
     if request.method =="GET": 
