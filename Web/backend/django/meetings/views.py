@@ -480,7 +480,7 @@ async def start_meeting(request):
         # 상태 변경을 Pub/Sub으로 전파
         update_msg = json.dumps({
             "type": "meeting_state", 
-            "state": "meeting_in_progress"
+            "meeting_state": "meeting_in_progress"
         })
         await redis_client.publish(MEETING_CHANNEL, update_msg)
         # print('상태 변경 후 publish 완료')
@@ -928,7 +928,7 @@ async def stop_meeting(reqeust):
         # 4. 회의 상태 업데이트: "meeting_finished"
         update_msg = json.dumps({
             "type":"meeting_state",
-            "state":"meeting_finished"
+            "meeting_state":"meeting_finished"
         })
         await redis_client.publish(MEETING_CHANNEL,update_msg)
 
