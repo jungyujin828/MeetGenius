@@ -104,7 +104,7 @@ def get_all_users(request):
     전체 유저 목록 조회 API
     """
 
-    users = User.objects.all()
+    users = User.objects.exclude(id=1)  # superuser 제외
     serializer = UserSerializer(users,many=True)
     return Response(serializer.data, status = status.HTTP_200_OK)
 
