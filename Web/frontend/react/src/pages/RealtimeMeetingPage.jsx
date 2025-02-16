@@ -211,6 +211,25 @@ const RealtimeMeetingPage = () => {
     console.log("현재 meetingInfo:", meetingInfo);
   }, [meetingInfo]);
 
+  // 1. 페이지 로드 시 스케줄러 요청
+  // useEffect(() => {
+  //   const initializeScheduler = async () => {
+  //     try {
+  //       console.log("스케줄러 초기화 시작");
+  //       const schedulerResponse = await axiosInstance.get(`/meetings/scheduler/${meetingId}/`);
+        
+  //       if (schedulerResponse.status === 200) {
+  //         console.log("스케줄러 초기화 완료");
+  //         setIsSchedulerReady(true);
+  //       }
+  //     } catch (error) {
+  //       console.error("스케줄러 초기화 실패:", error);
+  //       setError("회의 초기화에 실패했습니다.");
+  //     }
+  //   };
+
+  //   initializeScheduler();
+  // }, [meetingId]);
 
   // 페이지 로드 시 SSE 연결만 수행
   useEffect(() => {

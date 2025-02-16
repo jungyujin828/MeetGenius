@@ -259,7 +259,14 @@ const RealtimeNote = ({ meetingInfo, currentAgendaNum, onEndMeeting }) => {
         // 초기 데이터 처리 (Redis에 저장된 기존 데이터)
         if (data.stt_list) {
           console.log('[SSE] 초기 STT 리스트 설정:', data.stt_list);
-          setSttText(data.stt_list);
+          setSttText((prev) => [
+            ...prev,
+            ...data.stt_list.map(msg => ({
+              message: msg,
+              type: "plain",
+              timestamp: new Date().toISOString()
+            }))
+          ]);
           return;
         }
 
@@ -293,16 +300,16 @@ const RealtimeNote = ({ meetingInfo, currentAgendaNum, onEndMeeting }) => {
     };
 
     // 로컬 스토리지에서 이전 데이터 복원
-    const savedSTT = localStorage.getItem(`meeting_${meetingId}_stt`);
-    if (savedSTT) {
-      try {
-        const parsedSTT = JSON.parse(savedSTT);
-        console.log('[LocalStorage] 저장된 데이터 복원:', parsedSTT);
-        setSttText(parsedSTT);
-      } catch (error) {
-        console.error('[LocalStorage] 데이터 복원 중 에러:', error);
-      }
-    }
+    // const savedSTT = localStorage.getItem(`meeting_${meetingId}_stt`);
+    // if (savedSTT) {
+    //   try {
+    //     const parsedSTT = JSON.parse(savedSTT);
+    //     console.log('[LocalStorage] 저장된 데이터 복원:', parsedSTT);
+    //     setSttText(parsedSTT);
+    //   } catch (error) {
+    //     console.error('[LocalStorage] 데이터 복원 중 에러:', error);
+    //   }
+    // }
 
     return () => eventSource.close();
   }, [meetingId]);
