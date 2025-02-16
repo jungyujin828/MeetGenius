@@ -35,13 +35,18 @@ STT_LIST_KEY = "meeting:stt:stream"         # 현재 안건의 STT 데이터 (LI
 RAG_LIST_KEY = "meeting:rag"                # Rag LIST 키
 IS_READY_MEETING = "meeting:state"          # 현재 회의 준비상태
 IS_RUNNING_STT = "meeting:stt_running"      # stt 동작상태태
-MEETING_HISTORY = "meeting:meeting_history" # 회의 기록
 ''' 
 waiting : 기본
 waiting_for_ready : 준비하기 버튼 클릭
 waiting_for_start : 시작하기 버튼 활성화
 meeting_in_progress : 회의중
 meeting_finished : 회의 끝.
+'''
+MEETING_HISTORY = "meeting:meeting_history" # 회의 기록
+'''
+[
+    '첫 회의록의 내용입니다.', '둘째 회의록의 내용입니다.', '셋째 회의록의 내용입니다.'
+]
 '''
 MEETING_RECORD = "meeting:agenda_record"    # 안건별 회의록
 

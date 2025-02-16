@@ -211,25 +211,6 @@ const RealtimeMeetingPage = () => {
     console.log("현재 meetingInfo:", meetingInfo);
   }, [meetingInfo]);
 
-  // 1. 페이지 로드 시 스케줄러 요청
-  useEffect(() => {
-    const initializeScheduler = async () => {
-      try {
-        console.log("스케줄러 초기화 시작");
-        const schedulerResponse = await axiosInstance.get(`/meetings/scheduler/${meetingId}/`);
-        
-        if (schedulerResponse.status === 200) {
-          console.log("스케줄러 초기화 완료");
-          setIsSchedulerReady(true);
-        }
-      } catch (error) {
-        console.error("스케줄러 초기화 실패:", error);
-        setError("회의 초기화에 실패했습니다.");
-      }
-    };
-
-    initializeScheduler();
-  }, [meetingId]);
 
   // 페이지 로드 시 SSE 연결만 수행
   useEffect(() => {
@@ -243,10 +224,9 @@ const RealtimeMeetingPage = () => {
         
         if (data.meeting_state) {
           console.log('회의 상태 변경:', data.meeting_state);
+          
+          // 서버로부터 받은 상태에 따라 UI 업데이트
           switch (data.meeting_state) {
-            case 'waiting_for_ready':
-              setIsPreparing(true);
-              break;
             case 'waiting_for_start':
               setIsReady(true);
               setIsPreparing(false);
@@ -254,8 +234,13 @@ const RealtimeMeetingPage = () => {
             case 'meeting_in_progress':
               setIsMeetingStarted(true);
               break;
+            case 'meeting_finished':
+              // 회의 종료 팝업 표시
+              alert("회의가 종료되었습니다.");
+              // dashboard로 이동
+              navigate('/dashboard');
+              break;
           }
-          setMeetingState(data.meeting_state);
         }
       } catch (error) {
         console.error('메시지 처리 오류:', error);
@@ -263,16 +248,16 @@ const RealtimeMeetingPage = () => {
     };
 
     return () => sse.close();
-  }, [API_BASE_URL]);
+  }, [API_BASE_URL, navigate]);  // navigate 의존성 추가
 
-  // 회의 준비 버튼 클릭 시 스케줄러와 prepare 요청
+  // 회의 준비 버튼 클릭 시에만 스케줄러 실행
   const handlePrepareMeeting = async () => {
     console.log("회의 준비 시작");
     setIsPreparing(true);
     setError(null);
 
     try {
-      // 1. 스케줄러 실행
+      // 1. 스케줄러 실행 (회의 준비 버튼 클릭 시에만!)
       const schedulerResponse = await axiosInstance.get(`/meetings/scheduler/${meetingId}/`);
       
       if (schedulerResponse.status === 200) {
@@ -285,6 +270,7 @@ const RealtimeMeetingPage = () => {
 
         if (prepareResponse.status === 200) {
           console.log("회의 준비 완료");
+          // 서버가 SSE를 통해 'waiting_for_start' 상태를 보내줄 것임
         }
       }
     } catch (error) {
