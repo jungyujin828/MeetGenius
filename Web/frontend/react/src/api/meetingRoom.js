@@ -54,16 +54,49 @@ export const updateMeetingRoomBooking = async (meetingId, formData) => {
 };
 
 // 프로젝트 참여자 목록 조회 함수 
-export const fetchParticipants = async (selectedProject) => {
-  const authToken = localStorage.getItem("authToken");
+export const fetchParticipants = async (projectId) => {
   try {
     const response = await axiosInstance.get(
-      `/meetingroom/project_participation/${selectedProject}/`,
-      { headers: { Authorization: `Token ${authToken}` } }
+      `/meetingroom/project_participation/${projectId}/`,
     );
     return response.data["project_participation"];
   } catch (error) {
-    setError("프로젝트 참여자 목록을 불러오는 데 실패했습니다.");
     console.error("프로젝트 참여자 목록 불러오기 오류:", error);
+  }
+};
+
+// 회의별 회의록 mom 조회
+export const fetchMomsByMeetings = async (meetingId) => {
+  try {
+    const response = await axiosInstance.get(
+      `/meetingroom/moms_by_meeting/${meetingId}/`,
+    );
+    return response.data;
+  } catch (error) {
+    throw new Error(error.response?.data?.message || "회의록을 불러오는 데에 실패했습니다.");
+  }
+};
+
+// 프로젝트별 회의록 mom 조회
+export const fetchMomsByProject = async (projectId) => {
+  try {
+    const response = await axiosInstance.get(
+      `/meetingroom/moms_by_project/${projectId}/`,
+    );
+    return response.data;
+  } catch (error) {
+    throw new Error(error.response?.data?.message || "회의록을 불러오는 데에 실패했습니다.");
+  }
+};
+
+
+
+export const fetchMeetingDetails = async (meetingId) => {
+  try {
+    const response = await axiosInstance.get(`/meetingroom/booked/${meetingId}/`,
+    );
+    return response.data
+  } catch (error) {
+    throw new Error(error.response?.data?.message || "회의상세 정보를 불러오는 데에 실패했습니다.");
   }
 };

@@ -40,3 +40,14 @@ export const deleteReport = async (projectId, ReportId) => {
       throw new Error(error.response?.data?.message ||"프로젝트 목록을 불러오는 데 실패했습니다.");
     }
   };
+
+  // 프로젝트별 회의 목록
+  export const fetchMeetingByProjcet = async (projectId) => {
+    try {
+      const response = await axiosInstance.get(`/meetingroom/meetings_by_project/${projectId}/`);
+      return response.data;
+     } catch (error) {
+      throw new Error(error.response?.data?.message ||"회의 목록을 불러오는 데 실패했습니다.");
+    }
+  };
+

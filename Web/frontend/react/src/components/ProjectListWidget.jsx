@@ -34,14 +34,13 @@ const Button = styled.button`
   }
 `;
 
-
 const Pagination = styled.div`
   margin-top: 20px;
   display: flex;
   justify-content: space-between;
 `;
 
-const ProjectListWidget = ({ projects, onProjectSelect }) => {
+const ProjectListWidget = ({ projects, onProjectSelect, onMeetingDetailsSelect }) => {
   const [currentPage, setCurrentPage] = useState(1);
   const projectsPerPage = 5;
 
@@ -49,23 +48,22 @@ const ProjectListWidget = ({ projects, onProjectSelect }) => {
     .sort((a, b) => new Date(a.duedate) - new Date(b.duedate))
     .slice((currentPage - 1) * projectsPerPage, currentPage * projectsPerPage);
 
-const handleNext = () => {
-  if (currentPage < Math.ceil(projects.length / projectsPerPage)) {
-    setCurrentPage(currentPage + 1);
-  }
-};
+  const handleNext = () => {
+    if (currentPage < Math.ceil(projects.length / projectsPerPage)) {
+      setCurrentPage(currentPage + 1);
+    }
+  };
 
-const handlePrevious = () => {
-  if (currentPage > 1) {
-    setCurrentPage(currentPage - 1);
-  }
-};
-  
-  
+  const handlePrevious = () => {
+    if (currentPage > 1) {
+      setCurrentPage(currentPage - 1);
+    }
+  };
+
   return (
     <ProjectContainer>
       <h3>진행중인 프로젝트</h3>
-      <ul style={{ listStyleType: 'none', padding: 0 }}>
+      <ul style={{ listStyleType: "none", padding: 0 }}>
         {sortedProjects.length === 0 ? (
           <li>진행 중인 프로젝트가 없습니다.</li>
         ) : (
@@ -76,6 +74,7 @@ const handlePrevious = () => {
               </div>
               <div>참여자: {project.participants.map((participant) => participant.name).join(", ")}</div>
               <Button onClick={() => onProjectSelect(project.id)}>상세보기</Button> {/* 상세보기 버튼 */}
+              <Button onClick={() => onMeetingDetailsSelect(project.id)}>회의내역 보기</Button> {/* 회의내역 보기 버튼 */}
             </ProjectItem>
           ))
         )}

@@ -11,7 +11,7 @@ const DetailContainer = styled.div`
   border-radius: 5px;
   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
   width: 350px; /* ✅ 전체 공간 차지 방지 */
-  max-height: 500px; /* ✅ 높이 제한 */
+  max-height: 1000px; /* ✅ 높이 제한 */
   overflow-y: auto; /* ✅ 내용이 많을 경우 스크롤 */
 `;
 
