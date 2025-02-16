@@ -65,8 +65,7 @@ async def receive_data(request):
             data_type = data.get('type')        # 데이터 유형 (plain, query, rag)
             message = data.get('message','')
             docs = data.get('docs',None)
-            print(message)
-            print(docs)
+
             print(f"📡 FastAPI에서 받은 데이터: {data_type} - {message}")
 
             # Redis 연결마다 요청 유지
@@ -93,15 +92,16 @@ async def receive_data(request):
                 elif data_type == 'rag':
                     if not docs:
                         print('docs not exist')
-                        return
+                        
                     
                     fastapi_response = {
                         'data_type' : 'rag',
                         'message': '답변입니다.',
                         'agenda_docs': docs
                     } 
-                    print(fastapi_response)
-                    await handle_fastapi_response(fastapi_response)
+                    print(data)
+                    # FastAPI 답변 처리
+                    await handle_fastapi_response(data)
 
                     return JsonResponse({
                             'status': 'success',
@@ -378,7 +378,7 @@ async def get_current_agenda():
         "agenda_title": agenda.title
     }  # 현재 진행 중인 안건을 찾지 못한 경우
 
-async def fetch_and_store_documents(document_ids, redis_client, message):
+async def fetch_and_store_documents(document_ids, fastapi_response, redis_client, message):
     """
     FastAPI에서 받은 문서 ID 리스트를 기반으로 DB에서 문서 조회 후 Redis 저장 및 Pub/Sub
     """
@@ -411,7 +411,7 @@ async def fetch_and_store_documents(document_ids, redis_client, message):
             await redis_client.lrem(RAG_LIST_KEY,0,doc_json) # doc문서 중복방지
             await redis_client.rpush(RAG_LIST_KEY, doc_json)
 
-        
+        message = fastapi_response.get('message')
         # PUBSUB - publish
         update_msg = json.dumps({
             "type": "agenda_docs_update",
@@ -453,9 +453,12 @@ async def handle_fastapi_response(fastapi_response):
 
     # 2. 문서 ID 리스트 기반 DB 조회 & Redis 저장
     document_ids = fastapi_response.get("agenda_docs", [])
+    print('######### 체크')
+    print(fastapi_response)
+    print(document_ids)
     try :
         # 문서 처리 함수 호출
-        await fetch_and_store_documents(document_ids, redis_client, message)  # redis_client를 fetch_and_store_documents에 넘겨주기
+        await fetch_and_store_documents(document_ids, fastapi_response, redis_client, message)  # redis_client를  넘겨주기
     except Exception as e:
         print(f"ERROR in fetching and storing documents: {e}")
 

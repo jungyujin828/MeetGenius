@@ -70,7 +70,7 @@ class MomSerializer(serializers.ModelSerializer):
     # document_id = serializers.IntegerField(source = 'document.id', allow_null = True, read_only=True)
 
 class MeetingParticipationSerializer(serializers.ModelSerializer):
-    participant_name = serializers.CharField(source="participant.username", read_only=True)  # 사용자 이름 포함
+    participant_name = serializers.CharField(source="participant.name", read_only=True)  # 사용자 이름 포함
 
     class Meta:
         model = MeetingParticipation
@@ -78,7 +78,7 @@ class MeetingParticipationSerializer(serializers.ModelSerializer):
 
 class MeetingSerilizer(serializers.ModelSerializer):
     participants = MeetingParticipationSerializer(source='participants.all', many=True, read_only=True)  # 참여자 목록 포함
-
+    
     class Meta:
         model = Meeting
         fields = '__all__'
