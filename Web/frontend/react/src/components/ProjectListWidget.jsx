@@ -74,8 +74,8 @@ const ProjectListWidget = ({ projects, loading, error, setSelectedProject }) => 
   return (
     <ProjectContainer>
       <h3>진행중인 프로젝트</h3>
-      <ul>
-        {sortedProjects.length === 0 ? (
+      <ul style={{ listStyleType: 'none', padding: 0 }}>
+      {sortedProjects.length === 0 ? (
           <li>진행 중인 프로젝트가 없습니다.</li>
         ) : (
           sortedProjects.map((project) => (

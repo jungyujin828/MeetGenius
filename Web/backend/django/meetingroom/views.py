@@ -332,8 +332,6 @@ def meeting_detail(request, meeting_id):
                 status=status.HTTP_404_NOT_FOUND
             )
         else:
-            authority = participation.authority
-            participant = participation.participant
             return Response(
                 {"status": "error", "message": "삭제 권한이 없습니다.",},
                 status=status.HTTP_403_FORBIDDEN
