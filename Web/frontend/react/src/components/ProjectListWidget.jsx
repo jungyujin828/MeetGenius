@@ -1,7 +1,5 @@
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import styled from "styled-components";
-import ProjectCreateWidget from "./ProjectCreateWidget"; // 프로젝트 생성 위젯
-
 
 const ProjectContainer = styled.div`
   margin: 20px;
@@ -36,46 +34,39 @@ const Button = styled.button`
   }
 `;
 
+
 const Pagination = styled.div`
   margin-top: 20px;
   display: flex;
   justify-content: space-between;
 `;
 
-const ProjectListWidget = ({ projects, loading, error, setSelectedProject }) => {
+const ProjectListWidget = ({ projects, onProjectSelect }) => {
   const [currentPage, setCurrentPage] = useState(1);
   const projectsPerPage = 5;
-  
 
-  if (loading) {
-    return <div>프로젝트 목록을 불러오는 중...</div>;
-  }
-
-  if (error) {
-    return <div>{error}</div>;
-  }
-
-  const sortedProjects = projects
+  const sortedProjects = [...projects]
     .sort((a, b) => new Date(a.duedate) - new Date(b.duedate))
     .slice((currentPage - 1) * projectsPerPage, currentPage * projectsPerPage);
 
-  const handleNext = () => {
-    if (currentPage < Math.ceil(projects.length / projectsPerPage)) {
-      setCurrentPage(currentPage + 1);
-    }
-  };
+const handleNext = () => {
+  if (currentPage < Math.ceil(projects.length / projectsPerPage)) {
+    setCurrentPage(currentPage + 1);
+  }
+};
 
-  const handlePrevious = () => {
-    if (currentPage > 1) {
-      setCurrentPage(currentPage - 1);
-    }
-  };
-
+const handlePrevious = () => {
+  if (currentPage > 1) {
+    setCurrentPage(currentPage - 1);
+  }
+};
+  
+  
   return (
     <ProjectContainer>
       <h3>진행중인 프로젝트</h3>
       <ul style={{ listStyleType: 'none', padding: 0 }}>
-      {sortedProjects.length === 0 ? (
+        {sortedProjects.length === 0 ? (
           <li>진행 중인 프로젝트가 없습니다.</li>
         ) : (
           sortedProjects.map((project) => (
@@ -84,12 +75,11 @@ const ProjectListWidget = ({ projects, loading, error, setSelectedProject }) => 
                 <strong>{project.name}</strong> - <em>마감일: {new Date(project.duedate).toLocaleDateString()}</em>
               </div>
               <div>참여자: {project.participants.map((participant) => participant.name).join(", ")}</div>
-              <Button onClick={() => setSelectedProject(project.id)}>상세보기</Button>  {/* 상세보기 버튼 */}
+              <Button onClick={() => onProjectSelect(project.id)}>상세보기</Button> {/* 상세보기 버튼 */}
             </ProjectItem>
           ))
         )}
       </ul>
-
       <Pagination>
         <Button onClick={handlePrevious} disabled={currentPage === 1}>
           이전

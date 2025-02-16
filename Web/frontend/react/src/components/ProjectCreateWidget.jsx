@@ -4,6 +4,8 @@ import styled from "styled-components";
 import { useDispatch } from "react-redux";
 import { addProject } from "../redux/projectSlice"; // 리덕스 액션 가져오기
 import axiosInstance from "../api/axiosInstance";  // ✅ axiosInstance import 추가
+import { fetchUserInfo, fetchDepartments } from "../api/userApi"; // 알림 관련 함수
+import { fetchProjects } from "../api/project"; // Adjust the import path as needed
 
 // 스타일 컴포넌트 설정
 const ProjectFormContainer = styled.div`
@@ -76,8 +78,7 @@ const UserItem = styled.div`
 
 const baseURL = import.meta.env.VITE_APP_BASEURL;
 
-
-const ProjectCreateWidget = ({ fetchProjects, closeCreateProject }) => {
+const ProjectCreateWidget = ({ closeCreateProject }) => {
   const [projectName, setProjectName] = useState("");
   const [projectDescription, setProjectDescription] = useState("");
   const [department, setDepartment] = useState("");  // 부서 상태
@@ -89,51 +90,26 @@ const ProjectCreateWidget = ({ fetchProjects, closeCreateProject }) => {
   const [selectedDepartmentName, setSelectedDepartmentName] = useState(""); // 선택된 부서 이름
   const [error, setError] = useState(null); // 에러 상태
   
-
   const dispatch = useDispatch();
 
-  // 모든 유저 목록 불러오기
+  // 모든 유저 목록 불러오기 및 부서 목록 불러오기
   useEffect(() => {
-    fetchUsers();
-    fetchDepartments();  // 부서 목록 불러오기
+    const fetchData = async () => {
+      try {
+        const usersData = await fetchUserInfo();  // 사용자 정보 가져오기
+        console.log("회원 목록입니다.", usersData);
+        setUsers(usersData);  // 사용자 목록 상태 업데이트
+        const projectData = await fetchDepartments();  // 부서 목록 불러오기
+        setDepartments(projectData);
+      } catch (error) {
+        setError("데이터를 불러오는 데 실패했습니다.");
+        console.error("데이터 불러오기 오류:", error);
+      }
+    };
+
+    fetchData();  // 사용자 및 부서 목록 불러오기
   }, []);
 
-  // 유저 목록 불러오기
-  const fetchUsers = async () => {
-    try {
-      const url = `${baseURL}/accounts/users/`; // 모든 유저 불러오는 엔드포인트
-      const response = await axios.get(url, { withCredentials: true });
-      setUsers(response.data);
-    } catch (error) {
-      setError("유저 목록을 불러오는 데 실패했습니다.");
-      console.error("유저 목록 불러오기 오류:", error);
-    }
-  };
-
-  // 부서 목록 불러오기
-  const fetchDepartments = async () => {
-    const authToken = localStorage.getItem("authToken"); // 로컬스토리지에서 토큰 가져오기
-    
-    // 인증 토큰이 없는 경우 처리
-    if (!authToken) {
-      setError("로그인된 사용자만 부서 목록을 조회할 수 있습니다.");
-      return;
-    }
-
-    try {
-      const url = "http://127.0.0.1:8000/accounts/departments/"; // 모든 부서 불러오는 엔드포인트
-      const response = await axios.get(url, {
-        withCredentials: true,
-        headers: {
-          Authorization: `Token ${authToken}`, // 인증 토큰을 Authorization 헤더에 추가
-        },
-      });
-      setDepartments(response.data); // 부서 목록 상태 업데이트
-    } catch (error) {
-      setError("부서 목록을 불러오는 데 실패했습니다.");
-      console.error("부서 목록 불러오기 오류:", error);
-    }
-  };
 
   // 날짜를 "T09:00:00+09:00" 형태로 변환
   const formatDate = (date, time="00:00:00") => {
@@ -159,10 +135,10 @@ const ProjectCreateWidget = ({ fetchProjects, closeCreateProject }) => {
       department: department,  // 부서 id만 전송
       participants: participants.map((p) => ({ id: p.id, authority: p.authority })),  // 참가자들 id와 권한
     };
-    console.log(formData)
+    console.log(formData);
     try {
       // 전체 URL을 사용하여 요청 보내기
-      const response = await axios.post("http://127.0.0.1:8000/projects/", formData, {
+      const response = await axios.post(`${baseURL}/projects/`, formData, {
         withCredentials: true,
         headers: {
           Authorization: `Token ${authToken}`, // 인증 토큰 추가
@@ -170,10 +146,10 @@ const ProjectCreateWidget = ({ fetchProjects, closeCreateProject }) => {
       });
 
       console.log("🟢 프로젝트 생성 성공:", response.data);
-      dispatch(addProject(response.data));
+      dispatch(addProject(response.data)); // 새 프로젝트를 리덕스에 추가
       alert("프로젝트가 생성되었습니다.");
       closeCreateProject();  // 프로젝트 생성 후 컴포넌트 닫기
-      fetchProjects();
+      fetchProjects();  // 프로젝트 목록 갱신
     } catch (error) {
       console.error("🔴 프로젝트 생성 실패:", error);
       if (error.response) {

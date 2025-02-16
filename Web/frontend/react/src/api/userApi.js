@@ -9,3 +9,14 @@ export const fetchUserInfo = async () => {
     throw error.response?.data || "Failed to fetch user info";
   }
 };
+
+
+  // 부서 목록 불러오기
+  export  const fetchDepartments = async () => {
+    try {
+      const response = await axiosInstance.get(`/accounts/departments/`);
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || "Failed to fetch user info";
+    }
+  };

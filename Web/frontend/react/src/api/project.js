@@ -32,3 +32,11 @@ export const deleteReport = async (projectId, ReportId) => {
     }
   };
   
+  export const fetchFiles = async (projectId) => {
+    try {
+      const response = await axiosInstance.get(`/projects/${projectId}/all_reports/`);
+      return response.data;
+     } catch (error) {
+      throw new Error(error.response?.data?.message ||"프로젝트 목록을 불러오는 데 실패했습니다.");
+    }
+  };
