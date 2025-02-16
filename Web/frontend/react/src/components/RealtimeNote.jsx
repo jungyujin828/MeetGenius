@@ -1,5 +1,7 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import styled from "styled-components";
+import { useParams } from "react-router-dom";
+import axiosInstance from '../api/axiosInstance';
 
 const Container = styled.div`
   display: flex;
@@ -46,12 +48,49 @@ const RightPanel = styled.div`
 `;
 
 const TextMessage = styled.div`
-  margin-bottom: 10px;
-  font-size: 16px;
-  color: #555;
-  padding: 8px;
-  background-color: #f1f1f1;
-  border-radius: 6px;
+  margin: 10px 0;
+  padding: 12px 16px;
+  border-radius: 8px;
+  font-size: 14px;
+  line-height: 1.4;
+
+  ${props => props.type === "plain" && `
+    background-color: #f8f9fa;
+    color: #212529;
+  `}
+
+  ${props => props.type === "query" && `
+    background-color: #e7f5ff;
+    color: #1864ab;
+    border-left: 2px solid #1864ab;
+    
+    &::before {
+      content: "❓";
+      margin-right: 8px;
+    }
+  `}
+
+  ${props => props.type === "agenda_docs_update" && `
+    background-color: #ebfbee;
+    color: #2b8a3e;
+    border-left: 4px solid #2b8a3e;
+    
+    &::before {
+      content: "📄";
+      margin-right: 8px;
+    }
+  `}
+
+  ${props => props.type === "rag" && `
+    background-color: #e3f2fd;
+    color: #1565c0;
+    border-left: 4px solid #1565c0;
+    
+    &::before {
+      content: "🔍";
+      margin-right: 8px;
+    }
+  `}
 `;
 
 const Button = styled.button`
@@ -90,134 +129,324 @@ const DocumentLink = styled.a`
   }
 `;
 
-const RealtimeNote = () => {
-  const [sttText, setSttText] = useState([]); // 실시간 STT 텍스트를 배열로 저장
+const MeetingInfo = styled.div`
+  background-color: #fff;
+  padding: 20px;
+  border-radius: 8px;
+  box-shadow: 0px 4px 6px rgba(0, 0, 0, 0.1);
+  margin-bottom: 20px;
+`;
+
+const InfoGrid = styled.div`
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 15px;
+  margin-bottom: 15px;
+`;
+
+const InfoItem = styled.div`
+  h4 {
+    color: #274c77;
+    margin-bottom: 5px;
+    font-size: 14px;
+    font-weight: bold;
+  }
+  p {
+    color: #333;
+    font-size: 16px;
+    background-color: #f8f9fa;
+    padding: 8px;
+    border-radius: 4px;
+    margin: 0;
+  }
+`;
+
+const AgendaHeader = styled.h2`
+  font-size: 24px;
+  color: #1a73e8;
+  margin-bottom: 20px;
+  padding-bottom: 10px;
+  border-bottom: 2px solid #1a73e8;
+`;
+
+const ButtonContainer = styled.div`
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 20px;
+  padding: 10px;
+  position: sticky;
+  bottom: 0;
+  background-color: white;
+  border-top: 1px solid #eee;
+`;
+
+const BaseButton = styled.button`
+  padding: 12px 24px;
+  border-radius: 6px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+`;
+
+const NextButton = styled(BaseButton)`
+  background-color: #1a73e8;
+  color: white;
+  border: none;
+
+  &:hover {
+    background-color: #1557b0;
+  }
+`;
+
+const EndButton = styled(BaseButton)`
+  background-color: #dc3545;
+  color: white;
+  border: none;
+
+  &:hover {
+    background-color: #bb2d3b;
+  }
+`;
+
+const DocumentList = styled.div`
+  margin-top: 8px;
+`;
+
+const ButtonGroup = styled.div`
+  display: flex;
+  gap: 10px;
+`;
+
+const NoteContainer = styled.div`
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  position: relative;
+`;
+
+const NoteContent = styled.div`
+  flex: 1;
+  overflow-y: auto;
+  padding: 20px;
+  background-color: #ffffff;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+  margin-bottom: 20px;
+`;
+
+const RealtimeNote = ({ meetingInfo, currentAgendaNum, onEndMeeting }) => {
+  const { meetingId } = useParams();
+  const [sttText, setSttText] = useState([]);
   const [queryMessage, setQueryMessage] = useState(""); // 쿼리 메시지
   const [documents, setDocuments] = useState([]); // RAG 문서 목록
   const [meetingState, setMeetingState] = useState(""); // 회의 상태
   const [ragList, setRagList] = useState([]); // 새로운 RAG 문서 목록
-  const [error, setError] = useState(""); // 오류 메시지 처리
+  const [error, setError] = useState(null);
+  const [currentAgenda, setCurrentAgenda] = useState(null);
+  const [groupedMessages, setGroupedMessages] = useState([]);
 
+  // SSE 메시지 수신 처리
   useEffect(() => {
-    console.log("sttText가 업데이트되었습니다:", sttText); // 배열이 잘 업데이트 되는지 확인
-  }, [sttText]); // sttText가 업데이트될 때마다 실행
-
-  useEffect(() => {
-    // SSE 연결 (서버에서 보내는 실시간 데이터 받기)
-    const eventSource = new EventSource("http://127.0.0.1:8000/meetings/stream/");
-
-    // 서버에서 보내는 메시지를 실시간으로 받음
+    const baseUrl = axiosInstance.defaults.baseURL;
+    const eventSource = new EventSource(`${baseUrl}/meetings/stream/`);
+    
     eventSource.onmessage = (event) => {
-      const message = JSON.parse(event.data);  // JSON 형식으로 파싱
-      console.log("받은 메시지:", message);
-      console.log("STT 리스트:", message.stt_list); // stt_list 배열 확인
+      try {
+        const data = JSON.parse(event.data);
+        console.log('[SSE] 받은 데이터:', data);
 
-      if (message.stt_list && message.stt_list.length > 0) {
-        setSttText((prevText) => {
-          // 기존 배열과 새로운 stt_list를 병합해서 상태 업데이트
-          return [...prevText, ...message.stt_list];
-        });
-      }
+        // 초기 데이터 처리 (Redis에 저장된 기존 데이터)
+        if (data.stt_list) {
+          console.log('[SSE] 초기 STT 리스트 설정:', data.stt_list);
+          setSttText(data.stt_list);
+          return;
+        }
 
-      // 받은 단일 메시지가 있을 경우 추가하기
-      if (message.message) {
-        setSttText((prevText) => [...prevText, message.message]);
-      }
+        // 실시간 메시지 처리
+        if (data.type && data.message) {
+          const messageWithTimestamp = {
+            ...data,
+            timestamp: new Date().toISOString()
+          };
 
-      // type별로 분기하여 처리
-      switch (message.type) {
-        case "plain":
-          if (message.stt_list) {
-            // stt_list가 배열로 들어오기 때문에 이를 배열에 추가
-            setSttText((prevText) => [...prevText, ...message.stt_list]);  // stt_list의 텍스트 추가
-          }
-          break;
-        case "query":
-          setQueryMessage(message.message);  // 쿼리 메시지 처리
-          break;
-        case "agenda_docs_update":
-          setDocuments((prevDocs) => {
-            const newDocs = message.documents.filter(doc => !prevDocs.includes(doc)); // 중복 방지
-            return [...prevDocs, ...newDocs];  // RAG 문서 업데이트
+          setSttText(prevMessages => {
+            const newMessages = [...prevMessages, messageWithTimestamp];
+            const sortedMessages = newMessages.sort((a, b) => 
+              new Date(a.timestamp) - new Date(b.timestamp)
+            );
+            
+            console.log('[SSE] 업데이트된 메시지 목록:', sortedMessages);
+            localStorage.setItem(`meeting_${meetingId}_stt`, JSON.stringify(sortedMessages));
+            
+            return sortedMessages;
           });
-          break;
-        case "meeting_state":
-          setMeetingState(message.meeting_state);  // 회의 상태 업데이트
-          break;
-        case "rag":
-          setRagList((prevRagList) => {
-            const newRagDocs = message.documents || [];  // RAG 문서가 없을 경우 빈 배열 처리
-            return [...prevRagList, ...newRagDocs];
-          });
-          break;
-        default:
-          console.log("알 수 없는 타입:", message.type);
+        }
+      } catch (error) {
+        console.error('[SSE] 메시지 처리 오류:', error);
       }
     };
 
-    // 오류 처리
     eventSource.onerror = (error) => {
-      console.error("SSE Error: ", error);
-      setError("서버와 연결할 수 없습니다. 다시 시도해주세요.");  // 오류 메시지 표시
-      eventSource.close(); // 오류 발생 시 연결 종료
+      console.error('[SSE] 연결 에러:', error);
+      eventSource.close();
     };
 
-    return () => {
-      eventSource.close(); // 컴포넌트가 언마운트될 때 SSE 종료
-    };
-  }, []); // 빈 배열을 넣어 컴포넌트가 처음 렌더링될 때만 실행되도록 함
+    // 로컬 스토리지에서 이전 데이터 복원
+    const savedSTT = localStorage.getItem(`meeting_${meetingId}_stt`);
+    if (savedSTT) {
+      try {
+        const parsedSTT = JSON.parse(savedSTT);
+        console.log('[LocalStorage] 저장된 데이터 복원:', parsedSTT);
+        setSttText(parsedSTT);
+      } catch (error) {
+        console.error('[LocalStorage] 데이터 복원 중 에러:', error);
+      }
+    }
+
+    return () => eventSource.close();
+  }, [meetingId]);
+
+  // 메시지 그룹화 처리
+  const groupMessages = useCallback((messages) => {
+    const grouped = [];
+    let currentGroup = null;
+
+    messages.forEach((msg) => {
+      if (!currentGroup || currentGroup.type !== msg.type) {
+        if (currentGroup) {
+          grouped.push(currentGroup);
+        }
+        currentGroup = {
+          type: msg.type,
+          messages: [msg.message],
+          documents: msg.documents,
+          timestamp: new Date()
+        };
+      } else {
+        currentGroup.messages.push(msg.message);
+        if (msg.documents) {
+          currentGroup.documents = [...(currentGroup.documents || []), ...msg.documents];
+        }
+      }
+    });
+
+    if (currentGroup) {
+      grouped.push(currentGroup);
+    }
+
+    return grouped;
+  }, []);
+
+  // 현재 안건 정보 설정
+  useEffect(() => {
+    if (meetingInfo?.meeting_agendas) {
+      const agenda = meetingInfo.meeting_agendas.find(a => a.order === currentAgendaNum);
+      setCurrentAgenda(agenda);
+    }
+  }, [meetingInfo, currentAgendaNum]);
+
+  // 다음 안건으로 이동
+  const handleNextAgenda = async () => {
+    try {
+      const response = await axiosInstance.post('meetings/agenda/next_agenda/');
+      console.log("다음 안건 응답:", response.data);
+      // 상위 컴포넌트에서 currentAgendaNum 업데이트
+    } catch (error) {
+      console.error("다음 안건 이동 중 오류:", error);
+    }
+  };
+
+  // sttText 상태가 변경될 때마다 로그
+  useEffect(() => {
+    console.log('[State] 현재 STT 텍스트 상태:', sttText);
+  }, [sttText]);
+
+  // 메시지 그룹화 처리
+  useEffect(() => {
+    if (sttText.length > 0) {
+      setGroupedMessages(groupMessages(sttText));
+    }
+  }, [sttText, groupMessages]);
+
+  // 날짜 포맷팅 함수
+  const formatDateTime = (dateString) => {
+    const date = new Date(dateString);
+    return date.toLocaleString('ko-KR', {
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false
+    });
+  };
 
   return (
-    <Container>
-      <Header>실시간 회의록 (STT)</Header>
-      <Panel>
-        <LeftPanel>
-          {/* sttText 배열을 하나씩 출력 */}
-          {sttText.length > 0 ? (
-            sttText.map((text, index) => (
-              <TextMessage key={index}>{text}</TextMessage> // 각 항목의 텍스트와 인덱스 출력
-            ))
-          ) : (
-            <p>로딩 중...</p> // sttText가 비어있을 때 로딩 메시지를 표시
+    <NoteContainer>
+      {currentAgenda && (
+        <AgendaHeader>
+          안건 {currentAgendaNum}: {currentAgenda.title}
+        </AgendaHeader>
+      )}
+      
+      <NoteContent>
+        {groupedMessages.length > 0 ? (
+          groupedMessages.map((group, index) => {
+            switch(group.type) {
+              case "plain":
+                return (
+                  <TextMessage key={index} type="plain">
+                    {group.messages.join('\n')}
+                  </TextMessage>
+                );
+              case "query":
+                return (
+                  <TextMessage key={index} type="query">
+                    {group.messages.map((msg, i) => (
+                      <div key={i}>
+                        {msg.startsWith('질문 :') ? msg : `질문 : ${msg}`}
+                      </div>
+                    ))}
+                  </TextMessage>
+                );
+              case "agenda_docs_update":
+                return (
+                  <TextMessage key={index} type="agenda_docs_update">
+                    {group.messages[0]}
+                    {group.documents && (
+                      <DocumentList>
+                        {group.documents.map((doc, docIndex) => (
+                          <DocumentLink key={docIndex}>
+                            관련 문서 #{docIndex + 1}
+                          </DocumentLink>
+                        ))}
+                      </DocumentList>
+                    )}
+                  </TextMessage>
+                );
+              default:
+                return null;
+            }
+          })
+        ) : (
+          <p>아직 기록된 내용이 없습니다.</p>
+        )}
+      </NoteContent>
+
+      <ButtonContainer>
+        <ButtonGroup>
+          {meetingInfo?.meeting_agendas?.length > currentAgendaNum && (
+            <NextButton onClick={handleNextAgenda}>
+              다음 안건으로
+            </NextButton>
           )}
-        </LeftPanel>
-
-        <RightPanel>
-          {/* 쿼리 메시지 */}
-          <h3>쿼리 메시지</h3>
-          {queryMessage && <QueryMessage>{queryMessage}</QueryMessage>} {/* 받은 쿼리 메시지 표시 */}
-
-          {/* RAG 문서 */}
-          <h3>RAG 문서</h3>
-          {documents.length > 0 ? (
-            documents.map((doc, index) => (
-              <DocumentLink key={index} href={doc} target="_blank" rel="noopener noreferrer">
-                문서 {index + 1}
-              </DocumentLink>
-            ))
-          ) : (
-            <p>문서가 없습니다.</p>
-          )}
-
-          <h3>새로운 RAG 문서</h3>
-          {ragList.length > 0 ? (
-            ragList.map((doc, index) => (
-              <DocumentLink key={index} href={doc} target="_blank" rel="noopener noreferrer">
-                문서 {index + 1}
-              </DocumentLink>
-            ))
-          ) : (
-            <p>새로운 RAG 문서가 없습니다.</p>
-          )}
-        </RightPanel>
-      </Panel>
-
-      <h3>회의 상태</h3>
-      <div>{meetingState}</div> {/* 회의 상태 표시 */}
-
-      {error && <div style={{ color: "red" }}>{error}</div>} {/* 오류 메시지 표시 */}
-
-    </Container>
+          <EndButton onClick={onEndMeeting}>
+            회의 종료
+          </EndButton>
+        </ButtonGroup>
+      </ButtonContainer>
+    </NoteContainer>
   );
 };
 

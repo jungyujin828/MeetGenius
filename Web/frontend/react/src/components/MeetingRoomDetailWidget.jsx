@@ -125,7 +125,8 @@ const MeetingRoomDetailWidget = ({ meetingId, onClose }) => {
    // 회의 참가하기 버튼 클릭 시, 실시간 회의 페이지로 이동
    const handleJoinMeeting = () => {
     console.log("회의 참가하기 버튼 클릭됨");
-    navigate("/realtime-meeting"); // 경로를 '/realtime-meeting'으로 설정하여 이동
+    console.log("Meeting ID:", meetingId);
+    navigate(`/realtime-meeting/${meetingId}`);
   };
 
   return (
@@ -166,7 +167,11 @@ const MeetingRoomDetailWidget = ({ meetingId, onClose }) => {
       <Button onClick={handleDeleteBooking}>예약 취소</Button>
       <Button onClick={handleUpdateBooking}>예약 수정</Button>
       </ButtonContainer>
-      <Button primary style={{ width: "100%", marginTop: "10px" }} onClick={handleJoinMeeting}>
+      <Button 
+        primary 
+        style={{ width: "100%", marginTop: "10px" }} 
+        onClick={handleJoinMeeting}
+      >
         회의 참가하기
       </Button>
     </DetailContainer>

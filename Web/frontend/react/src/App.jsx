@@ -46,7 +46,7 @@ function App() {
 
           {/* 실시간 회의 페이지 (로그인된 사용자만 접근 가능) */}
           <Route
-            path="/realtime-meeting"
+            path="/realtime-meeting/:meetingId"
             element={
               <PrivateRoute>
                 <RealtimeMeetingPage />
