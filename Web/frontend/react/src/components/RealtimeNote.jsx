@@ -80,6 +80,17 @@ const TextMessage = styled.div`
       margin-right: 8px;
     }
   `}
+
+  ${props => props.type === "rag" && `
+    background-color: #e3f2fd;
+    color: #1565c0;
+    border-left: 4px solid #1565c0;
+    
+    &::before {
+      content: "🔍";
+      margin-right: 8px;
+    }
+  `}
 `;
 
 const Button = styled.button`
@@ -159,15 +170,20 @@ const AgendaHeader = styled.h2`
 `;
 
 const ButtonContainer = styled.div`
-  margin-top: 20px;
   display: flex;
   justify-content: flex-end;
+  gap: 10px;
+  margin-top: 20px;
+  padding: 10px;
+  position: sticky;
+  bottom: 0;
+  background-color: white;
+  border-top: 1px solid #eee;
 `;
 
 const BaseButton = styled.button`
   padding: 12px 24px;
   border-radius: 6px;
-  font-size: 16px;
   font-weight: 600;
   cursor: pointer;
   transition: all 0.2s;
@@ -197,7 +213,29 @@ const DocumentList = styled.div`
   margin-top: 8px;
 `;
 
-const RealtimeNote = ({ meetingInfo, currentAgendaNum }) => {
+const ButtonGroup = styled.div`
+  display: flex;
+  gap: 10px;
+`;
+
+const NoteContainer = styled.div`
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  position: relative;
+`;
+
+const NoteContent = styled.div`
+  flex: 1;
+  overflow-y: auto;
+  padding: 20px;
+  background-color: #ffffff;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+  margin-bottom: 20px;
+`;
+
+const RealtimeNote = ({ meetingInfo, currentAgendaNum, onEndMeeting }) => {
   const { meetingId } = useParams();
   const [sttText, setSttText] = useState([]);
   const [queryMessage, setQueryMessage] = useState(""); // 쿼리 메시지
@@ -345,71 +383,70 @@ const RealtimeNote = ({ meetingInfo, currentAgendaNum }) => {
   };
 
   return (
-    <Container>
+    <NoteContainer>
       {currentAgenda && (
         <AgendaHeader>
           안건 {currentAgendaNum}: {currentAgenda.title}
         </AgendaHeader>
       )}
       
-      <Panel>
-        <LeftPanel>
-          {groupedMessages.length > 0 ? (
-            groupedMessages.map((group, index) => {
-              switch(group.type) {
-                case "plain":
-                  return (
-                    <TextMessage key={index} type="plain">
-                      {group.messages.join('\n')}
-                    </TextMessage>
-                  );
-                case "query":
-                  return (
-                    <TextMessage key={index} type="query">
-                      {group.messages.map((msg, i) => (
-                        <div key={i}>
-                          {msg.startsWith('질문 :') ? msg : `질문 : ${msg}`}
-                        </div>
-                      ))}
-                    </TextMessage>
-                  );
-                case "agenda_docs_update":
-                  return (
-                    <TextMessage key={index} type="agenda_docs_update">
-                      {group.messages[0]}
-                      {group.documents && (
-                        <DocumentList>
-                          {group.documents.map((doc, docIndex) => (
-                            <DocumentLink key={docIndex}>
-                              관련 문서 #{docIndex + 1}
-                            </DocumentLink>
-                          ))}
-                        </DocumentList>
-                      )}
-                    </TextMessage>
-                  );
-                default:
-                  return null;
-              }
-            })
-          ) : (
-            <p>아직 기록된 내용이 없습니다.</p>
-          )}
-        </LeftPanel>
-      </Panel>
+      <NoteContent>
+        {groupedMessages.length > 0 ? (
+          groupedMessages.map((group, index) => {
+            switch(group.type) {
+              case "plain":
+                return (
+                  <TextMessage key={index} type="plain">
+                    {group.messages.join('\n')}
+                  </TextMessage>
+                );
+              case "query":
+                return (
+                  <TextMessage key={index} type="query">
+                    {group.messages.map((msg, i) => (
+                      <div key={i}>
+                        {msg.startsWith('질문 :') ? msg : `질문 : ${msg}`}
+                      </div>
+                    ))}
+                  </TextMessage>
+                );
+              case "agenda_docs_update":
+                return (
+                  <TextMessage key={index} type="agenda_docs_update">
+                    {group.messages[0]}
+                    {group.documents && (
+                      <DocumentList>
+                        {group.documents.map((doc, docIndex) => (
+                          <DocumentLink key={docIndex}>
+                            관련 문서 #{docIndex + 1}
+                          </DocumentLink>
+                        ))}
+                      </DocumentList>
+                    )}
+                  </TextMessage>
+                );
+              default:
+                return null;
+            }
+          })
+        ) : (
+          <p>아직 기록된 내용이 없습니다.</p>
+        )}
+      </NoteContent>
 
       <ButtonContainer>
-        {meetingInfo?.meeting_agendas?.length === currentAgendaNum ? (
-          <EndButton onClick={handleEndMeeting}>
+        <ButtonGroup>
+          {meetingInfo?.meeting_agendas?.length > currentAgendaNum && (
+            <NextButton onClick={handleNextAgenda}>
+              다음 안건으로
+            </NextButton>
+          )}
+          <EndButton onClick={onEndMeeting}>
             회의 종료
           </EndButton>
-        ) : (
-          <NextButton onClick={handleNextAgenda}>
-            다음 안건으로
-          </NextButton>
-        )}
+        </ButtonGroup>
       </ButtonContainer>
-    </Container>
+    </NoteContainer>
   );
 };
 

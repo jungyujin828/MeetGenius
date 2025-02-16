@@ -394,8 +394,56 @@ const RealtimeMeetingPage = () => {
 
   // RealtimeNote로부터 회의 정보를 받아오는 콜백 함수
   const handleMeetingInfo = (info) => {
-    console.log('안건 데이터 구조:', JSON.stringify(info.meeting_agendas, null, 2));
+    console.log('안건 데이터 구조:', JSON.stringify(info.meeting_agendas, null, 1));
     setMeetingInfo(info);
+  };
+
+  const handleEndMeeting = async () => {
+    try {
+      const token = localStorage.getItem('authToken');
+      console.log('[회의 종료] 토큰 확인:', token); // 토큰 값 확인
+
+      const config = {
+        headers: {
+          'Authorization': `Token ${token}`,
+          'Content-Type': 'application/json'
+        }
+      };
+
+      console.log('[회의 종료] 요청 설정:', {
+        url: '/meetings/stop/',
+        data: { meeting_id: meetingId },
+        headers: config.headers
+      });
+
+      const response = await axiosInstance.post('/meetings/stop/', {
+        meeting_id: meetingId
+      }, config);
+
+      console.log('[회의 종료] 응답:', response.data);
+
+      // EventSource 연결 종료
+      if (eventSource) {
+        eventSource.close();
+      }
+
+      // 로컬 스토리지 데이터 정리
+      localStorage.removeItem(`meeting_${meetingId}_stt`);
+      
+      alert('회의가 종료되었습니다.');
+      // 대시보드로 이동
+      navigate('/dashboard');
+      
+    } catch (error) {
+      console.error('[회의 종료] 에러 상세:', {
+        status: error.response?.status,
+        data: error.response?.data,
+        headers: error.config?.headers,
+        url: error.config?.url,
+        token: localStorage.getItem('authToken')
+      });
+      alert('회의 종료 중 오류가 발생했습니다.');
+    }
   };
 
   return (
@@ -452,6 +500,7 @@ const RealtimeMeetingPage = () => {
             <RealtimeNote 
               meetingInfo={meetingInfo} 
               currentAgendaNum={currentAgendaNum}
+              onEndMeeting={handleEndMeeting}
             />
           </LeftPanel>
           <RightPanel>

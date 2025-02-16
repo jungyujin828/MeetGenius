@@ -105,16 +105,13 @@ WSGI_APPLICATION = 'ai203.wsgi.application'
 
 # DB - mariadb
 DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.mysql',  # 또는 'django.db.backends.mysql' (MariaDB도 MySQL 드라이버 사용)
-        # 'NAME': 'root',
+        'default': {
+        'ENGINE': 'django.db.backends.mysql',
         'NAME': os.getenv('DATABASENAME','test_maria'),
-        'USER': 'admin',
-        # 'PASSWORD':os.getenv('DATABASEPASSWORD',''),
-        'PASSWORD': 'admin',
-        'HOST': 'db',      # 'localhost'가 아니라 MariaDB 컨테이너의 서비스 이름을 사용합니다.
-        # 'PORT': os.getenv('DATABASEPORT',''),
-        'PORT': '3306',    # 기본 MySQL/MariaDB 포트
+        'USER': os.getenv('DATABASEUSER','admin'),
+        'PASSWORD':os.getenv('DATABASEPASSWORD','admin'),
+        'HOST': os.getenv('DATABASEHOST','db'), 
+        'PORT': os.getenv('DATABASEPORT','3306'),
     }
 }
 
