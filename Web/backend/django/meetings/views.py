@@ -340,9 +340,10 @@ async def get_current_agenda():
                 "agenda_id": agenda["id"],
                 "agenda_title": agenda["title"]
             }
+    print('네??? 에러요?')
         
     ''' 
-        저장된 안건이 없는 경우
+        저장된 안건이 하나도 없는 경우
     '''
     # 현재 미팅 정보 가져옴
     cur_meeting = int(await redis_client.get('meeting:meeting_id'))
@@ -659,12 +660,12 @@ async def next_agenda(request):
         print(payload)
 
         # FastAPI로 던지기
-        try : 
-            async with httpx.AsyncClient() as client:
-                response = await client.post(fastapi_url,json=payload)
-                fastapi_response = response.json()
-        except Exception as e:
-            return JsonResponse({'error': str(e)}, status=500)
+        # try : 
+        #     async with httpx.AsyncClient() as client:
+        #         response = await client.post(fastapi_url,json=payload)
+        #         fastapi_response = response.json()
+        # except Exception as e:
+        #     return JsonResponse({'error': str(e)}, status=500)
         
         '''
         {
@@ -686,12 +687,12 @@ async def next_agenda(request):
         #     'agenda_docs': [1,2]
         # }
         # FastAPI 응답 처리 함수
-        await handle_fastapi_response(fastapi_response)
+        # await handle_fastapi_response(fastapi_response)
 
         return JsonResponse({
                 'status': 'success',
                 'message': 'Meeting started',
-                'fastapi_response': fastapi_response,
+                # 'fastapi_response': fastapi_response,
             })
 
     else :
@@ -841,6 +842,7 @@ async def add_agenda(request):
 
 
 # 회의 종료
+@csrf_exempt
 async def stop_meeting(reqeust):
     """
     동작 순서:
@@ -916,6 +918,9 @@ async def stop_meeting(reqeust):
         except Exception as e :
             return JsonResponse({'error': str(e)}, status=500)
         
+        print('########')
+        print('여기부터 회의상태 업데이트')
+        print('########')
 
         # 4. 회의 상태 업데이트: "meeting_finished"
         update_msg = json.dumps({

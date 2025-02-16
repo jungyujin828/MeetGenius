@@ -349,7 +349,7 @@ const RealtimeNote = ({ meetingInfo, currentAgendaNum, onEndMeeting }) => {
   // 다음 안건으로 이동
   const handleNextAgenda = async () => {
     try {
-      const response = await axiosInstance.post('meetings/agenda/next_agenda/');
+      const response = await axiosInstance.post('meetings/next_agenda/');
       console.log("다음 안건 응답:", response.data);
       // 상위 컴포넌트에서 currentAgendaNum 업데이트
     } catch (error) {
