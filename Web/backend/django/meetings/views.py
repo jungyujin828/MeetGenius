@@ -128,14 +128,17 @@ class SSEStreamView(View):
         await pubsub.subscribe(MEETING_CHANNEL) # 특정 채널MEETING_CHANNEL 구독
         
         # 기존 메시지 가져오기
+        meeting_state = await redis_client.get(IS_READY_MEETING)            # 현재 회의 상태 (waiting, inprogress.... finish)
         cur_agenda = await redis_client.get(CUR_AGENDA)                     # 현재 안건 번호(order)
         agenda_list_json = await redis_client.get(AGENDA_LIST)              # 안건 리스트
         rag_list_json = await redis_client.lrange(RAG_LIST_KEY, 0, -1)      # RAG LIST
         stt_list_json = await redis_client.lrange(STT_LIST_KEY, 0, -1)      # STT LIST (현재 안건만 나옴)
         meeting_history = await redis_client.lrange(MEETING_HISTORY,0,-1)   # 회의록 기록 (이전 안건들 회의록 저장)
 
+
         init_data = {
             "cur_agenda": cur_agenda,
+            "meeting_state" : meeting_state,
             "agenda_list": json.loads(agenda_list_json) if agenda_list_json else [],
             "rag_list": rag_list_json,
             "stt_list": stt_list_json,
