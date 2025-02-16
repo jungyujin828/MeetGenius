@@ -6,7 +6,7 @@ from rest_framework.decorators import api_view
 from rest_framework.response import Response
 from rest_framework import status
 from .models import Meeting, Agenda, MeetingParticipation, Mom, SummaryMom
-from .serializers import MeetingReadSerializer, MeetingBookSerializer,MomSerializer
+from .serializers import MeetingReadSerializer, MeetingBookSerializer,MomSerializer,MeetingSerilizer
 
 from projects.models import Project, Document
 from projects.serializers import ProjectSerializer, ProjectParticipationSerializer
@@ -420,6 +420,19 @@ def get_or_update_moms_by_meeting(request, meeting_id):
             "message": "업데이트 작업이 백그라운드에서 처리되고 있습니다.",
             "task_id": task.id
         }, status=status.HTTP_202_ACCEPTED)
+    
+@api_view(['GET'])
+def get_projects_by_meeting(request, project_id):
+    try :
+        meetings = Meeting.objects.filter(project_id=project_id)
+        serializer = MeetingSerilizer(meetings, many=True)
+        return Response(serializer.data, status=200)
+    except Exception as e:
+        return Response({'error': str(e)}, status=400)
+
+
+
+
     #     try:
     #         body = await sync_to_async(lambda: json.loads(request.body.decode('utf-8')))()
     #     except json.JSONDecodeError:

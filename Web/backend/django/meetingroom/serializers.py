@@ -68,3 +68,19 @@ class MomSerializer(serializers.ModelSerializer):
     meeting_title = serializers.CharField(source='meeting.title', read_only=True)  # 회의 제목
     agenda_title = serializers.CharField(source='agenda.title',read_only=True)
     # document_id = serializers.IntegerField(source = 'document.id', allow_null = True, read_only=True)
+
+
+
+class MeetingParticipationSerializer(serializers.ModelSerializer):
+    participant_name = serializers.CharField(source="participant.username", read_only=True)  # 사용자 이름 포함
+
+    class Meta:
+        model = MeetingParticipation
+        fields = ['participant', 'participant_name', 'authority']
+
+class MeetingSerilizer(serializers.ModelSerializer):
+    participants = MeetingParticipationSerializer(source='participants.all', many=True, read_only=True)  # 참여자 목록 포함
+
+    class Meta:
+        model = Meeting
+        fields = '__all__'
