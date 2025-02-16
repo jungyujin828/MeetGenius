@@ -262,6 +262,7 @@ async def prepare_meeting(request):
     if request.method == 'POST':
         # 현재 상태 가져오기
         current_state = await redis_client.get(IS_READY_MEETING) or 'waiting'
+        print('current_state',current_state)
         
         # 이미 준비 상태라면 리턴 (로직 중복 방지)
         if current_state == 'waiting_for_ready':
@@ -269,10 +270,12 @@ async def prepare_meeting(request):
         
         # 새 상태 설정
         new_state = 'waiting_for_ready'
+        print('new_state',new_state)
 
         # Redis에 새로운 상태 저장
         await redis_client.set(IS_READY_MEETING, new_state)
-
+        tttt = await redis_client.get(IS_READY_MEETING)
+        print('tttt',tttt)
         # 상태 업데이트 메시지 생성
         update_msg = json.dumps({
             "type": "meeting_state",
