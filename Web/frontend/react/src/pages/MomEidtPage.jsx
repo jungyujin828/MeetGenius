@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
-import { fetchMeetingDetails, fetchMomsByMeetings } from "../api/meetingRoom";
+import { fetchMeetingDetails, fetchMomsByMeetings, patchMom } from "../api/meetingRoom";
 import styled from "styled-components";
 
 // 🌟 전체 페이지 스타일 (A4 문서 느낌)
@@ -162,18 +162,19 @@ const MomEditPage = () => {
     );
   };
 
-  // 수정된 내용 제출
   const handleSubmit = () => {
-    const momsToSubmit = editedMoms.map((mom) => ({
-      id: mom.id,
-      agenda_result: mom.agenda_result,
-    }));
+    // moms 배열을 momsToSubmit 객체로 감싸기
+    const momsToSubmit = {
+      "moms": editedMoms.map((mom) => ({
+        id: mom.id,
+        agenda_result: mom.agenda_result,
+      })),
+    };
     console.log("Modified Moms:", momsToSubmit);
-
+  
     // 예시: 서버로 제출
-    // sendDataToServer(momsToSubmit);
+    patchMom(meetingId, momsToSubmit);
   };
-
   if (!meetingDetails) return <PageWrapper><Container>회의록을 불러오는 중...</Container></PageWrapper>;
 
   return (

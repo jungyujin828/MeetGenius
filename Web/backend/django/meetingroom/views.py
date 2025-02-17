@@ -379,10 +379,9 @@ def get_moms_by_project(request, project_id):
     meeting_ids = Meeting.objects.filter(project=project).values_list('id', flat=True)
     # meeting ids에 속한 moms들 한 번에 가져옴
     moms = Mom.objects.filter(meeting_id__in=meeting_ids)
-
+    
     serializer = MomSerializer(moms, many=True)
     return Response(serializer.data, status = status.HTTP_200_OK)
-
 
 @api_view(['GET','PATCH'])
 def get_or_update_moms_by_meeting(request, meeting_id):
@@ -399,21 +398,24 @@ def get_or_update_moms_by_meeting(request, meeting_id):
 
     
     moms = Mom.objects.filter(meeting_id=meeting_id)
-    print(moms)
+    
 
     if not moms:
         return Response([],status = status.HTTP_200_OK)
     
+
     # # GET 요청 처리 (조회)
-    if request.method =="GET": 
+    if request.method =="GET":
         serializer = MomSerializer(moms, many=True)
         return Response(serializer.data, status = 200)
+        
+
     
     # # PATCH 요청 처리 (수정)
     elif request.method == "PATCH":
         update_data = request.data.get("moms", [])
-        print('자 가보자#####')
-        print('####',update_data,'####')
+        # print('자 가보자#####')
+        # print('####',update_data,'####')
 
         task = process_meeting_update.delay(meeting_id, update_data)
 
