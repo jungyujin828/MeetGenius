@@ -199,3 +199,6 @@ CACHES = {
 
 # 🔥 Redis Pub/Sub 및 Queue 연결을 위한 기본 URL
 REDIS_URL = os.getenv('REDIS_BASE_URL')
+CELERY_BROKER_URL = 'redis://localhost:6379/0'  # Redis 예시
+CELERY_ACCEPT_CONTENT = ['json']
+CELERY_TASK_SERIALIZER = 'json'

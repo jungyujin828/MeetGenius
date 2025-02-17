@@ -7,10 +7,13 @@ from rest_framework import status
 from .models import Project, ProjectParticipation, Report, Document
 from .serializers import ProjectSerializer, ReportSerializer
 from rest_framework.permissions import IsAuthenticatedOrReadOnly,AllowAny,IsAuthenticated
-
+from asgiref.sync import sync_to_async
 from docx import Document as DocxDocument  # Word 문서 읽기용
 import os # 파일 확장자 처리리
 import httpx
+from django.views.decorators.csrf import csrf_exempt
+from .tasks import process_upload_report
+
 
 # Create your views here.
 
@@ -133,83 +136,38 @@ def upload_report(request, project_id):
         1. Document 생성 (type=2)
         2. Report 생성 + Document와 연결
     '''
-    project = get_object_or_404(Project, id = project_id)
-    department = project.department
-    uploaded_files = request.FILES.getlist('files') # 파일 받기
-    doc_type = 2
-    
+    project = get_object_or_404(Project, id=project_id)
+
+    # 파일 추출
+    uploaded_files = request.FILES.getlist('files')
     if not uploaded_files:
-        print('No file')
-        return Response({'error': 'no file'},status=status.HTTP_400_BAD_REQUEST)
-    
-    reports = [] # 생성된 Report 목록
-    embedding_data_list = []
+        return Response({'error': 'no file'}, status=status.HTTP_400_BAD_REQUEST)
 
-    with httpx.Client() as client: # 연결!!!!
-        for uploaded_file in uploaded_files:
-
-            title = os.path.splitext(uploaded_file.name)[0]
-
-            try : 
-                if uploaded_file.name.endswith('.docx'):
-                    doc = DocxDocument(uploaded_file)
-                    file_content = "\n".join([p.text for p in doc.paragraphs])  # 문서의 모든 텍스트 합치기
-                else : # 일반 txt
-                    file_content = uploaded_file.read().decode('utf-8')
-            except UnicodeEncodeError:
-                return Response({"error": "파일 인코딩 오류. UTF-8 형식이어야 합니다."}, status=status.HTTP_400_BAD_REQUEST)
-            print(file_content)
-
-            # Document 객체 생성
-            document = Document.objects.create(
-                type=doc_type,
-                project=project,
-                department=department,
-                embedding = 1           # 일단 1로 하고 임베딩 에러뜨면 0으로 설정
-            )
-            
-            # Report 객체 생성
-            report = Report.objects.create(
-                document = document,
-                project = project,
-                writer = request.user,
-                title = title,
-                content = file_content,
-            )
-
-            reports.append({
-                "report_id": report.id,
-                "title": title
-            })
-
-            embedding_data = {
-                "project_id": project.id,
-                "project_name": project.name,
-                "report_title": title,
-                "report_content": file_content,
-                "document_id": document.id,
-                "document_type": doc_type
-            }
-            embedding_data_list.append(embedding_data)
-        
-        # FastAPI로 데이터 전송
+    files_data = []
+    for uploaded_file in uploaded_files:
+        title = os.path.splitext(uploaded_file.name)[0]
         try:
-            response = client.post(
-                f"{FASTAPI_BASE_URL}/api/embedding/process_reports/",
-                json={'documents':embedding_data_list}
-            )
-            response.raise_for_status()
-        except httpx.HTTPStatusError as http_err:
-            return Response({"error": f"FastAPI 서버 오류: {http_err}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-        except Exception as err:
-            return Response({"error": f"FastAPI 요청 실패: {err}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            if uploaded_file.name.endswith('.docx'):
+                doc = DocxDocument(uploaded_file)
+                file_content = "\n".join([p.text for p in doc.paragraphs])
+            else:
+                file_content = uploaded_file.read().decode('utf-8')
+        except UnicodeEncodeError:
+            return Response({"error": "파일 인코딩 오류. UTF-8 형식이어야 합니다."},
+                            status=status.HTTP_400_BAD_REQUEST)
+        files_data.append({
+            "filename": title,
+            "content": file_content
+        })
+
+    # Celery 작업 호출: 백그라운드에서 파일 처리 및 DB 업데이트 수행
+    process_upload_report.delay(project_id, request.user.id, files_data)
 
     return Response(
-        {"message": "파일 내용 저장 완료", 
-         "reports": reports,
-        #  'fastapi_response':response.json()
-         }, 
-         status=status.HTTP_201_CREATED)
+        {"message": "파일 업로드 요청이 접수되었습니다. 작업이 진행 중입니다."},
+        status=status.HTTP_202_ACCEPTED
+    )
+
     
 
 @api_view(['GET'])
