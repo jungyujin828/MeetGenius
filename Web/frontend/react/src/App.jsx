@@ -6,6 +6,8 @@ import { setAuthenticated } from "./redux/authSlice"; // Redux 액션
 import LoginPage from "./pages/LoginPage"; // 로그인 페이지 컴포넌트 가져오기
 import DashboardPage from "./pages/DashboardPage"; // 대시보드 페이지 컴포넌트 가져오기
 import RealtimeMeetingPage from "./pages/RealtimeMeetingPage"; // 실시간 회의 페이지 컴포넌트 가져오기
+import MomEidtPage from "./pages/MomEidtPage"; // 실시간 회의 페이지 컴포넌트 가져오기
+import MomSummaryPage from "./pages/MomSummaryPage"; // 실시간 회의 페이지 컴포넌트 가져오기
 
 // ✅ 인증된 사용자만 접근 가능한 보호된 라우트
 const PrivateRoute = ({ children }) => {
@@ -50,6 +52,26 @@ function App() {
             element={
               <PrivateRoute>
                 <RealtimeMeetingPage />
+              </PrivateRoute>
+            }
+          />
+
+          {/* 회의록 수정 페이지 */}
+          <Route
+            path="/momedit/:meetingId"
+            element={
+              <PrivateRoute>
+                <MomEidtPage />
+              </PrivateRoute>
+            }
+          />
+
+          {/* 요약된 회의록 페이지 */}
+          <Route
+            path="/mom-summary/:meetingId"
+            element={
+              <PrivateRoute>
+                <MomSummaryPage />
               </PrivateRoute>
             }
           />

@@ -24,7 +24,8 @@ class MeetingParticipationSerializer(serializers.ModelSerializer):
 class AgendaSerializer(serializers.ModelSerializer):
     class Meta:
         model = Agenda
-        fields = ['id','meeting', 'order','title']
+        fields = ['id', 'title', 'order', 'meeting']
+
 
 class MeetingBookSerializer(serializers.ModelSerializer):
     booker = serializers.ReadOnlyField(source='booker.name')
@@ -61,13 +62,12 @@ class MeetingBookSerializer(serializers.ModelSerializer):
         ]
 
 class MomSerializer(serializers.ModelSerializer):
+    agenda = AgendaSerializer(read_only=True)  # ✅ 아젠다 전체 포함
+
     class Meta:
         model = Mom
-        fields = ['id','meeting_title','agenda_title','agenda_result','completed']
+        fields = ['id','meeting','agenda_result','agenda','document','completed']
 
-    meeting_title = serializers.CharField(source='meeting.title', read_only=True)  # 회의 제목
-    agenda_title = serializers.CharField(source='agenda.title',read_only=True)
-    # document_id = serializers.IntegerField(source = 'document.id', allow_null = True, read_only=True)
 
 class MeetingParticipationSerializer(serializers.ModelSerializer):
     participant_name = serializers.CharField(source="participant.name", read_only=True)  # 사용자 이름 포함

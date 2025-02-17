@@ -1,25 +1,18 @@
-import React, { useEffect, useState } from "react";
+import React, { useState, useEffect } from "react";
 import axios from "axios";
 import styled from "styled-components";
-import { deleteProject, deleteReport } from "../api/project"; // ✅ 삭제 API 불러오기
-
+import { deleteProject, deleteReport, fetchFiles } from "../api/project";
+import { fetchUserInfo, fetchDepartments } from "../api/userApi";
 
 // 스타일 컴포넌트 정의
 const DetailContainer = styled.div`
-  position: fixed;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  width: 600px;
-  background-color: #fff;
-  padding: 30px;
-  border-radius: 8px;
-  box-shadow: 0 6px 15px rgba(0, 0, 0, 0.2);
-  z-index: 100;
-  font-family: Arial, sans-serif;
-  box-sizing: border-box;
-  overflow-y: auto;
-  max-height: 80vh;
+  padding: 20px;
+  background-color: #f8f9fa;
+  border-radius: 5px;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+  width: 350px; /* ✅ 전체 공간 차지 방지 */
+  max-height: 1000px; /* ✅ 높이 제한 */
+  overflow-y: auto; /* ✅ 내용이 많을 경우 스크롤 */
 `;
 
 const Overlay = styled.div`
@@ -126,14 +119,15 @@ const UserItem = styled.div`
   align-items: center;
   margin: 10px 0;
 `;
+
 const baseURL = import.meta.env.VITE_APP_BASEURL;
+
 
 const ProjectDetail = ({ projectId, onClose }) => {
   const [project, setProject] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [files, setFiles] = useState([]); // 파일 목록 상태
-
   const [editMode, setEditMode] = useState(false); // 수정 모드 상태
   const [formData, setFormData] = useState({
     name: '',
@@ -155,94 +149,38 @@ const ProjectDetail = ({ projectId, onClose }) => {
           setLoading(false);
           return;
         }
-        const response = await axios.get(`${baseURL}/projects/${projectId}/`, {
-          headers: {
-            Authorization: `Token ${authToken}`,
-          },
-        });
-        setProject(response.data);
-        // setFiles(response.data.files || []);
-        setFormData({
-          name: response.data.name,
-          description: response.data.description,
-          department: response.data.department,
-          startdate: response.data.startdate.split("T")[0],
-          duedate: response.data.duedate.split("T")[0] ,
-          participants: response.data.participants || []
-        });
-        setLoading(false);
 
+        // Fetching project details, files, users and departments
+        const projectResponse = await axios.get(`${baseURL}/projects/${projectId}/`, {
+          headers: { Authorization: `Token ${authToken}` }
+        });
+        const departmentResponse = await fetchDepartments();
+        const usersResponse = await fetchUserInfo();
+        const filesResponse = await fetchFiles(projectId);
+
+        setProject(projectResponse.data);
+        setDepartments(departmentResponse);
+        setUsers(usersResponse);
+        setFiles(filesResponse);
+
+        setFormData({
+          name: projectResponse.data.name,
+          description: projectResponse.data.description,
+          department: projectResponse.data.department,
+          startdate: projectResponse.data.startdate.split("T")[0],
+          duedate: projectResponse.data.duedate.split("T")[0],
+          participants: projectResponse.data.participants || [],
+        });
+
+        setLoading(false);
       } catch (error) {
         setError("프로젝트 상세 정보를 불러오는 데 실패했습니다.");
         setLoading(false);
       }
     };
-  //   fetchProjectDetail();
-  //   fetchDepartments(); // 부서 목록 불러오기
-  //   fetchUsers(); // 유저 목록 불러오기
-  // }, [projectId]); // 프로젝트 ID가 변경될 때마다 파일 목록을 갱신
-  const fetchFiles = async () => {
-    try {
-      const authToken = localStorage.getItem("authToken");
-      if (!authToken) {
-        setError("로그인된 사용자만 파일 목록을 볼 수 있습니다.");
-        return;
-      }
-      const response = await axios.get(`${baseURL}/projects/${projectId}/all_reports/`, {
-        headers: {
-          Authorization: `Token ${authToken}`,
-        },
-      });
-      setFiles(response.data); // 파일 목록 상태 업데이트
-    } catch (error) {
-      setError("파일 목록을 불러오는 데 실패했습니다.");
-    }
-  };
 
-  fetchFiles(); // 프로젝트 상세와 함께 파일 목록도 가져옴
-  fetchProjectDetail();
-  fetchDepartments(); // 부서 목록 불러오기
-  fetchUsers(); // 유저 목록 불러오기
-}, [projectId]); // 프로젝트 ID가 변경될 때마다 파일 목록을 갱신
-  // 부서 목록 불러오기
-  const fetchDepartments = async () => {
-    const authToken = localStorage.getItem("authToken");
-    if (!authToken) {
-      setError("로그인된 사용자만 부서 목록을 조회할 수 있습니다.");
-      return;
-    }
-
-    try {
-      const response = await axios.get(`${baseURL}/accounts/departments/`, {
-        headers: {
-          Authorization: `Token ${authToken}`,
-        },
-      });
-      setDepartments(response.data);
-    } catch (error) {
-      setError("부서 목록을 불러오는 데 실패했습니다.");
-    }
-  };
-
-  // 유저 목록 불러오기
-  const fetchUsers = async () => {
-    const authToken = localStorage.getItem("authToken");
-    if (!authToken) {
-      setError("로그인된 사용자만 유저 목록을 조회할 수 있습니다.");
-      return;
-    }
-
-    try {
-      const response = await axios.get(`${baseURL}/accounts/users/`, {
-        headers: {
-          Authorization: `Token ${authToken}`,
-        },
-      });
-      setUsers(response.data);
-    } catch (error) {
-      setError("유저 목록을 불러오는 데 실패했습니다.");
-    }
-  };
+    fetchProjectDetail();
+  }, [projectId]); // projectId 변경 시마다 실행
 
 
 
@@ -276,8 +214,6 @@ const ProjectDetail = ({ projectId, onClose }) => {
       setError("파일 업로드에 실패했습니다.");
     }
   };
-
-
 
   // 수정할 내용 저장
   const handleSaveEdit = async () => {
@@ -326,21 +262,18 @@ const ProjectDetail = ({ projectId, onClose }) => {
 
   const handleDeletReport = async (fileId) => {
     try {
-      // 파일 삭제 요청
       const message = await deleteReport(projectId, fileId);
       alert(message);
-      // 파일 목록에서 삭제된 파일 제거
       setFiles(files.filter(file => file.id !== fileId));
     } catch (error) {
       console.error("파일 삭제 실패:", error);
     }
   };
 
-  return (
+   return (
     <>
-      <Overlay onClick={onClose} />
-      <DetailContainer>
-        <CloseButton onClick={onClose}>&times;</CloseButton>
+    <DetailContainer>
+    <CloseButton onClick={onClose}>&times;</CloseButton>
         <h3>프로젝트 상세보기</h3>
         {editMode ? (
           <div>
@@ -360,19 +293,11 @@ const ProjectDetail = ({ projectId, onClose }) => {
               value={formData.department}
               onChange={(e) => setFormData({ ...formData, department: e.target.value })}
             >
-{/* ✅ 기존 부서 값이 있으면 기본값으로 추가 */}
-{formData.department && !departments.some(dept => dept === formData.department) && (
-    <option value={formData.department} selected>
-      {formData.department}
-    </option>
-  )}
-
-  <option value="">부서 선택</option>
-
-  {departments.map((department) => (
-    <option key={department.id} value={department.id}>
-      {department.name}
-    </option>
+              <option value="">부서 선택</option>
+              {departments.map((department) => (
+                <option key={department.id} value={department.id}>
+                  {department.name}
+                </option>
               ))}
             </SelectField>
             <Label>시작일</Label>
@@ -387,50 +312,6 @@ const ProjectDetail = ({ projectId, onClose }) => {
               value={formData.duedate}
               onChange={(e) => setFormData({ ...formData, duedate: e.target.value })}
             />
-            <div>
-              <h4>참여자 수정</h4>
-              {users.map((user) => (
-                <UserItem key={user.id}>
-                  <label>
-                    <input
-                      type="checkbox"
-                      checked={formData.participants.some(p => p.id === user.id)}
-                      onChange={() => {
-                        if (formData.participants.some(p => p.id === user.id)) {
-                          setFormData({
-                            ...formData,
-                            participants: formData.participants.filter(p => p.id !== user.id)
-                          });
-                        } else {
-                          setFormData({
-                            ...formData,
-                            participants: [...formData.participants, { id: user.id, authority: 0 }]
-                          });
-                        }
-                      }}
-                    />
-                    {user.name}
-                  </label>
-                  <div>
-                    <label>
-                      마스터 권한
-                      <input
-                        type="checkbox"
-                        checked={formData.participants.some(p => p.id === user.id && p.authority === 0)}
-                        onChange={() => {
-                          setFormData({
-                            ...formData,
-                            participants: formData.participants.map(p =>
-                              p.id === user.id ? { ...p, authority: p.authority === 1 ? 0 : 1 } : p
-                            ),
-                          });
-                        }}
-                      />
-                    </label>
-                  </div>
-                </UserItem>
-              ))}
-            </div>
             <Button onClick={handleSaveEdit}>저장</Button>
             <Button onClick={() => setEditMode(false)}>취소</Button>
           </div>
@@ -449,7 +330,7 @@ const ProjectDetail = ({ projectId, onClose }) => {
                   <FileItem key={index}>
                     {file.title}
                     <DeleteIcon onClick={() => handleDeletReport(file.id)}>❌</DeleteIcon>
-                    </FileItem>
+                  </FileItem>
                 ))
               ) : (
                 <p>첨부된 파일이 없습니다.</p>
@@ -468,7 +349,7 @@ const ProjectDetail = ({ projectId, onClose }) => {
               </Button>
               <Button onClick={() => setEditMode(true)}>수정</Button>
               <Button onClick={handleDeleteProject}>삭제</Button>
-              </ButtonContainer>
+            </ButtonContainer>
           </div>
         )}
       </DetailContainer>
