@@ -85,10 +85,11 @@ class MeetingSerilizer(serializers.ModelSerializer):
 
 
 class SummaryMomSerializer(serializers.ModelSerializer):
-    # agenda = AgendaSerializer(read_only=True)  # ✅ 아젠다 전체 포함
-    # mom = MomSerializer(readonly=True)
-    # agenda title. ok
+    agenda_title = serializers.SerializerMethodField()
 
     class Meta:
         model = SummaryMom
         fields = '__all__'
+    
+    def get_agenda_title(self, obj):
+        return obj.mom.agenda.title if obj.mom and obj.mom.agenda else None
