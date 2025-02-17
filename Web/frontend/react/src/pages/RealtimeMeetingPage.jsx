@@ -171,10 +171,11 @@ const RealtimeMeetingPage = () => {
   const API_BASE_URL = import.meta.env.VITE_APP_BASEURL;
   const { meetingId } = useParams();
   const token = useSelector((state) => state.auth.token);
+  const [meetingState, setMeetingState] = useState(null);
   const [meetingData, setMeetingData] = useState(null);
   const [error, setError] = useState(null);
   const [isPreparing, setIsPreparing] = useState(false);
-  const [isReady, setIsReady] = useState(false);  // 회의 준비 완료 상태
+  const [isReady, setIsReady] = useState(false);
   const [isMeetingStarted, setIsMeetingStarted] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(true);
   const [showMeetingScreen, setShowMeetingScreen] = useState(false);
@@ -185,6 +186,7 @@ const RealtimeMeetingPage = () => {
   const [sttText, setSttText] = useState([]);
   const [queryMessage, setQueryMessage] = useState("");
   const [documents, setDocuments] = useState([]);
+  const [isSchedulerReady, setIsSchedulerReady] = useState(false);
 
   console.log("Current meeting ID:", meetingId);
   console.log("API BASE URL:", API_BASE_URL); // 환경변수 확인용 로그
@@ -209,84 +211,90 @@ const RealtimeMeetingPage = () => {
     console.log("현재 meetingInfo:", meetingInfo);
   }, [meetingInfo]);
 
-  // SSE 연결 설정
-  const setupSSE = useCallback(() => {
-    const sse = new EventSource(`${process.env.REACT_APP_API_URL}/meetings/stream/${meetingId}/`);
-    
-    sse.onopen = () => {
-      console.log('SSE 연결 성공');
-    };
+  // 1. 페이지 로드 시 스케줄러 요청
+  // useEffect(() => {
+  //   const initializeScheduler = async () => {
+  //     try {
+  //       console.log("스케줄러 초기화 시작");
+  //       const schedulerResponse = await axiosInstance.get(`/meetings/scheduler/${meetingId}/`);
+        
+  //       if (schedulerResponse.status === 200) {
+  //         console.log("스케줄러 초기화 완료");
+  //         setIsSchedulerReady(true);
+  //       }
+  //     } catch (error) {
+  //       console.error("스케줄러 초기화 실패:", error);
+  //       setError("회의 초기화에 실패했습니다.");
+  //     }
+  //   };
 
-    // 일반 메시지 수신
+  //   initializeScheduler();
+  // }, [meetingId]);
+
+  // 페이지 로드 시 SSE 연결만 수행
+  useEffect(() => {
+    console.log("SSE 연결 시작");
+    const sse = new EventSource(`${API_BASE_URL}/meetings/stream/`);
+    
     sse.onmessage = (event) => {
       try {
         const data = JSON.parse(event.data);
         console.log('수신된 데이터:', data);
         
-        // 메시지 타입에 따른 처리
-        const messageObj = {
-          type: data.type || 'plain',
-          message: data.message
-        };
-
-        setSttText(prev => [...prev, messageObj]);
-
-        // documents 처리
-        if (data.type === 'agenda_docs_update' && data.documents) {
-          setDocuments(prev => {
-            const newDocs = data.documents.filter(doc => !prev.includes(doc));
-            return [...prev, ...newDocs];
-          });
-        }
-
-        if (data.cur_agenda_num) {
-          setCurrentAgendaNum(data.cur_agenda_num);
+        if (data.meeting_state) {
+          console.log('회의 상태 변경:', data.meeting_state);
+          
+          // 서버로부터 받은 상태에 따라 UI 업데이트
+          switch (data.meeting_state) {
+            case 'waiting_for_start':
+              setIsReady(true);
+              setIsPreparing(false);
+              break;
+            case 'meeting_in_progress':
+              setIsMeetingStarted(true);
+              break;
+            case 'meeting_finished':
+              // 회의 종료 팝업 표시
+              alert("회의가 종료되었습니다.");
+              // dashboard로 이동
+              navigate('/dashboard');
+              break;
+          }
         }
       } catch (error) {
         console.error('메시지 처리 오류:', error);
       }
     };
 
-    sse.onerror = (error) => {
-      console.error('SSE 연결 에러:', error);
-      sse.close();
-      setEventSource(null);
-    };
+    return () => sse.close();
+  }, [API_BASE_URL, navigate]);  // navigate 의존성 추가
 
-    setEventSource(sse);
-  }, [meetingId]);
-
-  // 회의 준비 처리
+  // 회의 준비 버튼 클릭 시에만 스케줄러 실행
   const handlePrepareMeeting = async () => {
     console.log("회의 준비 시작");
     setIsPreparing(true);
     setError(null);
 
     try {
-      // 1. 회의 준비 요청
-      const prepareResponse = await axiosInstance.post('/meetings/prepare/', {
-        meeting_id: meetingId,
-        agenda_id: meetingData?.meeting_agendas[0]?.id,
-        agenda_title: meetingData?.meeting_agendas[0]?.title
-      });
-
-      // 2. 스케줄러 요청 (경로 수정)
+      // 1. 스케줄러 실행 (회의 준비 버튼 클릭 시에만!)
       const schedulerResponse = await axiosInstance.get(`/meetings/scheduler/${meetingId}/`);
+      
+      if (schedulerResponse.status === 200) {
+        // 2. 회의 준비 요청
+        const prepareResponse = await axiosInstance.post('/meetings/prepare/', {
+          meeting_id: meetingId,
+          agenda_id: meetingData?.meeting_agendas[0]?.id,
+          agenda_title: meetingData?.meeting_agendas[0]?.title
+        });
 
-      console.log("회의 준비 응답:", prepareResponse.data);
-      console.log("스케줄러 응답:", schedulerResponse.data);
-
-      if (prepareResponse.status === 200 && schedulerResponse.status === 200) {
-        console.log("회의 준비 완료");
-        setIsReady(true);
-      } else {
-        setError("회의 준비 중 문제가 발생했습니다.");
+        if (prepareResponse.status === 200) {
+          console.log("회의 준비 완료");
+          // 서버가 SSE를 통해 'waiting_for_start' 상태를 보내줄 것임
+        }
       }
     } catch (error) {
       console.error("회의 준비 중 오류 발생:", error);
-      console.error("에러 상세 정보:", error.response?.data);
       setError(error.message || "서버와 연결할 수 없습니다. 다시 시도해 주세요.");
-    } finally {
       setIsPreparing(false);
     }
   };
@@ -446,88 +454,105 @@ const RealtimeMeetingPage = () => {
     }
   };
 
-  return (
-    <MeetingPageContainer>
-      {isMeetingStarted ? (
-        <>
-          <LeftPanel>
-            {meetingInfo && (
-              <MeetingInfoContainer>
-                <InfoRow>
-                  <InfoItem>
-                    <Label>회의명</Label>
-                    <Content>{meetingInfo.title}</Content>
-                  </InfoItem>
-                  <InfoItem>
-                    <Label>프로젝트</Label>
-                    <Content>{meetingInfo.project.name}</Content>
-                  </InfoItem>
-                </InfoRow>
-                <InfoRow>
-                  <InfoItem>
-                    <Label>시간</Label>
-                    <Content>
-                      {meetingInfo.starttime.split(' ')[1]} ~ {meetingInfo.endtime.split(' ')[1]}
-                    </Content>
-                  </InfoItem>
-                  <InfoItem>
-                    <Label>주최자</Label>
-                    <Content>{meetingInfo.booker}</Content>
-                  </InfoItem>
-                </InfoRow>
-                <InfoRow>
-                  <InfoItem>
-                    <Label>참가자</Label>
-                    <Content>
-                      {meetingInfo.meeting_participants[0]?.name || meetingInfo.booker}
-                    </Content>
-                  </InfoItem>
-                </InfoRow>
-                <InfoRow>
-                  <InfoItem style={{ width: '100%' }}>
-                    <Label>안건</Label>
-                    <AgendaList>
-                      {meetingInfo.meeting_agendas?.map((agenda, index) => (
-                        <span key={agenda.id}>
-                          {index + 1}. {agenda.title}
-                        </span>
-                      ))}
-                    </AgendaList>
-                  </InfoItem>
-                </InfoRow>
-              </MeetingInfoContainer>
-            )}
-            <RealtimeNote 
-              meetingInfo={meetingInfo} 
-              currentAgendaNum={currentAgendaNum}
-              onEndMeeting={handleEndMeeting}
-            />
-          </LeftPanel>
-          <RightPanel>
-            <RealtimeDoc meetingInfo={meetingInfo} />
-          </RightPanel>
-        </>
-      ) : (
+  // 회의 상태에 따른 화면 렌더링
+  const renderMeetingStateScreen = () => {
+    if (isPreparing) {
+      return (
         <ModalBackground>
           <ModalContainer>
-            {error && <ErrorMessage>{error}</ErrorMessage>}
-            
-            {isPreparing ? (
-              <h3>회의 준비 중...</h3>
-            ) : !isReady ? (
-              <>
-                <h3>회의를 준비하시겠습니까?</h3>
-                <Button onClick={handlePrepareMeeting}>회의 준비</Button>
-              </>
-            ) : (
-              <>
-                <h3>회의를 시작하시겠습니까?</h3>
-                <Button onClick={handleStartMeeting}>회의 시작</Button>
-              </>
-            )}
+            <h3>회의 준비 중...</h3>
           </ModalContainer>
         </ModalBackground>
-      )}
+      );
+    }
+
+    if (isReady && !isMeetingStarted) {
+      return (
+        <ModalBackground>
+          <ModalContainer>
+            <h3>회의를 시작하시겠습니까?</h3>
+            <Button onClick={handleStartMeeting}>회의 시작</Button>
+          </ModalContainer>
+        </ModalBackground>
+      );
+    }
+
+    if (!isMeetingStarted) {
+      return (
+        <ModalBackground>
+          <ModalContainer>
+            <h3>회의 준비가 필요합니다</h3>
+            <Button onClick={handlePrepareMeeting}>회의 준비</Button>
+          </ModalContainer>
+        </ModalBackground>
+      );
+    }
+
+    return (
+      <>
+        <LeftPanel>
+          {meetingInfo && (
+            <MeetingInfoContainer>
+              <InfoRow>
+                <InfoItem>
+                  <Label>회의명</Label>
+                  <Content>{meetingInfo.title}</Content>
+                </InfoItem>
+                <InfoItem>
+                  <Label>프로젝트</Label>
+                  <Content>{meetingInfo.project.name}</Content>
+                </InfoItem>
+              </InfoRow>
+              <InfoRow>
+                <InfoItem>
+                  <Label>시간</Label>
+                  <Content>
+                    {meetingInfo.starttime.split(' ')[1]} ~ {meetingInfo.endtime.split(' ')[1]}
+                  </Content>
+                </InfoItem>
+                <InfoItem>
+                  <Label>주최자</Label>
+                  <Content>{meetingInfo.booker}</Content>
+                </InfoItem>
+              </InfoRow>
+              <InfoRow>
+                <InfoItem>
+                  <Label>참가자</Label>
+                  <Content>
+                    {meetingInfo.meeting_participants[0]?.name || meetingInfo.booker}
+                  </Content>
+                </InfoItem>
+              </InfoRow>
+              <InfoRow>
+                <InfoItem style={{ width: '100%' }}>
+                  <Label>안건</Label>
+                  <AgendaList>
+                    {meetingInfo.meeting_agendas?.map((agenda, index) => (
+                      <span key={agenda.id}>
+                        {index + 1}. {agenda.title}
+                      </span>
+                    ))}
+                  </AgendaList>
+                </InfoItem>
+              </InfoRow>
+            </MeetingInfoContainer>
+          )}
+          <RealtimeNote 
+            meetingInfo={meetingInfo} 
+            currentAgendaNum={currentAgendaNum}
+            onEndMeeting={handleEndMeeting}
+          />
+        </LeftPanel>
+        <RightPanel>
+          <RealtimeDoc meetingInfo={meetingInfo} />
+        </RightPanel>
+      </>
+    );
+  };
+
+  return (
+    <MeetingPageContainer>
+      {renderMeetingStateScreen()}
       <div className="messages">
         {renderMessages()}
       </div>
