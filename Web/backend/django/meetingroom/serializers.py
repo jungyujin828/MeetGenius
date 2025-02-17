@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Meeting, Agenda, MeetingParticipation, Mom
+from .models import Meeting, Agenda, MeetingParticipation, Mom, SummaryMom
 from django.contrib.auth import get_user_model
 from projects.serializers import ProjectSerializer 
 from projects.models import Project, ProjectParticipation
@@ -82,3 +82,14 @@ class MeetingSerilizer(serializers.ModelSerializer):
     class Meta:
         model = Meeting
         fields = '__all__'
+
+
+class SummaryMomSerializer(serializers.ModelSerializer):
+    agenda_title = serializers.SerializerMethodField()
+
+    class Meta:
+        model = SummaryMom
+        fields = '__all__'
+    
+    def get_agenda_title(self, obj):
+        return obj.mom.agenda.title if obj.mom and obj.mom.agenda else None

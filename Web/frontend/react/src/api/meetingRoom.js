@@ -100,3 +100,27 @@ export const fetchMeetingDetails = async (meetingId) => {
     throw new Error(error.response?.data?.message || "회의상세 정보를 불러오는 데에 실패했습니다.");
   }
 };
+
+
+export const patchMom = async (meetingId, formData) => {
+  try{
+    const response = await axiosInstance.patch(`/meetingroom/moms_by_meeting/${meetingId}/`,
+      formData
+    )
+    console.log(formData)
+    return response.data
+  } catch (error) {
+    throw new Error(error.response?.data?.message || "회의상세 정보를 불러오는 데에 실패했습니다.");
+  }
+}
+
+export const fetchSummaryMomsByMeetings = async (meetingId) => {
+  try {
+    const response = await axiosInstance.get(
+      `/meetingroom/summarymoms_by_meeting/${meetingId}/`,
+    );
+    return response.data;
+  } catch (error) {
+    throw new Error(error.response?.data?.message || "요약된 회의록을 불러오는 데에 실패했습니다.");
+  }
+};
