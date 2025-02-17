@@ -13,4 +13,6 @@ urlpatterns = [
     path('moms_by_meeting/<meeting_id>/',views.get_or_update_moms_by_meeting),
     path('moms_by_project/<project_id>/',views.get_moms_by_project),
     path('meetings_by_project/<project_id>/',views.get_projects_by_meeting),
+    path('summarymoms_by_meeting/<meeting_id>/',views.get_summarymom_by_meeting)
+    
 ]

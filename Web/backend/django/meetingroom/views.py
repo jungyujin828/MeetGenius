@@ -6,7 +6,7 @@ from rest_framework.decorators import api_view
 from rest_framework.response import Response
 from rest_framework import status
 from .models import Meeting, Agenda, MeetingParticipation, Mom, SummaryMom
-from .serializers import MeetingReadSerializer, MeetingBookSerializer,MomSerializer,MeetingSerilizer
+from .serializers import MeetingReadSerializer, MeetingBookSerializer,MomSerializer,MeetingSerilizer,SummaryMomSerializer
 
 from projects.models import Project, Document
 from projects.serializers import ProjectSerializer, ProjectParticipationSerializer
@@ -432,6 +432,21 @@ def get_projects_by_meeting(request, project_id):
         return Response(serializer.data, status=200)
     except Exception as e:
         return Response({'error': str(e)}, status=400)
+    
+@api_view(['GET'])
+def get_summarymom_by_meeting(request, meeting_id):
+    if request.method == "GET":
+
+        summary_moms = SummaryMom.objects.filter(mom__meeting_id=meeting_id)
+    
+
+        if not summary_moms:
+            return Response([],status = status.HTTP_200_OK)
+
+    
+        serializer = SummaryMomSerializer(summary_moms, many=True)
+        return Response(serializer.data, status = 200)
+    
 
 
 
