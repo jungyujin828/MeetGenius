@@ -10,18 +10,19 @@ import MeetingRoomDetailWidget from "./MeetingRoomDetailWidget";
 const MeetingRoomContainer = styled.div`
   display: flex;
   flex-direction: column;
-  align-items: center;
-  padding: 20px;
+  padding: 20px 0 20px 20px; // 왼쪽 패딩 추가, 오른쪽 패딩 제거
+  margin-top: 40px; // 상단 여백 추가
   max-width: 1200px;
-  margin: auto;
+  width: 100%;
 `;
 
 // ✅ 회의실 선택 버튼 스타일
 const RoomSelectContainer = styled.div`
   display: flex;
   gap: 15px;
-  justify-content: center;
+  justify-content: flex-start; // 왼쪽 정렬로 변경
   margin-bottom: 20px;
+  padding-left: 20px; // 왼쪽 패딩 추가
 `;
 const RoomButton = styled.button`
   background-color: ${(props) => (props.active ? "#1b3a57" : "transparent")};  // ✅ 선택된 경우만 색상 변경
@@ -119,7 +120,7 @@ const MeetingRoom = () => {
 
   return (
     <MeetingRoomContainer>
-      <h2 style={{ marginBottom: "20px", fontSize: "24px", fontWeight: "bold" }}>회의실 예약 시스템</h2>
+      {/* <h2 style={{ marginBottom: "20px", fontSize: "24px", fontWeight: "bold" }}>회의실 예약 시스템</h2> */}
 
       <RoomSelectContainer>
   {[1, 2].map((roomId) => (

@@ -12,68 +12,141 @@ const ProjectFormContainer = styled.div`
   display: flex;
   flex-direction: column;
   padding: 20px;
-  width: 100%;
-  max-width: 300px;
+  width: 80%;
+  margin: 20px ;
   background-color: #fff;
-  border-radius: 8px;
-  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+  border-radius: 10px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
+
+  h3 {
+    margin: 0 0 15px 0;
+    padding-bottom: 12px;
+    border-bottom: 1px solid #eef2f6;
+    font-size: 1.1rem;
+    color: #274c77;
+  }
+
+  h4 {
+    margin: 8px 0;
+    font-size: 0.95rem;
+    color: #2d3748;
+  }
 `;
 
 const InputField = styled.input`
   width: 100%;
-  padding: 10px;
-  margin-bottom: 20px;
-  border: 1px solid #ddd;
-  border-radius: 5px;
+  padding: 8px;
+  margin-bottom: 12px;
+  border: 1px solid #e8ecef;
+  border-radius: 6px;
+  font-size: 0.9rem;
+
+  &:focus {
+    outline: none;
+    border-color: #274c77;
+  }
 `;
 
 const TextareaField = styled.textarea`
   width: 100%;
-  padding: 10px;
-  margin-bottom: 20px;
-  border: 1px solid #ddd;
-  border-radius: 5px;
-  height: 100px;
+  padding: 8px;
+  margin-bottom: 12px;
+  border: 1px solid #e8ecef;
+  border-radius: 6px;
+  height: 80px;
+  font-size: 0.9rem;
+  resize: vertical;
 `;
 
 const SelectField = styled.select`
   width: 100%;
-  padding: 10px;
-  margin-bottom: 20px;
-  border: 1px solid #ddd;
-  border-radius: 5px;
+  padding: 8px;
+  margin-bottom: 12px;
+  border: 1px solid #e8ecef;
+  border-radius: 6px;
+  font-size: 0.9rem;
+  background-color: white;
 `;
 
-const Button = styled.button`
-  padding: 10px 20px;
-  background-color: #274c77;
-  color: white;
-  border: none;
-  border-radius: 5px;
-  cursor: pointer;
-
-  &:hover {
-    background-color: #1b3a57;
-  }
-`;
-
-const DateInput = styled.input`
-  width: 100%;
-  padding: 10px;
-  margin-bottom: 20px;
-  border: 1px solid #ddd;
-  border-radius: 5px;
+const DateInput = styled(InputField)`
+  // InputField 스타일을 상속받음
 `;
 
 const UserSelectContainer = styled.div`
-  margin-bottom: 20px;
+  margin-bottom: 15px;
+  max-height: 150px;
+  overflow-y: auto;
+  padding-right: 5px;
+
+  &::-webkit-scrollbar {
+    width: 6px;
+  }
+
+  &::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 3px;
+  }
+
+  &::-webkit-scrollbar-thumb {
+    background: #cbd5e0;
+    border-radius: 3px;
+  }
 `;
 
 const UserItem = styled.div`
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 10px;
+  padding: 6px;
+  margin-bottom: 5px;
+  border-radius: 5px;
+  background-color: #f8f9fa;
+  font-size: 0.85rem;
+
+  label {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 0.85rem;
+    color: #4a5568;
+  }
+
+  input[type="checkbox"] {
+    margin-right: 6px;
+    transform: scale(0.9);
+  }
+`;
+
+const ButtonContainer = styled.div`
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  margin-top: 8px;
+`;
+
+const Button = styled.button`
+  flex: 1;
+  padding: 8px 16px;
+  background-color: #274c77;
+  color: white;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  transition: all 0.2s ease;
+
+  &:hover {
+    background-color: #1b3a57;
+    transform: translateY(-1px);
+  }
+
+  &:last-child {
+    background-color: #718096;
+    
+    &:hover {
+      background-color: #4a5568;
+    }
+  }
 `;
 
 const baseURL = import.meta.env.VITE_APP_BASEURL;
@@ -248,10 +321,10 @@ const ProjectCreateWidget = ({ closeCreateProject }) => {
           </UserItem>
         ))}
       </UserSelectContainer>
-      <div style={{ display: "flex", justifyContent: "space-between" }}>
+      <ButtonContainer>
         <Button onClick={handleCreateProject}>생성</Button>
-        <Button onClick={closeCreateProject}>취소</Button>  {/* 취소 버튼 */}
-      </div>
+        <Button onClick={closeCreateProject}>취소</Button>
+      </ButtonContainer>
     </ProjectFormContainer>
   );
 };

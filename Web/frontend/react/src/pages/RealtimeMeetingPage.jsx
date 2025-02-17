@@ -255,7 +255,7 @@ const RealtimeMeetingPage = () => {
               break;
             case 'meeting_finished':
               // 회의 종료 팝업 표시
-              alert("회의가 종료되었습니다.");
+              // alert("회의가 종료되었습니다.");
               // dashboard로 이동
               navigate('/dashboard');
               break;

@@ -12,25 +12,37 @@ const ProjectContainer = styled.div`
   display: flex;
   flex-direction: column;
   align-items: center;
-  padding: 20px;
-  max-width: 1200px;
-  margin: auto;
+  padding: 30px 20px;
+  max-width: 1000px;
+  margin: 20px auto 0;
 `;
 
 const ContentWrapper = styled.div`
   display: flex;
   gap: 25px;
-  justify-content: center;
   width: 100%;
-  max-width: 1200px;
 `;
 
 const ProjectSidePanel = styled.div`
-  flex: 0 0 350px;
-  background: #f8f9fa;
-  border-radius: 12px;
-  padding: 20px;
-  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+  flex: 1;
+  min-width: 300px;
+  max-width: 400px;
+`;
+
+const CreateProjectButton = styled.button`
+  padding: 8px 16px;
+  margin-bottom: 15px;
+  background-color: #274c77;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+  font-size: 0.9rem;
+
+  &:hover {
+    background-color: #1b3a57;
+  }
 `;
 
 const Project = () => {
@@ -76,45 +88,34 @@ const Project = () => {
 
   return (
     <ProjectContainer>
-      <h2>프로젝트 관리</h2>
+      {/* <h2>프로젝트 관리</h2> */}
       <ContentWrapper>
-          <ProjectListWidget
-            projects={projects}
-            onProjectSelect={handleProjectSelect}
-            onMeetingDetailsSelect={handleMeetingDetailsSelect} // 전달된 회의내역 보기 함수
-          />
+        <ProjectListWidget
+          projects={projects}
+          onProjectSelect={handleProjectSelect}
+          onMeetingDetailsSelect={handleMeetingDetailsSelect}
+          onCreateProject={handleCreateProjectToggle}
+        />
 
-        <ProjectSidePanel>
-          <button
-            onClick={handleCreateProjectToggle}
-            style={{
-              marginBottom: "20px",
-              padding: "10px 20px",
-              backgroundColor: "#274c77",
-              color: "white",
-              border: "none",
-              borderRadius: "5px",
-              cursor: "pointer",
-            }}
-          >
-            {isCreateVisible ? "생성 취소하기" : "프로젝트 생성하기"}
-          </button>
+        {/* 사이드 패널은 조건부 렌더링 */}
+        {(isCreateVisible || selectedProject || selectedMeetingProject) && (
+          <ProjectSidePanel>
+            {/* 생성하기 위젯이 보일 때 */}
+            {isCreateVisible && <ProjectCreateWidget closeCreateProject={handleCreateProjectToggle} />}
 
-          {/* 생성하기 위젯이 보일 때 */}
-          {isCreateVisible && <ProjectCreateWidget closeCreateProject={handleCreateProjectToggle} />}
+            {/* 상세보기 위젯이 보일 때 */}
+            {selectedProject && !isCreateVisible && (
+              <ProjectDetail projectId={selectedProject} onClose={closeProjectDetail} />
+            )}
 
-          {/* 상세보기 위젯이 보일 때 */}
-          {selectedProject && !isCreateVisible && (
-            <ProjectDetail projectId={selectedProject} onClose={closeProjectDetail} />
-          )}
-
-          {/* 회의내역 보기 */}
-          {selectedMeetingProject && !isCreateVisible && (
-            <div>
-              <ProjectMom projectId={selectedMeetingProject} />  {/* This will render "회의록보기" */}
+            {/* 회의내역 보기 */}
+            {selectedMeetingProject && !isCreateVisible && (
+              <div>
+                <ProjectMom projectId={selectedMeetingProject} />
               </div>
-          )}
-        </ProjectSidePanel>
+            )}
+          </ProjectSidePanel>
+        )}
       </ContentWrapper>
     </ProjectContainer>
   );

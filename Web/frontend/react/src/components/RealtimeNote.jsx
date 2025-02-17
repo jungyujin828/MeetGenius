@@ -235,6 +235,11 @@ const NoteContent = styled.div`
   margin-bottom: 20px;
 `;
 
+const AgendaDivider = styled.div`
+  border-top: 2px solid #e0e0e0;
+  margin: 30px 0;
+`;
+
 const RealtimeNote = ({ meetingInfo, currentAgendaNum, onEndMeeting }) => {
   const { meetingId } = useParams();
   const [sttText, setSttText] = useState([]);
@@ -245,6 +250,17 @@ const RealtimeNote = ({ meetingInfo, currentAgendaNum, onEndMeeting }) => {
   const [error, setError] = useState(null);
   const [currentAgenda, setCurrentAgenda] = useState(null);
   const [groupedMessages, setGroupedMessages] = useState([]);
+  const [actualCurrentAgenda, setActualCurrentAgenda] = useState(currentAgendaNum);
+  const [accumulatedMessages, setAccumulatedMessages] = useState(() => {
+    // localStorage에서 저장된 메시지 불러오기
+    const saved = localStorage.getItem(`meeting_${meetingId}_messages`);
+    return saved ? JSON.parse(saved) : [];
+  });
+  
+  // 누적 메시지가 변경될 때마다 localStorage에 저장
+  useEffect(() => {
+    localStorage.setItem(`meeting_${meetingId}_messages`, JSON.stringify(accumulatedMessages));
+  }, [accumulatedMessages, meetingId]);
 
   // SSE 메시지 수신 처리
   useEffect(() => {
@@ -256,38 +272,66 @@ const RealtimeNote = ({ meetingInfo, currentAgendaNum, onEndMeeting }) => {
         const data = JSON.parse(event.data);
         console.log('[SSE] 받은 데이터:', data);
 
-        // 초기 데이터 처리 (Redis에 저장된 기존 데이터)
-        if (data.stt_list) {
-          console.log('[SSE] 초기 STT 리스트 설정:', data.stt_list);
-          setSttText((prev) => [
-            ...prev,
-            ...data.stt_list.map(msg => ({
-              message: msg,
-              type: "plain",
-              timestamp: new Date().toISOString()
-            }))
-          ]);
-          return;
+        // cur_agenda 업데이트 처리
+        if (data.cur_agenda) {
+          setActualCurrentAgenda(parseInt(data.cur_agenda));
+        }
+
+        // 초기 데이터 처리
+        if (data.stt_list && accumulatedMessages.length === 0) {
+          const initialMessages = [];
+          
+          // 모든 안건에 대한 구분선과 제목 추가
+          meetingInfo?.meeting_agendas?.forEach((agenda, index) => {
+            if (index === 0) {
+              initialMessages.push({
+                type: "divider",
+                timestamp: new Date().toISOString(),
+                agendaNumber: agenda.order
+              });
+              
+              initialMessages.push({
+                type: "agenda_change",
+                message: `=== 안건 ${agenda.order}: ${agenda.title} 회의 시작 ===`,
+                timestamp: new Date(new Date().getTime() + 1).toISOString(),
+                agendaNumber: agenda.order
+              });
+            }
+          });
+
+          // STT 메시지 처리
+          const newMessages = data.stt_list.map(msg => ({
+            message: msg,
+            type: "plain",
+            timestamp: new Date().toISOString(),
+            agendaNumber: actualCurrentAgenda // 현재 안건 번호 추가
+          }));
+          
+          // 현재 안건의 메시지만 업데이트
+          setSttText(newMessages);
+          
+          // 누적 메시지에 추가 (초기 구분선/제목 + 메시지)
+          setAccumulatedMessages([...initialMessages, ...newMessages]);
         }
 
         // 실시간 메시지 처리
         if (data.type && data.message) {
           const messageWithTimestamp = {
             ...data,
-            timestamp: new Date().toISOString()
+            timestamp: new Date().toISOString(),
+            agendaNumber: actualCurrentAgenda // 현재 안건 번호 추가
           };
 
+          // 현재 안건의 실시간 메시지 추가
           setSttText(prevMessages => {
             const newMessages = [...prevMessages, messageWithTimestamp];
-            const sortedMessages = newMessages.sort((a, b) => 
+            return newMessages.sort((a, b) => 
               new Date(a.timestamp) - new Date(b.timestamp)
             );
-            
-            console.log('[SSE] 업데이트된 메시지 목록:', sortedMessages);
-            localStorage.setItem(`meeting_${meetingId}_stt`, JSON.stringify(sortedMessages));
-            
-            return sortedMessages;
           });
+
+          // 누적 메시지에도 추가
+          setAccumulatedMessages(prev => [...prev, messageWithTimestamp]);
         }
       } catch (error) {
         console.error('[SSE] 메시지 처리 오류:', error);
@@ -312,7 +356,7 @@ const RealtimeNote = ({ meetingInfo, currentAgendaNum, onEndMeeting }) => {
     // }
 
     return () => eventSource.close();
-  }, [meetingId]);
+  }, [meetingId, actualCurrentAgenda]);
 
   // 메시지 그룹화 처리
   const groupMessages = useCallback((messages) => {
@@ -348,33 +392,71 @@ const RealtimeNote = ({ meetingInfo, currentAgendaNum, onEndMeeting }) => {
   // 현재 안건 정보 설정
   useEffect(() => {
     if (meetingInfo?.meeting_agendas) {
-      const agenda = meetingInfo.meeting_agendas.find(a => a.order === currentAgendaNum);
+      const agenda = meetingInfo.meeting_agendas.find(a => a.order === actualCurrentAgenda);
       setCurrentAgenda(agenda);
     }
-  }, [meetingInfo, currentAgendaNum]);
+  }, [meetingInfo, actualCurrentAgenda]);
 
   // 다음 안건으로 이동
   const handleNextAgenda = async () => {
     try {
       const response = await axiosInstance.post('meetings/next_agenda/');
       console.log("다음 안건 응답:", response.data);
-      // 상위 컴포넌트에서 currentAgendaNum 업데이트
+      
+      console.log("현재 안건 번호:", actualCurrentAgenda);
+      console.log("전체 안건:", meetingInfo.meeting_agendas);
+      
+      // 현재 실제 안건 번호 사용
+      const nextAgendaNum = actualCurrentAgenda + 1;
+      console.log("계산된 다음 안건 번호:", nextAgendaNum);
+      
+      // order 속성을 기준으로 현재 안건과 다음 안건 찾기
+      const currentAgenda = meetingInfo.meeting_agendas.find(
+        agenda => agenda.order === actualCurrentAgenda
+      );
+      const nextAgenda = meetingInfo.meeting_agendas.find(
+        agenda => agenda.order === nextAgendaNum
+      );
+      
+      if (nextAgenda) {
+        // 안건 구분선 추가
+        const dividerMessage = {
+          type: "divider",
+          timestamp: new Date().toISOString(),
+          agendaNumber: nextAgendaNum
+        };
+        
+        // 새 안건 시작 메시지 추가
+        const agendaChangeMessage = {
+          type: "agenda_change",
+          message: `=== 안건 ${nextAgenda.order}: ${nextAgenda.title} 회의 시작 ===`,
+          timestamp: new Date(new Date().getTime() + 1).toISOString(), // 구분선 다음에 표시되도록 1ms 추가
+          agendaNumber: nextAgendaNum
+        };
+        
+        // 누적 메시지에 구분선과 새 안건 시작 메시지 추가
+        setAccumulatedMessages(prev => [...prev, dividerMessage, agendaChangeMessage]);
+        
+        // 현재 STT 초기화 (새로운 안건의 메시지를 위해)
+        setSttText([]);
+        
+        alert(`${currentAgenda.title}에서 ${nextAgenda.title}로 이동합니다`);
+      } else {
+        alert("마지막 안건입니다.");
+        console.log("더 이상 다음 안건이 없습니다.");
+      }
     } catch (error) {
       console.error("다음 안건 이동 중 오류:", error);
+      alert("다음 안건으로 이동하는 중 오류가 발생했습니다.");
     }
   };
 
-  // sttText 상태가 변경될 때마다 로그
+  // 메시지 그룹화 처리 수정
   useEffect(() => {
-    console.log('[State] 현재 STT 텍스트 상태:', sttText);
-  }, [sttText]);
-
-  // 메시지 그룹화 처리
-  useEffect(() => {
-    if (sttText.length > 0) {
-      setGroupedMessages(groupMessages(sttText));
+    if (accumulatedMessages.length > 0) {
+      setGroupedMessages(groupMessages(accumulatedMessages));
     }
-  }, [sttText, groupMessages]);
+  }, [accumulatedMessages, groupMessages]);
 
   // 날짜 포맷팅 함수
   const formatDateTime = (dateString) => {
@@ -389,49 +471,68 @@ const RealtimeNote = ({ meetingInfo, currentAgendaNum, onEndMeeting }) => {
     });
   };
 
+  // 회의 종료 핸들러
+  const handleEndMeeting = () => {
+    try {
+      // localStorage 데이터 삭제
+      localStorage.removeItem(`meeting_${meetingId}_messages`);
+      
+      // 상태 초기화
+      setAccumulatedMessages([]);
+      setSttText([]);
+      
+      // 상위 컴포넌트의 종료 핸들러 호출
+      onEndMeeting();
+    } catch (error) {
+      console.error("회의 종료 중 오류 발생:", error);
+    }
+  };
+
   return (
     <NoteContainer>
-      {currentAgenda && (
-        <AgendaHeader>
-          안건 {currentAgendaNum}: {currentAgenda.title}
-        </AgendaHeader>
-      )}
-      
       <NoteContent>
-        {groupedMessages.length > 0 ? (
-          groupedMessages.map((group, index) => {
-            switch(group.type) {
+        {accumulatedMessages.length > 0 ? (
+          accumulatedMessages.map((message, index) => {
+            switch(message.type) {
+              case "divider":
+                return <AgendaDivider key={index} />;
+              case "agenda_change":
+                return (
+                  <AgendaHeader key={index}>
+                    {message.message}
+                  </AgendaHeader>
+                );
               case "plain":
                 return (
                   <TextMessage key={index} type="plain">
-                    {group.messages.join('\n')}
+                    {message.message}
                   </TextMessage>
                 );
               case "query":
                 return (
                   <TextMessage key={index} type="query">
-                    {group.messages.map((msg, i) => (
+                    {message.messages.map((msg, i) => (
                       <div key={i}>
                         {msg.startsWith('질문 :') ? msg : `질문 : ${msg}`}
                       </div>
                     ))}
                   </TextMessage>
                 );
-              case "agenda_docs_update":
-                return (
-                  <TextMessage key={index} type="agenda_docs_update">
-                    {group.messages[0]}
-                    {group.documents && (
-                      <DocumentList>
-                        {group.documents.map((doc, docIndex) => (
-                          <DocumentLink key={docIndex}>
-                            관련 문서 #{docIndex + 1}
-                          </DocumentLink>
-                        ))}
-                      </DocumentList>
-                    )}
-                  </TextMessage>
-                );
+                case "agenda_docs_update":
+                  return (
+                    <TextMessage key={index} type="agenda_docs_update">
+                      {message.messages[0]}
+                      {message.documents && (
+                        <DocumentList>
+                          {message.documents.map((doc, docIndex) => (
+                            <DocumentLink key={docIndex}>
+                              관련 문서 #{docIndex + 1}
+                            </DocumentLink>
+                          ))}
+                        </DocumentList>
+                      )}
+                    </TextMessage>
+                  );
               default:
                 return null;
             }
@@ -448,7 +549,7 @@ const RealtimeNote = ({ meetingInfo, currentAgendaNum, onEndMeeting }) => {
               다음 안건으로
             </NextButton>
           )}
-          <EndButton onClick={onEndMeeting}>
+          <EndButton onClick={handleEndMeeting}>
             회의 종료
           </EndButton>
         </ButtonGroup>
