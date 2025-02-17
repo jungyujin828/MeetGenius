@@ -97,7 +97,7 @@ const TextDisplay = styled.div`
   font-size: 16px;
   line-height: 1.5;
   background-color: #f1f1f1; /* 배경색을 흐리게 하여 읽기 전용 효과 */
-  min-height: 780px; /* 충분히 큰 출력란 */
+  min-height: 800px; /* 충분히 큰 출력란 */
   box-sizing: border-box;
   white-space: pre-wrap; /* 줄 바꿈 지원 */
 `;
@@ -151,11 +151,11 @@ const MomSummaryPage = () => {
 
             {/* 안건 목록 */}
             <MomContainer>
-              <SectionTitle><strong>안건: </strong> {mom.agenda.title}</SectionTitle>
+              <SectionTitle><strong>안건: </strong> {mom.agenda_title}</SectionTitle>
 
               {/* 읽기 전용 텍스트 출력 */}
               <TextDisplay>
-                {mom.agenda_result || "내용이 없습니다."}
+                {mom.summary_result || "내용이 없습니다."}
               </TextDisplay>
             </MomContainer>
 
