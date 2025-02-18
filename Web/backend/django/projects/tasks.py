@@ -4,14 +4,17 @@ import requests
 from django.conf import settings
 from .models import Report, Document, Project
 from meetingroom.models import Mom
+import os
 import logging
 
+from dotenv import load_dotenv
+load_dotenv()
+# Create your views here.
 logger = logging.getLogger(__name__)
 
-# FASTAPI_URL = settings.FASTAPI_URL  # settings.py에 FASTAPI_URL이 정의되어 있어야 합니다.
-
+FASTAPI_URL = os.getenv('FASTAPI_BASE_URL')  # ✅ http:// 추가 (FastAPI 서버 주소)
 @shared_task(bind=True, max_retries=2)
-def process_upload_report(self, project_id, user_id, files_data):
+def process_upload_report(self, project_id, user_id, files_data, meeting_id):
     """
     files_data는 각 파일에 대한 정보를 담고 있어야 합니다.
     예시: [
@@ -29,6 +32,7 @@ def process_upload_report(self, project_id, user_id, files_data):
         from .models import Project, Document, Report  # 지연 임포트
         project = Project.objects.select_related('department').get(id=project_id)
         department = project.department
+        doc_type = 2
 
         created_reports = []
         embedding_data_list = []
@@ -56,25 +60,26 @@ def process_upload_report(self, project_id, user_id, files_data):
                 "report_id": report.id,
                 "title": title,
             })
+            meeting = project.meetings.last()
 
             embedding_data = {
                 "document_id": document.id,
-                "project_name": project.name,
-                "report_title": title,
-                "report_content": file_content,
+                "document_content": file_content,
                 "document_metadata": {
-                    "project_id": project.id,
-                    "document_type": 2,
+                    "project_id": int(project.id),
+                    "document_type": doc_type,
+                    "meeting_id": meeting.id if meeting else -1  # Meeting이 없으면 None
                 }
             }
             embedding_data_list.append(embedding_data)
 
         # (옵션) FastAPI에 비동기 요청 보내기 (동기 방식)
         # url = f"{FASTAPI_URL}/api/projects/{project_id}/upload_report/"
-        # response = requests.post(url, json={'documents': embedding_data_list}, timeout=10)
-        # if response.status_code != 200:
-        #     raise Exception("FastAPI 요청 처리 중 오류 발생")
-        # fastapi_response = response.json()
+        url =  f"{FASTAPI_URL}/api/v1/projects/{project.id}/documents/"
+        response = requests.post(url, json={'documents': embedding_data_list}, timeout=10)
+        if response.status_code != 200:
+            raise Exception("FastAPI 요청 처리 중 오류 발생")
+        fastapi_response = response.json()
 
         # 더미 응답 사용 (필요에 따라 실제 API 호출 코드 활성화)
         fastapi_response = {"status": "ok", "message": "FastAPI 처리 완료"}

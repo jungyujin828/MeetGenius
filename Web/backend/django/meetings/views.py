@@ -99,11 +99,11 @@ async def receive_data(request):
                         print('docs not exist')
                         
                     
-                    fastapi_response = {
-                        'data_type' : 'rag',
-                        'message': '답변입니다.',
-                        'agenda_docs': docs
-                    } 
+                    # fastapi_response = {
+                    #     'data_type' : 'rag',
+                    #     'message': '답변입니다.',
+                    #     'agenda_docs': docs
+                    # } 
                     print(data)
                     # FastAPI 답변 처리
                     await handle_fastapi_response(data)
@@ -253,7 +253,7 @@ async def sent_meeting_information():
 
     try : 
         # async with httpx.AsyncClient() as client:
-        async with httpx.AsyncClient(timeout=httpx.Timeout(50.0)) as client:
+        async with httpx.AsyncClient(timeout=httpx.Timeout(500.0)) as client:
             response = await client.post(url=url, json=payload)
             return response.json()  # FastAPI에서 받은 응답 데이터 반환
     except Exception as e :
@@ -876,11 +876,11 @@ async def stop_meeting(reqeust):
         if not meeting_id:
             return JsonResponse({"error": "Meeting ID not found in Redis"}, status=400)
         # 1-2. fastAPI로 api 요청. 
-        # async with httpx.AsyncClient() as client:
-        #     fastapi_stop_url = f'{FASTAPI_BASE_URL}/api/v1/meetings/{meeting_id}/end'
-        #     response = await client.post(fastapi_stop_url)
-        #     fastapi_stop_response = response.json()
-        # print(fastapi_stop_response)
+        async with httpx.AsyncClient() as client:
+            fastapi_stop_url = f'{FASTAPI_BASE_URL}/api/v1/meetings/{meeting_id}/end'
+            response = await client.post(fastapi_stop_url)
+            fastapi_stop_response = response.json()
+        print(fastapi_stop_response)
 
         # 2. Redis에서 저장된 STT 메시지 조회
         stt_messages = await redis_client.lrange(STT_LIST_KEY,0,-1)

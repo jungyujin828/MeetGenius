@@ -13,11 +13,14 @@ import os # 파일 확장자 처리리
 import httpx
 from django.views.decorators.csrf import csrf_exempt
 from .tasks import process_upload_report
+import logging
 
-
+from dotenv import load_dotenv
+load_dotenv()
 # Create your views here.
+logger = logging.getLogger(__name__)
 
-FASTAPI_BASE_URL = "http://127.0.0.1:8001"  # ✅ http:// 추가 (FastAPI 서버 주소)
+FASTAPI_BASE_URL = os.getenv('FASTAPI_BASE_URL')  # ✅ http:// 추가 (FastAPI 서버 주소)
 
 User = get_user_model()
 

@@ -3,11 +3,16 @@ from celery import shared_task
 import requests
 from django.conf import settings
 from .models import Mom, SummaryMom, Document
+
+import os
 import logging
 
+from dotenv import load_dotenv
+load_dotenv()
+# Create your views here.
 logger = logging.getLogger(__name__)
 
-FASTAPI_URL = ''  # settings.py에 FASTAPI_URL이 정의되어 있어야 합니다.
+FASTAPI_URL = os.getenv('FASTAPI_BASE_URL')  # ✅ http:// 추가 (FastAPI 서버 주소)
 
 @shared_task(bind=True, max_retries=2)
 def process_meeting_update(self, meeting_id, update_data):
@@ -52,41 +57,41 @@ def process_meeting_update(self, meeting_id, update_data):
         # FastAPI에 보낼 payload
         all_moms = list(Mom.objects.filter(id__in=moms_ids).select_related('agenda'))
         payload = {
-            "items":[
-                {"agenda_id":mom.agenda.id,
-                 "agenda_title":mom.agenda.title,
-                 "agenda_result":mom.agenda_result
+            "agendas":[
+                {"id":mom.agenda.id,
+                 "title":mom.agenda.title,
+                 "content":mom.agenda_result
                  } for mom in all_moms
             ]
         }
         logger.info(payload)
 
         # # 4. FastAPI 호출 (동기 방식)
-        # url = f"{FASTAPI_URL}/api/v1/meetings/{meeting_id}/summary/"
-        # # response = requests.post(url, json=payload, timeout=10)
-        # # if response.status_code != 200:
-        # #     raise Exception("FastAPI 요청 처리 중 오류 발생")
-        # fast_api_response = response.json()
+        url = f"{FASTAPI_URL}/api/v1/meetings/{meeting_id}/summary/"
+        response = requests.post(url, json=payload, timeout=10)
+        if response.status_code != 200:
+            raise Exception("FastAPI 요청 처리 중 오류 발생")
+        fast_api_response = response.json()
 
-        # 더미데이터터
-        fastapi_response = {
-            "meeting_id": 3,
-            "summaries": [
-                {
-                    "agenda_id": 8,
-                    "agenda_title": "1번",
-                    "summary": "수정된 안건 내용입니다: 수정하기기기기요용d."
-                },
-                {
-                    "agenda_id": 9,
-                    "agenda_title": "2번",
-                    "summary": "회의록 요약: 정정정정lz plz.\nplz plz."
-                }
-            ]
-        }
+        # # 더미데이터터
+        # fastapi_response = {
+        #     "meeting_id": 3,
+        #     "summaries": [
+        #         {
+        #             "agenda_id": 8,
+        #             "agenda_title": "1번",
+        #             "summary": "수정된 안건 내용입니다: 수정하기기기기요용d."
+        #         },
+        #         {
+        #             "agenda_id": 9,
+        #             "agenda_title": "2번",
+        #             "summary": "회의록 요약: 정정정정lz plz.\nplz plz."
+        #         }
+        #     ]
+        # }
         # Fastapi 응답 기반 SummaryMom 저장
-        summaries = fastapi_response.get("summaries")
-        meeting_id = fastapi_response.get("meeting_id")
+        summaries = fast_api_response.get("summaries")
+        meeting_id = fast_api_response.get("meeting_id")
 
         if not summaries:
             logger.warning("FastAPI 응답에 summaries 데이터가 없습니다.")

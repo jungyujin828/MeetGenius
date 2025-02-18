@@ -18,8 +18,15 @@ from rest_framework.request import Request
 from django.http import JsonResponse
 
 from meetingroom.tasks import process_meeting_update
+import os
+import logging
 
-FASTAPI_URL = ''
+from dotenv import load_dotenv
+load_dotenv()
+# Create your views here.
+logger = logging.getLogger(__name__)
+
+FASTAPI_URL = os.getenv('FASTAPI_BASE_URL')  # ✅ http:// 추가 (FastAPI 서버 주소)
 
 def check_room_availability(room_id, starttime, endtime, exclude_meeting_id=None):
     """
