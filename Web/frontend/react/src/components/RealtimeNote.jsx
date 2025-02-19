@@ -48,64 +48,102 @@ const RightPanel = styled.div`
 `;
 
 const TextMessage = styled.div`
-  margin: 10px 0;
-  padding: 12px 16px;
+  margin: 12px 0;
+  padding: 16px;
   border-radius: 8px;
   font-size: 14px;
-  line-height: 1.4;
-
+  line-height: 1.6;
+  
   ${props => props.type === "plain" && `
-    background-color: #f8f9fa;
-    color: #212529;
+    color: #1a202c;
+    padding-left: 16px;
   `}
 
   ${props => props.type === "query" && `
-    background-color: #e7f5ff;
-    color: #1864ab;
-    border-left: 2px solid #1864ab;
+    background-color:rgb(243, 243, 243);
+    position: relative;
+    padding-left: 44px;
+    border: 1px solidrgb(219, 235, 255);
     
     &::before {
-      content: "❓";
-      margin-right: 8px;
+      content: "💭";
+      position: absolute;
+      left: 14px;
+      top: 50%;
+      transform: translateY(-50%);
+      font-size: 16px;
     }
   `}
 
   ${props => props.type === "agenda_docs_update" && `
-    background-color: #ebfbee;
-    color: #2b8a3e;
-    border-left: 4px solid #2b8a3e;
+    background-color: #EEF2F7;
+    position: relative;
+    padding-left: 44px;
+    border: 1px solid #E5E9F0;
     
     &::before {
-      content: "📄";
-      margin-right: 8px;
-    }
-  `}
-
-  ${props => props.type === "rag" && `
-    background-color: #e3f2fd;
-    color: #1565c0;
-    border-left: 4px solid #1565c0;
-    
-    &::before {
-      content: "🔍";
-      margin-right: 8px;
+      content: "🤖";
+      position: absolute;
+      left: 14px;
+      top: 50%;
+      transform: translateY(-50%);
+      font-size: 16px;
     }
   `}
 `;
 
+const ButtonContainer = styled.div`
+  padding: 16px 20px;
+  border-top: 1px solid #e2e8f0;
+  margin-top: 20px;
+`;
+
+const ButtonGroup = styled.div`
+  display: flex;
+  gap: 12px;
+  justify-content: flex-end;
+`;
+
 const Button = styled.button`
-  padding: 12px 20px;
-  background-color: #274c77;
+  padding: 8px 16px;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 500;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+`;
+
+const NextButton = styled(Button)`
+  background-color: #1e40af;  // 진한 남색
   color: white;
   border: none;
-  border-radius: 5px;
-  cursor: pointer;
-  font-size: 16px;
-  margin-top: 20px;
-
-  &:hover {
-    background-color: #1b3a57;
+  
+  &:hover:not(:disabled) {
+    background-color: #1e3a8a;
+    transform: translateY(-1px);
   }
+
+`;
+
+const EndButton = styled(Button)`
+  background-color: white;
+  color: #dc2626;  // 빨간색
+  border: 1px solid #dc2626;
+  
+  &:hover:not(:disabled) {
+    background-color: #fee2e2;  // 연한 빨간색 배경
+    border-color: #b91c1c;
+    color: #b91c1c;
+  }
+
+
 `;
 
 const QueryMessage = styled.div`
@@ -115,17 +153,30 @@ const QueryMessage = styled.div`
   margin-top: 10px;
 `;
 
-const DocumentLink = styled.a`
-  display: block;
-  margin-top: 10px;
-  padding: 10px;
-  background-color: #e8e8e8;
+const DocumentList = styled.div`
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid #E5E9F0;
+`;
+
+const DocumentLink = styled.div`
+  padding: 10px 12px;
+  margin: 4px 0;
+  background: rgba(255, 255, 255, 0.7);
   border-radius: 6px;
-  text-decoration: none;
+  font-size: 13px;
   color: #274c77;
+  cursor: pointer;
+  transition: all 0.2s ease;
 
   &:hover {
-    background-color: #d3d3d3;
+    background: white;
+    transform: translateX(4px);
+  }
+
+  &::before {
+    content: "📑";
+    margin-right: 10px;
   }
 `;
 
@@ -161,61 +212,36 @@ const InfoItem = styled.div`
   }
 `;
 
-const AgendaHeader = styled.h2`
+const AgendaDivider = styled.div`
+  display: flex;
+  align-items: center;
+  margin: 24px 0;
+  gap: 12px;
+  
+  &::before,
+  &::after {
+    content: "";
+    flex: 1;
+    height: 1px;
+    background: linear-gradient(to right, transparent, #274c77, transparent);
+    opacity: 0.3;
+  }
+`;
+
+const AgendaHeader = styled.div`
   font-size: 24px;
-  color: #1a73e8;
-  margin-bottom: 20px;
-  padding-bottom: 10px;
-  border-bottom: 2px solid #1a73e8;
-`;
-
-const ButtonContainer = styled.div`
+  color: #274c77;
+  font-weight: 700;
+  padding: 16px 0;
+  margin: 8px 0 16px 0;
+  
   display: flex;
-  justify-content: flex-end;
-  gap: 10px;
-  margin-top: 20px;
-  padding: 10px;
-  position: sticky;
-  bottom: 0;
-  background-color: white;
-  border-top: 1px solid #eee;
-`;
-
-const BaseButton = styled.button`
-  padding: 12px 24px;
-  border-radius: 6px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.2s;
-`;
-
-const NextButton = styled(BaseButton)`
-  background-color: #1a73e8;
-  color: white;
-  border: none;
-
-  &:hover {
-    background-color: #1557b0;
+  align-items: center;
+  gap: 12px;
+  
+  &::before {
+    font-size: 20px;
   }
-`;
-
-const EndButton = styled(BaseButton)`
-  background-color: #dc3545;
-  color: white;
-  border: none;
-
-  &:hover {
-    background-color: #bb2d3b;
-  }
-`;
-
-const DocumentList = styled.div`
-  margin-top: 8px;
-`;
-
-const ButtonGroup = styled.div`
-  display: flex;
-  gap: 10px;
 `;
 
 const NoteContainer = styled.div`
@@ -233,11 +259,6 @@ const NoteContent = styled.div`
   border-radius: 8px;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
   margin-bottom: 20px;
-`;
-
-const AgendaDivider = styled.div`
-  border-top: 2px solid #e0e0e0;
-  margin: 30px 0;
 `;
 
 const RealtimeNote = ({ meetingInfo, currentAgendaNum, onEndMeeting }) => {
@@ -292,7 +313,7 @@ const RealtimeNote = ({ meetingInfo, currentAgendaNum, onEndMeeting }) => {
               
               initialMessages.push({
                 type: "agenda_change",
-                message: `=== 안건 ${agenda.order}: ${agenda.title} 회의 시작 ===`,
+                message: `안건 ${agenda.order}. ${agenda.title}`,
                 timestamp: new Date(new Date().getTime() + 1).toISOString(),
                 agendaNumber: agenda.order
               });
@@ -429,7 +450,7 @@ const RealtimeNote = ({ meetingInfo, currentAgendaNum, onEndMeeting }) => {
         // 새 안건 시작 메시지 추가
         const agendaChangeMessage = {
           type: "agenda_change",
-          message: `=== 안건 ${nextAgenda.order}: ${nextAgenda.title} 회의 시작 ===`,
+          message: `안건 ${nextAgenda.order}. ${nextAgenda.title}`,
           timestamp: new Date(new Date().getTime() + 1).toISOString(), // 구분선 다음에 표시되도록 1ms 추가
           agendaNumber: nextAgendaNum
         };
@@ -549,7 +570,7 @@ const RealtimeNote = ({ meetingInfo, currentAgendaNum, onEndMeeting }) => {
         <ButtonGroup>
           {meetingInfo?.meeting_agendas?.length > currentAgendaNum && (
             <NextButton onClick={handleNextAgenda}>
-              다음 안건으로
+              다음 안건
             </NextButton>
           )}
           <EndButton onClick={handleEndMeeting}>
