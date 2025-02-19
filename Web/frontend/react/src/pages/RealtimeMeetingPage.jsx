@@ -2,11 +2,10 @@ import React, { useState, useEffect, useCallback } from "react";
 import styled from "styled-components";
 import RealtimeNote from "../components/RealtimeNote"; // 변경된 STT 페이지
 import RealtimeDoc from "../components/RealtimeDoc"; // 변경된 RAG 문서 페이지
-import axios from "axios";
 import { useNavigate, useParams } from "react-router-dom"; // 페이지 이동을 위한 useNavigate
-import { useSelector } from "react-redux";
 import axiosInstance from '../api/axiosInstance';  // axiosInstance import
-
+import useSSE from "../hooks/useSSE"; // ✅ SSE 훅 가져오기
+import { fetchMeetingDetails } from "../api/meetingRoom";
 // 모달 스타일 설정
 const ModalBackground = styled.div`
   position: fixed;
@@ -168,35 +167,34 @@ const MessageContainer = styled.div`
 `;
 
 const RealtimeMeetingPage = () => {
-  const API_BASE_URL = import.meta.env.VITE_APP_BASEURL;
   const { meetingId } = useParams();
-  const token = useSelector((state) => state.auth.token);
-  const [meetingState, setMeetingState] = useState(null);
-  const [meetingData, setMeetingData] = useState(null);
-  const [error, setError] = useState(null);
-  const [isPreparing, setIsPreparing] = useState(false);
+  const { data } = useSSE(meetingId);
+  const [error, setError] = useState(null); // 🔹 에러 상태 추가
+
   const [isReady, setIsReady] = useState(false);
+  const [isPreparing, setIsPreparing] = useState(false);
   const [isMeetingStarted, setIsMeetingStarted] = useState(false);
-  const [isModalOpen, setIsModalOpen] = useState(true);
-  const [showMeetingScreen, setShowMeetingScreen] = useState(false);
+
+
   const [meetingInfo, setMeetingInfo] = useState(null);
   const [currentAgendaNum, setCurrentAgendaNum] = useState(1);
   const navigate = useNavigate();
   const [eventSource, setEventSource] = useState(null);
   const [sttText, setSttText] = useState([]);
-  const [queryMessage, setQueryMessage] = useState("");
   const [documents, setDocuments] = useState([]);
-  const [isSchedulerReady, setIsSchedulerReady] = useState(false);
 
   console.log("Current meeting ID:", meetingId);
-  console.log("API BASE URL:", API_BASE_URL); // 환경변수 확인용 로그
+
+  const handleDocumentUpdate = (newDocuments) => {
+    console.log("📂 새로운 문서 업데이트 (부모에서 관리):", newDocuments);
+    setDocuments(newDocuments);
+  };
 
   useEffect(() => {
     const fetchMeetingData = async () => {
       try {
-        const response = await axiosInstance.get(`/meetingroom/booked/${meetingId}/`);
-        setMeetingData(response.data);
-        setMeetingInfo(response.data);
+        const meetingInfo = await fetchMeetingDetails(meetingId);
+        setMeetingInfo(meetingInfo);
       } catch (error) {
         console.error("회의 정보 로드 중 오류:", error);
         setError("회의 정보를 불러오는데 실패했습니다.");
@@ -205,69 +203,37 @@ const RealtimeMeetingPage = () => {
 
     fetchMeetingData();
   }, [meetingId]);
-
-  // meetingInfo가 변경될 때마다 로그 출력
   useEffect(() => {
     console.log("현재 meetingInfo:", meetingInfo);
   }, [meetingInfo]);
 
-  // 1. 페이지 로드 시 스케줄러 요청
-  // useEffect(() => {
-  //   const initializeScheduler = async () => {
-  //     try {
-  //       console.log("스케줄러 초기화 시작");
-  //       const schedulerResponse = await axiosInstance.get(`/meetings/scheduler/${meetingId}/`);
-        
-  //       if (schedulerResponse.status === 200) {
-  //         console.log("스케줄러 초기화 완료");
-  //         setIsSchedulerReady(true);
-  //       }
-  //     } catch (error) {
-  //       console.error("스케줄러 초기화 실패:", error);
-  //       setError("회의 초기화에 실패했습니다.");
-  //     }
-  //   };
-
-  //   initializeScheduler();
-  // }, [meetingId]);
 
   // 페이지 로드 시 SSE 연결만 수행
   useEffect(() => {
-    console.log("SSE 연결 시작");
-    const sse = new EventSource(`${API_BASE_URL}/meetings/stream/`);
-    
-    sse.onmessage = (event) => {
-      try {
-        const data = JSON.parse(event.data);
-        console.log('수신된 데이터:', data);
-        
-        if (data.meeting_state) {
-          console.log('회의 상태 변경:', data.meeting_state);
-          
-          // 서버로부터 받은 상태에 따라 UI 업데이트
-          switch (data.meeting_state) {
-            case 'waiting_for_start':
-              setIsReady(true);
-              setIsPreparing(false);
-              break;
-            case 'meeting_in_progress':
-              setIsMeetingStarted(true);
-              break;
-            case 'meeting_finished':
-              // 회의 종료 팝업 표시
-              // alert("회의가 종료되었습니다.");
-              // dashboard로 이동
-              navigate('/dashboard');
-              break;
-          }
-        }
-      } catch (error) {
-        console.error('메시지 처리 오류:', error);
-      }
-    };
+    if (!data) return;
 
-    return () => sse.close();
-  }, [API_BASE_URL, navigate]);  // navigate 의존성 추가
+    console.log("🎯 SSE 데이터 감지:", data);
+
+    if (data.meeting_state) {
+        console.log("회의 상태 변경:", data.meeting_state);
+
+        switch (data.meeting_state) {
+            case "waiting_for_start":
+                setIsReady(true);
+                setIsPreparing(false);
+                break;
+            case "meeting_in_progress":
+                setIsMeetingStarted(true);
+                break;
+            case "meeting_finished":
+                alert("회의가 종료되었습니다.");
+                navigate("/dashboard");
+                break;
+            default:
+                console.warn("알 수 없는 상태:", data.meeting_state);
+        }
+    }
+}, [data, navigate]);
 
   // 회의 준비 버튼 클릭 시에만 스케줄러 실행
   const handlePrepareMeeting = async () => {
@@ -283,8 +249,8 @@ const RealtimeMeetingPage = () => {
         // 2. 회의 준비 요청
         const prepareResponse = await axiosInstance.post('/meetings/prepare/', {
           meeting_id: meetingId,
-          agenda_id: meetingData?.meeting_agendas[0]?.id,
-          agenda_title: meetingData?.meeting_agendas[0]?.title
+          agenda_id: meetingInfo?.meeting_agendas[0]?.id,
+          agenda_title: meetingInfo?.meeting_agendas[0]?.title
         });
 
         if (prepareResponse.status === 200) {
@@ -301,13 +267,13 @@ const RealtimeMeetingPage = () => {
 
   // 회의 시작 처리
   const handleStartMeeting = async () => {
-    if (!meetingData) {
+    if (!meetingInfo) {
       setError("회의 정보가 로드되지 않았습니다. 잠시 후 다시 시도해주세요.");
       return;
     }
 
     try {
-      const firstAgenda = meetingData.meeting_agendas[0];
+      const firstAgenda = meetingInfo.meeting_agendas[0];
       const requestData = {
         meeting_id: parseInt(meetingId),  // 문자열을 숫자로 변환
         agenda_id: firstAgenda?.id ? parseInt(firstAgenda.id) : null,  // null 처리 추가
@@ -399,6 +365,7 @@ const RealtimeMeetingPage = () => {
   if (mediaQuery.matches) {
     rightPanelStyle.display = 'none'; // 화면이 줄어들면 오른쪽 패널 숨김
   }
+
 
   // RealtimeNote로부터 회의 정보를 받아오는 콜백 함수
   const handleMeetingInfo = (info) => {
@@ -541,10 +508,11 @@ const RealtimeMeetingPage = () => {
             meetingInfo={meetingInfo} 
             currentAgendaNum={currentAgendaNum}
             onEndMeeting={handleEndMeeting}
+            onDocumentUpdate={handleDocumentUpdate}
           />
         </LeftPanel>
         <RightPanel>
-          <RealtimeDoc meetingInfo={meetingInfo} />
+          <RealtimeDoc meetingInfo={meetingInfo} documents={documents} />
         </RightPanel>
       </>
     );
