@@ -310,7 +310,7 @@ const ProjectCreateWidget = ({ closeCreateProject }) => {
             </label>
             <div>
               <label>
-                마스터 권한
+                마스터
                 <input
                   type="checkbox"
                   checked={participants.some((p) => p.id === user.id && p.authority === 0)} // 권한 체크 상태

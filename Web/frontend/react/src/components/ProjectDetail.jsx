@@ -13,6 +13,7 @@ const DetailContainer = styled.div`
   width: 350px; /* ✅ 전체 공간 차지 방지 */
   max-height: 1000px; /* ✅ 높이 제한 */
   overflow-y: auto; /* ✅ 내용이 많을 경우 스크롤 */
+  margin:20px;
 `;
 
 const Overlay = styled.div`
@@ -38,23 +39,25 @@ const CloseButton = styled.button`
 
 const ButtonContainer = styled.div`
   display: flex;
-  justify-content: space-between;
+  gap: 15px;
+  justify-content: center;
   margin-top: 20px;
 `;
 
-const Button = styled.button`
-  padding: 12px 25px;
-  background-color: #274c77;
+const ActionButton = styled.button`
+  background-color: #1b3a57;
   color: white;
+  padding: 8px 16px;
   border: none;
-  border-radius: 5px;
+  border-radius: 6px;
   cursor: pointer;
-  font-size: 16px;
-  flex: 1;
-  margin: 5px;
+  font-size: 14px;
+  width: 120px;
+  margin: 0 5px;
+  transition: all 0.2s ease;
 
   &:hover {
-    background-color: #1b3a57;
+    background-color: #274c77;
   }
 `;
 
@@ -312,8 +315,10 @@ const ProjectDetail = ({ projectId, onClose }) => {
               value={formData.duedate}
               onChange={(e) => setFormData({ ...formData, duedate: e.target.value })}
             />
-            <Button onClick={handleSaveEdit}>저장</Button>
-            <Button onClick={() => setEditMode(false)}>취소</Button>
+            <ButtonContainer>
+              <ActionButton onClick={handleSaveEdit}>저장</ActionButton>
+              <ActionButton onClick={() => setEditMode(false)}>취소</ActionButton>
+            </ButtonContainer>
           </div>
         ) : (
           <div>
@@ -338,17 +343,9 @@ const ProjectDetail = ({ projectId, onClose }) => {
             </FileList>
 
             <ButtonContainer>
-              <Button>
-                <input
-                  type="file"
-                  id="file-upload"
-                  onChange={handleFileUpload}
-                  style={{ display: "none" }}
-                />
-                <label htmlFor="file-upload">파일 추가</label>
-              </Button>
-              <Button onClick={() => setEditMode(true)}>수정</Button>
-              <Button onClick={handleDeleteProject}>삭제</Button>
+              <ActionButton onClick={handleFileUpload}>파일 추가</ActionButton>
+              <ActionButton onClick={() => setEditMode(true)}>수정</ActionButton>
+              <ActionButton onClick={handleDeleteProject}>삭제</ActionButton>
             </ButtonContainer>
           </div>
         )}

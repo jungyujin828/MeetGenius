@@ -8,48 +8,78 @@ import { useNavigate } from "react-router-dom"; // react-router-dom에서 useNav
 
 const DetailContainer = styled.div`
   padding: 20px;
-  background-color: #f8f9fa;
-  border-radius: 5px;
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-  width: 350px; /* ✅ 전체 공간 차지 방지 */
-  max-height: 500px; /* ✅ 높이 제한 */
-  overflow-y: auto; /* ✅ 내용이 많을 경우 스크롤 */
+  background-color: white;
+  border-radius: 8px;
+  width: 100%;
+  height: auto;
+  min-height: 100%;
+  box-sizing: border-box;
 `;
 
 const DetailHeader = styled.h3`
   font-size: 18px;
   font-weight: bold;
-  margin-bottom: 10px;
+  margin-bottom: 20px;
+  color: #2d3748;
 `;
 
-const DetailItem = styled.p`
-  margin: 5px 0;
+const DetailItem = styled.div`
+  margin: 12px 0;
   font-size: 14px;
+  line-height: 1.6;
+  display: flex;
+  align-items: flex-start;
+  
+  strong {
+    min-width: 80px;
+    color: #2d3748;
+    margin-right: 8px;
+    font-weight: 600;
+  }
 `;
 
 const List = styled.ul`
-  padding-left: 20px;
-  font-size: 14px;
+  padding-left: 24px;
+  margin: 8px 0 12px 0;
+  list-style-type: disc;
+  
+  li {
+    margin: 6px 0;
+    color: #4a5568;
+    font-size: 14px;
+  }
 `;
 
 const ButtonContainer = styled.div`
   display: flex;
-  justify-content: space-between;
-  margin-top: 15px;
+  gap: 10px;
+  margin-top: 20px;
 `;
 
 const Button = styled.button`
-  background-color: ${(props) => (props.primary ? "#0056b3" : "#ffffff")};
-  color: ${(props) => (props.primary ? "#ffffff" : "#000")};
-  border: 1px solid #0056b3;
-  padding: 8px 12px;
-  border-radius: 5px;
-  cursor: pointer;
+  flex: 1;
+  padding: 10px;
+  border-radius: 6px;
   font-size: 14px;
+  cursor: pointer;
+  border: 1px solid #274c77;
+  transition: all 0.2s ease;
 
-  &:hover {
-    background-color: ${(props) => (props.primary ? "#003f7f" : "#e6e6e6")};
-  }
+  ${props => props.primary ? `
+    background-color: #274c77;
+    color: white;
+    
+    &:hover {
+      background-color: #1b3a57;
+    }
+  ` : `
+    background-color: white;
+    color: #274c77;
+    
+    &:hover {
+      background-color: #f8f9fa;
+    }
+  `}
 `;
 
 const baseURL = import.meta.env.VITE_APP_BASEURL;
