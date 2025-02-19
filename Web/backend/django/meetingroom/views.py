@@ -401,34 +401,24 @@ def get_or_update_moms_by_meeting(request, meeting_id):
         3. 해당 meeting의 모든 Mom 데이터를 FastAPI에 전송하여 요약 요청  
         4. FastAPI 응답에 따라 SummaryMom 모델에 요약 결과를 저장
     """
-
-
-    
     moms = Mom.objects.filter(meeting_id=meeting_id)
-    
-
     if not moms:
         return Response([],status = status.HTTP_200_OK)
     
-
     # # GET 요청 처리 (조회)
     if request.method =="GET":
         serializer = MomSerializer(moms, many=True)
         return Response(serializer.data, status = 200)
         
-
-    
     # # PATCH 요청 처리 (수정)
     elif request.method == "PATCH":
         update_data = request.data.get("moms", [])
-        # print('자 가보자#####')
-        # print('####',update_data,'####')
 
         task = process_meeting_update.delay(meeting_id, update_data)
-
+        print(update_data)
         return Response({
             "message": "업데이트 작업이 백그라운드에서 처리되고 있습니다.",
-            "task_id": task.id
+            # "task_id": task.id
         }, status=status.HTTP_202_ACCEPTED)
     
 @api_view(['GET'])
@@ -446,140 +436,8 @@ def get_summarymom_by_meeting(request, meeting_id):
 
         summary_moms = SummaryMom.objects.filter(mom__meeting_id=meeting_id)
     
-
         if not summary_moms:
             return Response([],status = status.HTTP_200_OK)
 
-    
         serializer = SummaryMomSerializer(summary_moms, many=True)
         return Response(serializer.data, status = 200)
-    
-
-
-
-
-    #     try:
-    #         body = await sync_to_async(lambda: json.loads(request.body.decode('utf-8')))()
-    #     except json.JSONDecodeError:
-    #         return Response({"error": "Invalid JSON"}, status=400)
-    #     print(body)
-
-    #     update_data = request.data.get("moms", [])
-
-    #     '''
-    #     이 방식은 쿼리 너무 많이 보냄.
-    #     나중에 시간 비교하려고 남겨두겠습니다.
-    #     '''
-    #     # 모든 회의록의 agenda_result 수정
-    #     # 하나씩 id 찾아서 매칭칭
-    #     updated_moms = []
-    #     for update_mom in update_data:
-    #         print(update_mom)
-    #         mom_id = update_mom.get("id")
-    #         mom_data = update_mom.get('agenda_result')
-    #         print(mom_id, mom_data)
-
-    #         mom = get_object_or_404(Mom, id=mom_id, meeting_id = meeting_id)
-    #         print(mom)
-
-    #         serializer = MomSerializer(mom, data = update_mom, partial=True)
-    #         if serializer.is_valid():
-    #             serializer.save()
-    #             updated_moms.append(serializer.data)
-    #         else :
-    #             return Response(serializer.errors, status = status.HTTP_400_BAD_REQUEST)
-    #     '''
-    #     그래서 바꿈.
-    #     '''
-    #     update_data = body.get("moms", [])
-    #     print(update_data)
-    #     # 업데이트할 Mom ID 리스트 추출 
-    #     mom_ids = [update_mom["id"] for update_mom in update_data] 
-        
-    #     # SELECT 한 번으로 모든 MOM 객체 가져오기 (딕셔너리)
-    #     # moms_dict = {mom.id: mom for mom in Mom.objects.filter(id__in=mom_ids, meeting_id=meeting_id)}/
-    #     moms_dict = await sync_to_async(lambda: {mom.id: mom for mom in Mom.objects.filter(id__in=mom_ids, meeting_id=meeting_id)})()
-    
-
-    #     # 전달된 데이터대로 각 Mom의 (회의록)agenda_result 업데이트.
-    #     updated_moms=[]
-    #     for update_mom in update_data:
-    #         mom_id = update_mom["id"]
-    #         if mom_id in moms_dict:
-    #             mom = moms_dict[mom_id]
-    #             mom.agenda_result = update_mom["agenda_result"]
-    #             updated_moms.append(mom)
-
-    #     if updated_moms:
-    #         # bulk_update() : 여러 개의 UPDATE 쿼리 한 번에 실행 
-    #         # (iterable, ['field'] 업데이트할 필드명)
-    #         await sync_to_async(Mom.objects.bulk_update)(updated_moms, ['agenda_result'])
-
-    #     # 임시. 해당 meeting_id 에 속한 모든 Mom 객체의 completed를 True로 변경 (쿼리 1번)
-    #     await sync_to_async(Mom.objects.filter(meeting_id=meeting_id).update)(completed=True)
-
-    #     ''' 
-    #     여기부터 FastAPI로 던질 준비
-    #     - 요약 준비
-    #     '''
-    #     # 해당 미팅에 속한 모든 Mom의 agenda_title과 agenda_result를 포함하는 payload 생성
-    #     all_moms = await sync_to_async(list)(Mom.objects.filter(meeting_id=meeting_id))
-    #     payload = {
-    #         "items":[
-    #             {
-    #                 "agenda_title": mom.agenda_title,
-    #                 "agenda_result": mom.agenda_result
-    #             }
-    #             for mom in all_moms
-    #         ]
-    #     }
-    #     print(payload)
-
-    #     # 호출
-    #     fastapi_response = await send_moms_to_fastapi(payload, meeting_id) 
-
-    #     if fastapi_response is None:
-    #         return Response(
-    #             {"detail":"FastAPI 요청 처리 중 오류 발생"},
-    #             status=status.HTTP_400_BAD_REQUEST
-    #         )
-        
-    #     summaries = fastapi_response.get("summaries", [])
-        
-        
-    #     for summary in summaries:
-    #         agenda_title = summary.get("agenda_title")
-    #         agenda_summary = summary.get('summary')
-    #         # meeting_id와 agenda_title이 일치하는 Mom 객체 찾기
-    #         # mom = Mom.objects.filter(meeting_id=meeting_id, agenda_title=agenda_title).first()
-    #         mom = await sync_to_async(lambda: Mom.objects.filter(meeting_id=meeting_id, agenda_title=agenda_title).first())()
-    #         if mom :
-    #             # Document 먼저 생성 (요약 후 회의록 type = 1)
-    #             document = await sync_to_async(Document.objects.create)(
-    #                 type = 1,
-    #                 embedding = False,
-    #                 project = mom.meeting.project,
-    #                 department = mom.meeting.department
-    #             )
-
-    #             await sync_to_async(SummaryMom.objects.create)(
-    #                 mom=mom,
-    #                 summary_result=agenda_summary,
-    #                 document = document,
-    #                 completed=True
-    #             )
-
-
-
-    #     # SummaryMom 모델에 요약 결과 저장
-
-    #     return Response({
-    #         "message":f"{len(updated_moms)}개 회의록 수정 완료",
-    #         "summaries":summaries
-    #     },status = status.HTTP_200_OK)
-    # return Response({'test':'test'})
-
-
-
-
-    

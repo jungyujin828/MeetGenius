@@ -14,7 +14,7 @@ logger = logging.getLogger(__name__)
 
 FASTAPI_URL = os.getenv('FASTAPI_BASE_URL')  # ✅ http:// 추가 (FastAPI 서버 주소)
 @shared_task(bind=True, max_retries=2)
-def process_upload_report(self, project_id, user_id, files_data, meeting_id):
+def process_upload_report(self, project_id, user_id, files_data):
     """
     files_data는 각 파일에 대한 정보를 담고 있어야 합니다.
     예시: [
@@ -56,6 +56,7 @@ def process_upload_report(self, project_id, user_id, files_data, meeting_id):
                 title=title,
                 content=file_content,
             )
+            
             created_reports.append({
                 "report_id": report.id,
                 "title": title,
@@ -76,7 +77,7 @@ def process_upload_report(self, project_id, user_id, files_data, meeting_id):
         # (옵션) FastAPI에 비동기 요청 보내기 (동기 방식)
         # url = f"{FASTAPI_URL}/api/projects/{project_id}/upload_report/"
         url =  f"{FASTAPI_URL}/api/v1/projects/{project.id}/documents/"
-        response = requests.post(url, json={'documents': embedding_data_list}, timeout=10)
+        response = requests.post(url, json={'documents': embedding_data_list}, timeout=500)
         if response.status_code != 200:
             raise Exception("FastAPI 요청 처리 중 오류 발생")
         fastapi_response = response.json()

@@ -508,25 +508,28 @@ const RealtimeNote = ({ meetingInfo, currentAgendaNum, onEndMeeting }) => {
                     {message.message}
                   </TextMessage>
                 );
-              case "query":
-                return (
-                  <TextMessage key={index} type="query">
-                    {message.messages.map((msg, i) => (
-                      <div key={i}>
-                        {msg.startsWith('질문 :') ? msg : `질문 : ${msg}`}
-                      </div>
-                    ))}
-                  </TextMessage>
-                );
+                case "query":
+                  return (
+                    <TextMessage key={index} type="query">
+                      {/* {(message.message || []).map((msg, i) => (
+                        <div key={i}>
+                          {msg.startsWith('질문 :') ? msg : `질문 : ${msg}`}
+                        </div>
+                      ))} */}
+                      <div>{message.message}</div>
+                    </TextMessage>
+                  );
                 case "agenda_docs_update":
                   return (
                     <TextMessage key={index} type="agenda_docs_update">
-                      {message.messages[0]}
+                      {message.message || ""}
                       {message.documents && (
                         <DocumentList>
                           {message.documents.map((doc, docIndex) => (
                             <DocumentLink key={docIndex}>
                               관련 문서 #{docIndex + 1}
+                              {doc.title}
+                              {doc.content}
                             </DocumentLink>
                           ))}
                         </DocumentList>
