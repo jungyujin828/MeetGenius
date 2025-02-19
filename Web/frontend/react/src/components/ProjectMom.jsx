@@ -6,12 +6,12 @@ import { fetchMomsByMeetings } from "../api/meetingRoom";
 
 const ProjectMomContainer = styled.div`
   margin: 20px;
-  max-width: 600px;
   width: 100%;
   background-color: #fff;
   border-radius: 8px;
   box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
   padding: 15px;
+  box-sizing: border-box;
 `;
 
 const ProjectMomItem = styled.li`
@@ -21,17 +21,28 @@ const ProjectMomItem = styled.li`
   border-radius: 8px;
   background-color: #f9f9f9;
   width: 100%;
+  box-sizing: border-box;
+  
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+`;
+
+const ButtonContainer = styled.div`
+  display: flex;
+  gap: 10px;
+  margin-top: 10px;
+  flex-wrap: wrap;
 `;
 
 const Button = styled.button`
   padding: 8px 12px;
-  margin: 5px;
   background-color: #274c77;
   color: white;
   border: none;
   border-radius: 5px;
   cursor: pointer;
   font-size: 14px;
+  white-space: nowrap;
 
   &:hover {
     background-color: #1b3a57;
@@ -109,14 +120,14 @@ const ProjectMom = ({ projectId }) => {
                   .join(", ")}
               </div>
               
-              <Button onClick={() => window.open(`/mom-summary/${meeting.id}`, '_blank')}>
-  요약된 회의록 보기
-</Button>
-
-<Button onClick={() => window.open(`/momedit/${meeting.id}`, '_blank')}>
-  회의록 수정하기
-</Button>
-
+              <ButtonContainer>
+                <Button onClick={() => window.open(`/mom-summary/${meeting.id}`, '_blank')}>
+                  요약된 회의록 보기
+                </Button>
+                <Button onClick={() => window.open(`/momedit/${meeting.id}`, '_blank')}>
+                  회의록 수정하기
+                </Button>
+              </ButtonContainer>
 
               {/* 회의록 표시 */}
               {meetingMomList[meeting.id] && (

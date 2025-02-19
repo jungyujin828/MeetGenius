@@ -29,31 +29,33 @@ const ModalContainer = styled.div`
 const MeetingPageContainer = styled.div`
   display: flex;
   height: 100vh;
-  background-color: #f5f6f8;
-  gap: 20px;
-  padding: 20px;
-  max-width: 1800px;  // 전체 너비 증가
-  margin: 0 auto;     // 중앙 정렬
+  background-color: #f8fafc;
+  gap: 24px;
+  padding: 24px;
+  width: 100%;
+  box-sizing: border-box;
+  overflow: hidden;
 `;
 
 const LeftPanel = styled.div`
-  flex: 1;
+  flex: 1.2;
   background-color: white;
-  border-radius: 10px;
-  padding: 15px;      // 패딩 감소
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
-  overflow-y: auto;
-  min-width: 800px;   // 최소 너비 설정
+  border-radius: 16px;
+  min-width: 900px;
+  display: flex;
+  flex-direction: column;
+  height: calc(100vh - 48px);
+  overflow: hidden;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
 `;
 
 const RightPanel = styled.div`
-  flex: 1;
+  flex: 0.8;
   background-color: white;
-  border-radius: 10px;
-  padding: 20px;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
-  overflow-y: auto;
-  min-width: 800px;   // 최소 너비 설정
+  border-radius: 16px;
+  height: calc(100vh - 48px);
+  min-width: 600px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
 `;
 
 const Button = styled.button`
@@ -71,37 +73,115 @@ const Button = styled.button`
 
 // Styled components for meeting info
 const MeetingInfoContainer = styled.div`
-  background-color: #f8f9fa;
-  border-radius: 10px;
-  padding: 15px 20px;
-  margin-bottom: 20px;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+  background-color: white;
+  border-radius: 16px 16px 0 0;
+  padding: 28px 32px;
+  margin-bottom: 0;
+  width: 100%;
+  box-sizing: border-box;
+  flex-shrink: 0;
+  border-bottom: 1px solid #e2e8f0;
 `;
 
 const InfoRow = styled.div`
   display: flex;
-  gap: 20px;
-  margin-bottom: 8px;
-  align-items: center;
+  gap: 32px;
+  margin-bottom: 20px;
+  align-items: flex-start;
+
+  &:last-child {
+    margin-bottom: 0;
+  }
+
+  &:first-child {
+    margin-bottom: 24px;
+    padding-bottom: 20px;
+    border-bottom: 1px solid #e2e8f0;
+  }
+`;
+
+const SecondaryInfoRow = styled(InfoRow)`
+  margin-bottom: 16px;
+  font-size: 14px;
+  color: #4a5568;
+  gap: 24px;
   flex-wrap: wrap;
+`;
+
+const SecondaryInfo = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  
+  svg {
+    color: #274c77;
+    width: 16px;
+    height: 16px;
+    flex-shrink: 0;
+  }
+
+  ${props => props.isDateTime && `
+    .date {
+      color: #274c77;
+      font-weight: 600;
+      margin-right: 4px;
+    }
+    .time {
+      color: #4a5568;
+      font-weight: 500;
+    }
+  `}
+`;
+
+const ParticipantsList = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  
+  span {
+    color: #4a5568;
+    position: relative;
+    padding-right: 12px;
+    
+    &:not(:last-child)::after {
+      content: "•";
+      position: absolute;
+      right: 0;
+      color: #cbd5e0;
+    }
+  }
 `;
 
 const InfoItem = styled.div`
   display: flex;
-  align-items: center;
-  min-width: 200px;
+  align-items: flex-start;
+  gap: 12px;
+  flex: 1;
 `;
 
 const Label = styled.span`
-  font-weight: 600;
-  color: #495057;
-  min-width: 70px;
-  font-size: 0.9rem;
+  font-size: 16px;
+  font-weight: 700;
+  color: #274c77;
+  min-width: 80px;
+  padding-top: 4px;
+  letter-spacing: -0.3px;
 `;
 
 const Content = styled.span`
-  color: #212529;
-  font-size: 0.9rem;
+  color: #1a202c;
+  font-size: 15px;
+  line-height: 1.5;
+  flex: 1;
+  font-weight: ${props => props.isTitle ? '700' : '500'};
+
+  ${props => props.isTitle && `
+    font-size: 20px;
+    color: #1a202c;
+    line-height: 1.4;
+    letter-spacing: -0.5px;
+  `}
 `;
 
 const AgendaList = styled.div`
@@ -163,6 +243,26 @@ const MessageContainer = styled.div`
   &.rag {
     background-color: #f3e5f5;
     border-left: 4px solid #9c27b0;
+  }
+`;
+
+const ContentArea = styled.div`
+  flex: 1;
+  overflow-y: auto;
+  padding: 24px 32px;
+  background-color: #ffffff;
+  
+  &::-webkit-scrollbar {
+    width: 8px;
+  }
+  
+  &::-webkit-scrollbar-thumb {
+    background-color: #cbd5e0;
+    border-radius: 4px;
+  }
+  
+  &::-webkit-scrollbar-track {
+    background-color: #f8fafc;
   }
 `;
 
@@ -428,6 +528,7 @@ const RealtimeMeetingPage = () => {
         <ModalBackground>
           <ModalContainer>
             <h3>회의 준비 중...</h3>
+            <p>🚀지금 당장 떠날 수 있다면 어디로 여행 가고 싶나요?</p>
           </ModalContainer>
         </ModalBackground>
       );
@@ -461,35 +562,48 @@ const RealtimeMeetingPage = () => {
           {meetingInfo && (
             <MeetingInfoContainer>
               <InfoRow>
-                <InfoItem>
+                <InfoItem style={{ flex: 2 }}>
                   <Label>회의명</Label>
-                  <Content>{meetingInfo.title}</Content>
+                  <Content isTitle>{meetingInfo.title}</Content>
                 </InfoItem>
                 <InfoItem>
                   <Label>프로젝트</Label>
-                  <Content>{meetingInfo.project.name}</Content>
+                  <Content isTitle>{meetingInfo.project.name}</Content>
                 </InfoItem>
               </InfoRow>
-              <InfoRow>
-                <InfoItem>
-                  <Label>시간</Label>
-                  <Content>
-                    {meetingInfo.starttime.split(' ')[1]} ~ {meetingInfo.endtime.split(' ')[1]}
-                  </Content>
-                </InfoItem>
-                <InfoItem>
-                  <Label>주최자</Label>
-                  <Content>{meetingInfo.booker}</Content>
-                </InfoItem>
-              </InfoRow>
-              <InfoRow>
-                <InfoItem>
-                  <Label>참가자</Label>
-                  <Content>
-                    {meetingInfo.meeting_participants[0]?.name || meetingInfo.booker}
-                  </Content>
-                </InfoItem>
-              </InfoRow>
+              <SecondaryInfoRow>
+                <SecondaryInfo isDateTime>
+                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
+                  </svg>
+                  <span className="date">
+                    {new Date(meetingInfo.starttime).toLocaleDateString('ko-KR', {
+                      year: 'numeric',
+                      month: 'long',
+                      day: 'numeric'
+                    })}
+                  </span>
+                  <span className="time">
+                    {meetingInfo.starttime.split(' ')[1].slice(0, 5)} ~ {meetingInfo.endtime.split(' ')[1].slice(0, 5)}
+                  </span>
+                </SecondaryInfo>
+                <SecondaryInfo>
+                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 6a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0ZM4.501 20.118a7.5 7.5 0 0 1 14.998 0A17.933 17.933 0 0 1 12 21.75c-2.676 0-5.216-.584-7.499-1.632Z" />
+                  </svg>
+                  {meetingInfo.booker}
+                </SecondaryInfo>
+                <SecondaryInfo>
+                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M18 18.72a9.094 9.094 0 0 0 3.741-.479 3 3 0 0 0-4.682-2.72m.94 3.198.001.031c0 .225-.012.447-.037.666A11.944 11.944 0 0 1 12 21c-2.17 0-4.207-.576-5.963-1.584A6.062 6.062 0 0 1 6 18.719m12 0a5.971 5.971 0 0 0-.941-3.197m0 0A5.995 5.995 0 0 0 12 12.75a5.995 5.995 0 0 0-5.058 2.772m0 0a3 3 0 0 0-4.681 2.72 8.986 8.986 0 0 0 3.74.477m.94-3.197a5.971 5.971 0 0 0-.94 3.197M15 6.75a3 3 0 1 1-6 0 3 3 0 0 1 6 0Zm6 3a2.25 2.25 0 1 1-4.5 0 2.25 2.25 0 0 1 4.5 0Zm-13.5 0a2.25 2.25 0 1 1-4.5 0 2.25 2.25 0 0 1 4.5 0Z" />
+                  </svg>
+                  <ParticipantsList>
+                    {meetingInfo.meeting_participants.map((participant, index) => (
+                      <span key={index}>{participant.name}</span>
+                    ))}
+                  </ParticipantsList>
+                </SecondaryInfo>
+              </SecondaryInfoRow>
               <InfoRow>
                 <InfoItem style={{ width: '100%' }}>
                   <Label>안건</Label>
