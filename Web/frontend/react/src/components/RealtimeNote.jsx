@@ -432,7 +432,6 @@ const RealtimeNote = ({ meetingInfo, currentAgendaNum, onEndMeeting, onDocumentU
     <NoteContainer>
       <NoteContent ref={noteContentRef}>
         {accumulatedMessages.length > 0 ? (
-<<<<<<< Web/frontend/react/src/components/RealtimeNote.jsx
           accumulatedMessages.map((message, index) => (
             <div key={index}>
               {message.type === "divider" && <AgendaDivider />}
