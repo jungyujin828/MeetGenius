@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import styled from "styled-components";
 import { useParams } from "react-router-dom";
 import axiosInstance from '../api/axiosInstance';
@@ -277,6 +277,7 @@ const RealtimeNote = ({ meetingInfo, currentAgendaNum, onEndMeeting }) => {
     const saved = localStorage.getItem(`meeting_${meetingId}_messages`);
     return saved ? JSON.parse(saved) : [];
   });
+  const noteContentRef = useRef(null); // 추가: NoteContent에 대한 ref
   
   // 누적 메시지가 변경될 때마다 localStorage에 저장
   useEffect(() => {
@@ -509,9 +510,21 @@ const RealtimeNote = ({ meetingInfo, currentAgendaNum, onEndMeeting }) => {
     }
   };
 
+  // 스크롤을 맨 아래로 이동시키는 함수
+  const scrollToBottom = useCallback(() => {
+    if (noteContentRef.current) {
+      noteContentRef.current.scrollTop = noteContentRef.current.scrollHeight;
+    }
+  }, []);
+
+  // accumulatedMessages가 업데이트될 때마다 스크롤 이동
+  useEffect(() => {
+    scrollToBottom();
+  }, [accumulatedMessages, scrollToBottom]);
+
   return (
     <NoteContainer>
-      <NoteContent>
+      <NoteContent ref={noteContentRef}>
         {accumulatedMessages.length > 0 ? (
           accumulatedMessages.map((message, index) => {
             switch(message.type) {
