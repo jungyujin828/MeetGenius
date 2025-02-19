@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import axios from "axios";
 import styled from "styled-components";
 import { deleteProject, deleteReport, fetchFiles } from "../api/project";
@@ -142,6 +142,7 @@ const ProjectDetail = ({ projectId, onClose }) => {
   }); // 수정할 폼 데이터
   const [departments, setDepartments] = useState([]); // 부서 목록
   const [users, setUsers] = useState([]); // 유저 목록
+  const fileInputRef = useRef(null); // 추가: file input에 대한 ref
 
   useEffect(() => {
     const fetchProjectDetail = async () => {
@@ -245,6 +246,11 @@ const ProjectDetail = ({ projectId, onClose }) => {
     }
   };
 
+  // 파일 업로드 버튼 클릭 핸들러 추가
+  const handleFileButtonClick = () => {
+    fileInputRef.current.click();
+  };
+
   if (loading) return <Overlay><DetailContainer>로딩 중...</DetailContainer></Overlay>;
   if (error) return <Overlay><DetailContainer>{error}</DetailContainer></Overlay>;
   if (!project) return null;
@@ -342,8 +348,15 @@ const ProjectDetail = ({ projectId, onClose }) => {
               )}
             </FileList>
 
+            <input 
+              type="file"
+              ref={fileInputRef}
+              style={{ display: 'none' }}
+              onChange={handleFileUpload}
+            />
+
             <ButtonContainer>
-              <ActionButton onClick={handleFileUpload}>파일 추가</ActionButton>
+              <ActionButton onClick={handleFileButtonClick}>파일 추가</ActionButton>
               <ActionButton onClick={() => setEditMode(true)}>수정</ActionButton>
               <ActionButton onClick={handleDeleteProject}>삭제</ActionButton>
             </ButtonContainer>
