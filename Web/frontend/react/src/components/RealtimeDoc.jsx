@@ -1,82 +1,29 @@
 import React, { useState, useEffect } from "react";
 import styled from "styled-components";
-import axios from "axios";
 
-const RealtimeDoc = ({ meetingInfo }) => {
-  const [documents, setDocuments] = useState([]);
+const RealtimeDoc = ({ meetingInfo, documents }) => {
   const [selectedDoc, setSelectedDoc] = useState(null);
-  const baseURL = import.meta.env.VITE_APP_BASEURL;
-
-  const fetchDocuments = async () => {
-    const authToken = localStorage.getItem("authToken");
-    if (!authToken) {
-      console.error('[문서 조회] 인증 토큰 없음');
-      return;
-    }
-
-    // project 객체에서 ID 값 추출
-    const projectData = meetingInfo?.project;
-    if (!projectData) {
-      console.error('[문서 조회] 프로젝트 정보 없음');
-      return;
-    }
-
-    const actualProjectId = typeof projectData === 'object' ? projectData.id : projectData;
-
-    try {
-      const url = `${baseURL}/projects/${actualProjectId}/all_reports/`;
-      console.log('[문서 조회] 요청 URL:', url);
-
-      const response = await axios.get(url, {
-        headers: {
-          Authorization: `Token ${authToken}`,
-        }
-      });
-      
-      console.log('[문서 목록] 응답:', response.data);
-      
-      const documentList = Array.isArray(response.data) ? response.data : 
-                         response.data.reports ? response.data.reports : [];
-      
-      console.log('[문서 목록] 처리된 데이터:', documentList);
-      setDocuments(documentList);
-
-    } catch (error) {
-      console.error('[문서 조회] 에러:', error);
-    }
-  };
-
-  useEffect(() => {
-    if (meetingInfo?.project) {
-      fetchDocuments();
-    }
-  }, [meetingInfo]);
-
-  const handleDocClick = (doc) => {
-    setSelectedDoc(doc);
-  };
+  console.log("documents",documents)
 
   return (
-    <DocContainer>
-      <DocList>
-        {documents.map((doc, index) => (
-          <DocItem 
-            key={index}
-            onClick={() => handleDocClick(doc)}
-            isSelected={selectedDoc?.id === doc.id}
-          >
-            {doc.title || `문서 ${index + 1}`}
-          </DocItem>
-        ))}
-      </DocList>
-      
-      {selectedDoc && (
-        <DocContent>
-          <DocTitle>{selectedDoc.title}</DocTitle>
-          <DocText>{selectedDoc.content}</DocText>
-        </DocContent>
-      )}
-    </DocContainer>
+<DocContainer>
+  <DocList>
+    {documents.length > 0 ? (
+      documents.map((doc, index) => (
+        <DocItem 
+          key={doc.id || index}  // id가 없을 경우 index 사용
+          onClick={() => handleDocClick(doc)}
+          isSelected={selectedDoc?.id === doc.id}
+        >
+          {`${doc.title} - ${doc.content}`} {/* 템플릿 리터럴 사용 */}
+        </DocItem>
+      ))
+    ) : (
+      <p>📂 문서가 없습니다.</p>  // 문서가 없을 경우 메시지 표시
+    )}
+  </DocList>
+</DocContainer>
+
   );
 };
 
