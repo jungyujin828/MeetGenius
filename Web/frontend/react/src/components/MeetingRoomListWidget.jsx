@@ -57,7 +57,14 @@ const getWeekRange = (date) => {
 
 
 
-const MeetingRoomListWidget = ({ roomId , onMeetingClick }) => {
+const MeetingRoomListWidget = ({ 
+  meetings, 
+  roomId, 
+  onMeetingClick, 
+  selectedRoom, 
+  onBookingClick,
+  isBookingVisible 
+}) => {
   const dispatch = useDispatch();
   const [selectedDate, setSelectedDate] = useState(new Date());
   const { startdate, enddate, dates, start, end } = getWeekRange(selectedDate);
@@ -106,8 +113,14 @@ const MeetingRoomListWidget = ({ roomId , onMeetingClick }) => {
       </div>
 
       <Table>
-        {/* 회의 목록을 `MeetingRoomBookedListWidget`으로 전달 */}
-        <MeetingRoomBooked onMeetingClick={onMeetingClick} dates={dates} />      </Table>
+        <MeetingRoomBooked 
+          onMeetingClick={onMeetingClick}
+          dates={dates}
+          selectedRoom={selectedRoom}
+          onBookingClick={onBookingClick}
+          isBookingVisible={isBookingVisible}
+        />
+      </Table>
     </ScheduleContainer>
   );
 };

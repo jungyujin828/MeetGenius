@@ -1,7 +1,8 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import styled from "styled-components";
 import { useParams } from "react-router-dom";
 import axiosInstance from '../api/axiosInstance';
+import useSSE from "../hooks/useSSE"; // ✅ SSE 훅 가져오기
 
 const Container = styled.div`
   display: flex;
@@ -48,64 +49,102 @@ const RightPanel = styled.div`
 `;
 
 const TextMessage = styled.div`
-  margin: 10px 0;
-  padding: 12px 16px;
+  margin: 12px 0;
+  padding: 16px;
   border-radius: 8px;
   font-size: 14px;
-  line-height: 1.4;
-
+  line-height: 1.6;
+  
   ${props => props.type === "plain" && `
-    background-color: #f8f9fa;
-    color: #212529;
+    color: #1a202c;
+    padding-left: 16px;
   `}
 
   ${props => props.type === "query" && `
-    background-color: #e7f5ff;
-    color: #1864ab;
-    border-left: 2px solid #1864ab;
+    background-color:rgb(243, 243, 243);
+    position: relative;
+    padding-left: 44px;
+    border: 1px solidrgb(219, 235, 255);
     
     &::before {
-      content: "❓";
-      margin-right: 8px;
+      content: "💭";
+      position: absolute;
+      left: 14px;
+      top: 50%;
+      transform: translateY(-50%);
+      font-size: 16px;
     }
   `}
 
   ${props => props.type === "agenda_docs_update" && `
-    background-color: #ebfbee;
-    color: #2b8a3e;
-    border-left: 4px solid #2b8a3e;
+    background-color: #EEF2F7;
+    position: relative;
+    padding-left: 44px;
+    border: 1px solid #E5E9F0;
     
     &::before {
-      content: "📄";
-      margin-right: 8px;
-    }
-  `}
-
-  ${props => props.type === "rag" && `
-    background-color: #e3f2fd;
-    color: #1565c0;
-    border-left: 4px solid #1565c0;
-    
-    &::before {
-      content: "🔍";
-      margin-right: 8px;
+      content: "🤖";
+      position: absolute;
+      left: 14px;
+      top: 50%;
+      transform: translateY(-50%);
+      font-size: 16px;
     }
   `}
 `;
 
+const ButtonContainer = styled.div`
+  padding: 16px 20px;
+  border-top: 1px solid #e2e8f0;
+  margin-top: 20px;
+`;
+
+const ButtonGroup = styled.div`
+  display: flex;
+  gap: 12px;
+  justify-content: flex-end;
+`;
+
 const Button = styled.button`
-  padding: 12px 20px;
-  background-color: #274c77;
+  padding: 8px 16px;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 500;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+`;
+
+const NextButton = styled(Button)`
+  background-color: #1e40af;  // 진한 남색
   color: white;
   border: none;
-  border-radius: 5px;
-  cursor: pointer;
-  font-size: 16px;
-  margin-top: 20px;
-
-  &:hover {
-    background-color: #1b3a57;
+  
+  &:hover:not(:disabled) {
+    background-color: #1e3a8a;
+    transform: translateY(-1px);
   }
+
+`;
+
+const EndButton = styled(Button)`
+  background-color: white;
+  color: #dc2626;  // 빨간색
+  border: 1px solid #dc2626;
+  
+  &:hover:not(:disabled) {
+    background-color: #fee2e2;  // 연한 빨간색 배경
+    border-color: #b91c1c;
+    color: #b91c1c;
+  }
+
+
 `;
 
 const QueryMessage = styled.div`
@@ -115,17 +154,30 @@ const QueryMessage = styled.div`
   margin-top: 10px;
 `;
 
-const DocumentLink = styled.a`
-  display: block;
-  margin-top: 10px;
-  padding: 10px;
-  background-color: #e8e8e8;
+const DocumentList = styled.div`
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid #E5E9F0;
+`;
+
+const DocumentLink = styled.div`
+  padding: 10px 12px;
+  margin: 4px 0;
+  background: rgba(255, 255, 255, 0.7);
   border-radius: 6px;
-  text-decoration: none;
+  font-size: 13px;
   color: #274c77;
+  cursor: pointer;
+  transition: all 0.2s ease;
 
   &:hover {
-    background-color: #d3d3d3;
+    background: white;
+    transform: translateX(4px);
+  }
+
+  &::before {
+    content: "📑";
+    margin-right: 10px;
   }
 `;
 
@@ -161,61 +213,36 @@ const InfoItem = styled.div`
   }
 `;
 
-const AgendaHeader = styled.h2`
+const AgendaDivider = styled.div`
+  display: flex;
+  align-items: center;
+  margin: 24px 0;
+  gap: 12px;
+  
+  &::before,
+  &::after {
+    content: "";
+    flex: 1;
+    height: 1px;
+    background: linear-gradient(to right, transparent, #274c77, transparent);
+    opacity: 0.3;
+  }
+`;
+
+const AgendaHeader = styled.div`
   font-size: 24px;
-  color: #1a73e8;
-  margin-bottom: 20px;
-  padding-bottom: 10px;
-  border-bottom: 2px solid #1a73e8;
-`;
-
-const ButtonContainer = styled.div`
+  color: #274c77;
+  font-weight: 700;
+  padding: 16px 0;
+  margin: 8px 0 16px 0;
+  
   display: flex;
-  justify-content: flex-end;
-  gap: 10px;
-  margin-top: 20px;
-  padding: 10px;
-  position: sticky;
-  bottom: 0;
-  background-color: white;
-  border-top: 1px solid #eee;
-`;
-
-const BaseButton = styled.button`
-  padding: 12px 24px;
-  border-radius: 6px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.2s;
-`;
-
-const NextButton = styled(BaseButton)`
-  background-color: #1a73e8;
-  color: white;
-  border: none;
-
-  &:hover {
-    background-color: #1557b0;
+  align-items: center;
+  gap: 12px;
+  
+  &::before {
+    font-size: 20px;
   }
-`;
-
-const EndButton = styled(BaseButton)`
-  background-color: #dc3545;
-  color: white;
-  border: none;
-
-  &:hover {
-    background-color: #bb2d3b;
-  }
-`;
-
-const DocumentList = styled.div`
-  margin-top: 8px;
-`;
-
-const ButtonGroup = styled.div`
-  display: flex;
-  gap: 10px;
 `;
 
 const NoteContainer = styled.div`
@@ -235,27 +262,17 @@ const NoteContent = styled.div`
   margin-bottom: 20px;
 `;
 
-const AgendaDivider = styled.div`
-  border-top: 2px solid #e0e0e0;
-  margin: 30px 0;
-`;
 
-const RealtimeNote = ({ meetingInfo, currentAgendaNum, onEndMeeting }) => {
+const RealtimeNote = ({ meetingInfo, currentAgendaNum, onEndMeeting, onDocumentUpdate }) => {
   const { meetingId } = useParams();
-  const [sttText, setSttText] = useState([]);
-  const [queryMessage, setQueryMessage] = useState(""); // 쿼리 메시지
-  const [documents, setDocuments] = useState([]); // RAG 문서 목록
-  const [meetingState, setMeetingState] = useState(""); // 회의 상태
-  const [ragList, setRagList] = useState([]); // 새로운 RAG 문서 목록
-  const [error, setError] = useState(null);
-  const [currentAgenda, setCurrentAgenda] = useState(null);
-  const [groupedMessages, setGroupedMessages] = useState([]);
+  const { data } = useSSE(meetingId);
   const [actualCurrentAgenda, setActualCurrentAgenda] = useState(currentAgendaNum);
   const [accumulatedMessages, setAccumulatedMessages] = useState(() => {
-    // localStorage에서 저장된 메시지 불러오기
     const saved = localStorage.getItem(`meeting_${meetingId}_messages`);
     return saved ? JSON.parse(saved) : [];
   });
+
+  const noteContentRef = useRef(null); // 추가: NoteContent에 대한 ref
   
   // 누적 메시지가 변경될 때마다 localStorage에 저장
   useEffect(() => {
@@ -264,55 +281,53 @@ const RealtimeNote = ({ meetingInfo, currentAgendaNum, onEndMeeting }) => {
 
   // SSE 메시지 수신 처리
   useEffect(() => {
-    const baseUrl = axiosInstance.defaults.baseURL;
-    const eventSource = new EventSource(`${baseUrl}/meetings/stream/`);
-    
-    eventSource.onmessage = (event) => {
-      try {
-        const data = JSON.parse(event.data);
-        console.log('[SSE] 받은 데이터:', data);
+    if (!data) return;
+    console.log("📡 [SSE] 수신된 데이터:", data);
 
-        // cur_agenda 업데이트 처리
+    try {
+        // ✅ 현재 안건 번호 업데이트
         if (data.cur_agenda) {
           setActualCurrentAgenda(parseInt(data.cur_agenda));
-        }
+        }  
+              // ✅ 문서 업데이트 감지 및 부모로 전달
+      if (data.documents && data.type === "agenda_docs_update") {
+        console.log("📂 문서 업데이트 감지:", data.documents);
+        onDocumentUpdate(data.documents);
+      }
 
-        // 초기 데이터 처리
-        if (data.stt_list && accumulatedMessages.length === 0) {
-          const initialMessages = [];
-          
-          // 모든 안건에 대한 구분선과 제목 추가
-          meetingInfo?.meeting_agendas?.forEach((agenda, index) => {
-            if (index === 0) {
-              initialMessages.push({
-                type: "divider",
-                timestamp: new Date().toISOString(),
-                agendaNumber: agenda.order
-              });
-              
-              initialMessages.push({
-                type: "agenda_change",
-                message: `=== 안건 ${agenda.order}: ${agenda.title} 회의 시작 ===`,
-                timestamp: new Date(new Date().getTime() + 1).toISOString(),
-                agendaNumber: agenda.order
-              });
-            }
-          });
+          // ✅ 초기 데이터 처리 (첫 번째 STT 메시지 수신 시)
+          if (data.stt_list && accumulatedMessages.length === 0) {
+            const initialMessages = [];
+            
+            // 모든 안건에 대한 구분선과 제목 추가
+            meetingInfo?.meeting_agendas?.forEach((agenda, index) => {
+              if (index === 0) {
+                initialMessages.push({
+                  type: "divider",
+                  timestamp: new Date().toISOString(),
+                  agendaNumber: agenda.order
+                });
+                
+                initialMessages.push({
+                  type: "agenda_change",
+                  message: `안건 ${agenda.order}. ${agenda.title}`,
+                  timestamp: new Date(new Date().getTime() + 1).toISOString(),
+                  agendaNumber: agenda.order
+                });
+              }
+            });
+  
+            // STT 메시지 처리
+            const newMessages = data.stt_list.map(msg => ({
+              message: msg,
+              type: "plain",
+              timestamp: new Date().toISOString(),
+              agendaNumber: actualCurrentAgenda // 현재 안건 번호 추가
+            }));
 
-          // STT 메시지 처리
-          const newMessages = data.stt_list.map(msg => ({
-            message: msg,
-            type: "plain",
-            timestamp: new Date().toISOString(),
-            agendaNumber: actualCurrentAgenda // 현재 안건 번호 추가
-          }));
-          
-          // 현재 안건의 메시지만 업데이트
-          setSttText(newMessages);
-          
-          // 누적 메시지에 추가 (초기 구분선/제목 + 메시지)
-          setAccumulatedMessages([...initialMessages, ...newMessages]);
-        }
+            // 누적 메시지에 추가 (초기 구분선/제목 + 메시지)
+            setAccumulatedMessages([...initialMessages, ...newMessages]);
+          }
 
         // 실시간 메시지 처리
         if (data.type && data.message) {
@@ -322,80 +337,14 @@ const RealtimeNote = ({ meetingInfo, currentAgendaNum, onEndMeeting }) => {
             agendaNumber: actualCurrentAgenda // 현재 안건 번호 추가
           };
 
-          // 현재 안건의 실시간 메시지 추가
-          setSttText(prevMessages => {
-            const newMessages = [...prevMessages, messageWithTimestamp];
-            return newMessages.sort((a, b) => 
-              new Date(a.timestamp) - new Date(b.timestamp)
-            );
-          });
-
           // 누적 메시지에도 추가
           setAccumulatedMessages(prev => [...prev, messageWithTimestamp]);
         }
-      } catch (error) {
+    } catch (error) {
         console.error('[SSE] 메시지 처리 오류:', error);
-      }
-    };
-
-    eventSource.onerror = (error) => {
-      console.error('[SSE] 연결 에러:', error);
-      eventSource.close();
-    };
-
-    // 로컬 스토리지에서 이전 데이터 복원
-    // const savedSTT = localStorage.getItem(`meeting_${meetingId}_stt`);
-    // if (savedSTT) {
-    //   try {
-    //     const parsedSTT = JSON.parse(savedSTT);
-    //     console.log('[LocalStorage] 저장된 데이터 복원:', parsedSTT);
-    //     setSttText(parsedSTT);
-    //   } catch (error) {
-    //     console.error('[LocalStorage] 데이터 복원 중 에러:', error);
-    //   }
-    // }
-
-    return () => eventSource.close();
-  }, [meetingId, actualCurrentAgenda]);
-
-  // 메시지 그룹화 처리
-  const groupMessages = useCallback((messages) => {
-    const grouped = [];
-    let currentGroup = null;
-
-    messages.forEach((msg) => {
-      if (!currentGroup || currentGroup.type !== msg.type) {
-        if (currentGroup) {
-          grouped.push(currentGroup);
-        }
-        currentGroup = {
-          type: msg.type,
-          messages: [msg.message],
-          documents: msg.documents,
-          timestamp: new Date()
-        };
-      } else {
-        currentGroup.messages.push(msg.message);
-        if (msg.documents) {
-          currentGroup.documents = [...(currentGroup.documents || []), ...msg.documents];
-        }
-      }
-    });
-
-    if (currentGroup) {
-      grouped.push(currentGroup);
     }
+}, [data, actualCurrentAgenda]);
 
-    return grouped;
-  }, []);
-
-  // 현재 안건 정보 설정
-  useEffect(() => {
-    if (meetingInfo?.meeting_agendas) {
-      const agenda = meetingInfo.meeting_agendas.find(a => a.order === actualCurrentAgenda);
-      setCurrentAgenda(agenda);
-    }
-  }, [meetingInfo, actualCurrentAgenda]);
 
   // 다음 안건으로 이동
   const handleNextAgenda = async () => {
@@ -429,7 +378,7 @@ const RealtimeNote = ({ meetingInfo, currentAgendaNum, onEndMeeting }) => {
         // 새 안건 시작 메시지 추가
         const agendaChangeMessage = {
           type: "agenda_change",
-          message: `=== 안건 ${nextAgenda.order}: ${nextAgenda.title} 회의 시작 ===`,
+          message: `안건 ${nextAgenda.order}. ${nextAgenda.title}`,
           timestamp: new Date(new Date().getTime() + 1).toISOString(), // 구분선 다음에 표시되도록 1ms 추가
           agendaNumber: nextAgendaNum
         };
@@ -437,9 +386,7 @@ const RealtimeNote = ({ meetingInfo, currentAgendaNum, onEndMeeting }) => {
         // 누적 메시지에 구분선과 새 안건 시작 메시지 추가
         setAccumulatedMessages(prev => [...prev, dividerMessage, agendaChangeMessage]);
         
-        // 현재 STT 초기화 (새로운 안건의 메시지를 위해)
-        setSttText([]);
-        
+
         alert(`${currentAgenda.title}에서 ${nextAgenda.title}로 이동합니다`);
       } else {
         alert("마지막 안건입니다.");
@@ -451,25 +398,6 @@ const RealtimeNote = ({ meetingInfo, currentAgendaNum, onEndMeeting }) => {
     }
   };
 
-  // 메시지 그룹화 처리 수정
-  useEffect(() => {
-    if (accumulatedMessages.length > 0) {
-      setGroupedMessages(groupMessages(accumulatedMessages));
-    }
-  }, [accumulatedMessages, groupMessages]);
-
-  // 날짜 포맷팅 함수
-  const formatDateTime = (dateString) => {
-    const date = new Date(dateString);
-    return date.toLocaleString('ko-KR', {
-      year: 'numeric',
-      month: '2-digit',
-      day: '2-digit',
-      hour: '2-digit',
-      minute: '2-digit',
-      hour12: false
-    });
-  };
 
   // 회의 종료 핸들러
   const handleEndMeeting = () => {
@@ -479,7 +407,7 @@ const RealtimeNote = ({ meetingInfo, currentAgendaNum, onEndMeeting }) => {
       
       // 상태 초기화
       setAccumulatedMessages([]);
-      setSttText([]);
+      // setSttText([]);
       
       // 상위 컴포넌트의 종료 핸들러 호출
       onEndMeeting();
@@ -488,58 +416,34 @@ const RealtimeNote = ({ meetingInfo, currentAgendaNum, onEndMeeting }) => {
     }
   };
 
+  // 스크롤을 맨 아래로 이동시키는 함수
+  const scrollToBottom = useCallback(() => {
+    if (noteContentRef.current) {
+      noteContentRef.current.scrollTop = noteContentRef.current.scrollHeight;
+    }
+  }, []);
+
+  // accumulatedMessages가 업데이트될 때마다 스크롤 이동
+  useEffect(() => {
+    scrollToBottom();
+  }, [accumulatedMessages, scrollToBottom]);
+
   return (
     <NoteContainer>
-      <NoteContent>
+      <NoteContent ref={noteContentRef}>
         {accumulatedMessages.length > 0 ? (
-          accumulatedMessages.map((message, index) => {
-            switch(message.type) {
-              case "divider":
-                return <AgendaDivider key={index} />;
-              case "agenda_change":
-                return (
-                  <AgendaHeader key={index}>
-                    {message.message}
-                  </AgendaHeader>
-                );
-              case "plain":
-                return (
-                  <TextMessage key={index} type="plain">
-                    {message.message}
-                  </TextMessage>
-                );
-                case "query":
-                  return (
-                    <TextMessage key={index} type="query">
-                      {/* {(message.message || []).map((msg, i) => (
-                        <div key={i}>
-                          {msg.startsWith('질문 :') ? msg : `질문 : ${msg}`}
-                        </div>
-                      ))} */}
-                      <div>{message.message}</div>
-                    </TextMessage>
-                  );
-                case "agenda_docs_update":
-                  return (
-                    <TextMessage key={index} type="agenda_docs_update">
-                      {message.message || ""}
-                      {message.documents && (
-                        <DocumentList>
-                          {message.documents.map((doc, docIndex) => (
-                            <DocumentLink key={docIndex}>
-                              관련 문서 #{docIndex + 1}
-                              {doc.title}
-                              {doc.content}
-                            </DocumentLink>
-                          ))}
-                        </DocumentList>
-                      )}
-                    </TextMessage>
-                  );
-              default:
-                return null;
-            }
-          })
+          accumulatedMessages.map((message, index) => (
+            <div key={index}>
+              {message.type === "divider" && <AgendaDivider />}
+              {message.type === "agenda_change" && <AgendaHeader>{message.message}</AgendaHeader>}
+              {message.type === "plain" && <TextMessage type="plain">{message.message}</TextMessage>}
+              {message.type === "query" && <TextMessage type="query">{message.message}</TextMessage>}
+              {message.type === "agenda_docs_update" && (
+                <TextMessage type="agenda_docs_update">
+                  {message.message}
+                </TextMessage>
+              )}            </div>
+          ))
         ) : (
           <p>아직 기록된 내용이 없습니다.</p>
         )}
@@ -549,7 +453,7 @@ const RealtimeNote = ({ meetingInfo, currentAgendaNum, onEndMeeting }) => {
         <ButtonGroup>
           {meetingInfo?.meeting_agendas?.length > currentAgendaNum && (
             <NextButton onClick={handleNextAgenda}>
-              다음 안건으로
+              다음 안건
             </NextButton>
           )}
           <EndButton onClick={handleEndMeeting}>

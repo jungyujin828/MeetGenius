@@ -2,11 +2,10 @@ import React, { useState, useEffect, useCallback } from "react";
 import styled from "styled-components";
 import RealtimeNote from "../components/RealtimeNote"; // 변경된 STT 페이지
 import RealtimeDoc from "../components/RealtimeDoc"; // 변경된 RAG 문서 페이지
-import axios from "axios";
 import { useNavigate, useParams } from "react-router-dom"; // 페이지 이동을 위한 useNavigate
-import { useSelector } from "react-redux";
 import axiosInstance from '../api/axiosInstance';  // axiosInstance import
-
+import useSSE from "../hooks/useSSE"; // ✅ SSE 훅 가져오기
+import { fetchMeetingDetails } from "../api/meetingRoom";
 // 모달 스타일 설정
 const ModalBackground = styled.div`
   position: fixed;
@@ -30,31 +29,33 @@ const ModalContainer = styled.div`
 const MeetingPageContainer = styled.div`
   display: flex;
   height: 100vh;
-  background-color: #f5f6f8;
-  gap: 20px;
-  padding: 20px;
-  max-width: 1800px;  // 전체 너비 증가
-  margin: 0 auto;     // 중앙 정렬
+  background-color: #f8fafc;
+  gap: 24px;
+  padding: 24px;
+  width: 100%;
+  box-sizing: border-box;
+  overflow: hidden;
 `;
 
 const LeftPanel = styled.div`
-  flex: 1;
+  flex: 1.2;
   background-color: white;
-  border-radius: 10px;
-  padding: 15px;      // 패딩 감소
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
-  overflow-y: auto;
-  min-width: 800px;   // 최소 너비 설정
+  border-radius: 16px;
+  min-width: 900px;
+  display: flex;
+  flex-direction: column;
+  height: calc(100vh - 48px);
+  overflow: hidden;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
 `;
 
 const RightPanel = styled.div`
-  flex: 1;
+  flex: 0.8;
   background-color: white;
-  border-radius: 10px;
-  padding: 20px;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
-  overflow-y: auto;
-  min-width: 800px;   // 최소 너비 설정
+  border-radius: 16px;
+  height: calc(100vh - 48px);
+  min-width: 600px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
 `;
 
 const Button = styled.button`
@@ -72,37 +73,115 @@ const Button = styled.button`
 
 // Styled components for meeting info
 const MeetingInfoContainer = styled.div`
-  background-color: #f8f9fa;
-  border-radius: 10px;
-  padding: 15px 20px;
-  margin-bottom: 20px;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+  background-color: white;
+  border-radius: 16px 16px 0 0;
+  padding: 28px 32px;
+  margin-bottom: 0;
+  width: 100%;
+  box-sizing: border-box;
+  flex-shrink: 0;
+  border-bottom: 1px solid #e2e8f0;
 `;
 
 const InfoRow = styled.div`
   display: flex;
-  gap: 20px;
-  margin-bottom: 8px;
-  align-items: center;
+  gap: 32px;
+  margin-bottom: 20px;
+  align-items: flex-start;
+
+  &:last-child {
+    margin-bottom: 0;
+  }
+
+  &:first-child {
+    margin-bottom: 24px;
+    padding-bottom: 20px;
+    border-bottom: 1px solid #e2e8f0;
+  }
+`;
+
+const SecondaryInfoRow = styled(InfoRow)`
+  margin-bottom: 16px;
+  font-size: 14px;
+  color: #4a5568;
+  gap: 24px;
   flex-wrap: wrap;
+`;
+
+const SecondaryInfo = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  
+  svg {
+    color: #274c77;
+    width: 16px;
+    height: 16px;
+    flex-shrink: 0;
+  }
+
+  ${props => props.isDateTime && `
+    .date {
+      color: #274c77;
+      font-weight: 600;
+      margin-right: 4px;
+    }
+    .time {
+      color: #4a5568;
+      font-weight: 500;
+    }
+  `}
+`;
+
+const ParticipantsList = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  
+  span {
+    color: #4a5568;
+    position: relative;
+    padding-right: 12px;
+    
+    &:not(:last-child)::after {
+      content: "•";
+      position: absolute;
+      right: 0;
+      color: #cbd5e0;
+    }
+  }
 `;
 
 const InfoItem = styled.div`
   display: flex;
-  align-items: center;
-  min-width: 200px;
+  align-items: flex-start;
+  gap: 12px;
+  flex: 1;
 `;
 
 const Label = styled.span`
-  font-weight: 600;
-  color: #495057;
-  min-width: 70px;
-  font-size: 0.9rem;
+  font-size: 16px;
+  font-weight: 700;
+  color: #274c77;
+  min-width: 80px;
+  padding-top: 4px;
+  letter-spacing: -0.3px;
 `;
 
 const Content = styled.span`
-  color: #212529;
-  font-size: 0.9rem;
+  color: #1a202c;
+  font-size: 15px;
+  line-height: 1.5;
+  flex: 1;
+  font-weight: ${props => props.isTitle ? '700' : '500'};
+
+  ${props => props.isTitle && `
+    font-size: 20px;
+    color: #1a202c;
+    line-height: 1.4;
+    letter-spacing: -0.5px;
+  `}
 `;
 
 const AgendaList = styled.div`
@@ -167,36 +246,55 @@ const MessageContainer = styled.div`
   }
 `;
 
+const ContentArea = styled.div`
+  flex: 1;
+  overflow-y: auto;
+  padding: 24px 32px;
+  background-color: #ffffff;
+  
+  &::-webkit-scrollbar {
+    width: 8px;
+  }
+  
+  &::-webkit-scrollbar-thumb {
+    background-color: #cbd5e0;
+    border-radius: 4px;
+  }
+  
+  &::-webkit-scrollbar-track {
+    background-color: #f8fafc;
+  }
+`;
+
 const RealtimeMeetingPage = () => {
-  const API_BASE_URL = import.meta.env.VITE_APP_BASEURL;
   const { meetingId } = useParams();
-  const token = useSelector((state) => state.auth.token);
-  const [meetingState, setMeetingState] = useState(null);
-  const [meetingData, setMeetingData] = useState(null);
-  const [error, setError] = useState(null);
-  const [isPreparing, setIsPreparing] = useState(false);
+  const { data } = useSSE(meetingId);
+  const [error, setError] = useState(null); // 🔹 에러 상태 추가
+
   const [isReady, setIsReady] = useState(false);
+  const [isPreparing, setIsPreparing] = useState(false);
   const [isMeetingStarted, setIsMeetingStarted] = useState(false);
-  const [isModalOpen, setIsModalOpen] = useState(true);
-  const [showMeetingScreen, setShowMeetingScreen] = useState(false);
+
+
   const [meetingInfo, setMeetingInfo] = useState(null);
   const [currentAgendaNum, setCurrentAgendaNum] = useState(1);
   const navigate = useNavigate();
   const [eventSource, setEventSource] = useState(null);
   const [sttText, setSttText] = useState([]);
-  const [queryMessage, setQueryMessage] = useState("");
   const [documents, setDocuments] = useState([]);
-  const [isSchedulerReady, setIsSchedulerReady] = useState(false);
 
   console.log("Current meeting ID:", meetingId);
-  console.log("API BASE URL:", API_BASE_URL); // 환경변수 확인용 로그
+
+  const handleDocumentUpdate = (newDocuments) => {
+    console.log("📂 새로운 문서 업데이트 (부모에서 관리):", newDocuments);
+    setDocuments(newDocuments);
+  };
 
   useEffect(() => {
     const fetchMeetingData = async () => {
       try {
-        const response = await axiosInstance.get(`/meetingroom/booked/${meetingId}/`);
-        setMeetingData(response.data);
-        setMeetingInfo(response.data);
+        const meetingInfo = await fetchMeetingDetails(meetingId);
+        setMeetingInfo(meetingInfo);
       } catch (error) {
         console.error("회의 정보 로드 중 오류:", error);
         setError("회의 정보를 불러오는데 실패했습니다.");
@@ -205,69 +303,37 @@ const RealtimeMeetingPage = () => {
 
     fetchMeetingData();
   }, [meetingId]);
-
-  // meetingInfo가 변경될 때마다 로그 출력
   useEffect(() => {
     console.log("현재 meetingInfo:", meetingInfo);
   }, [meetingInfo]);
 
-  // 1. 페이지 로드 시 스케줄러 요청
-  // useEffect(() => {
-  //   const initializeScheduler = async () => {
-  //     try {
-  //       console.log("스케줄러 초기화 시작");
-  //       const schedulerResponse = await axiosInstance.get(`/meetings/scheduler/${meetingId}/`);
-        
-  //       if (schedulerResponse.status === 200) {
-  //         console.log("스케줄러 초기화 완료");
-  //         setIsSchedulerReady(true);
-  //       }
-  //     } catch (error) {
-  //       console.error("스케줄러 초기화 실패:", error);
-  //       setError("회의 초기화에 실패했습니다.");
-  //     }
-  //   };
-
-  //   initializeScheduler();
-  // }, [meetingId]);
 
   // 페이지 로드 시 SSE 연결만 수행
   useEffect(() => {
-    console.log("SSE 연결 시작");
-    const sse = new EventSource(`${API_BASE_URL}/meetings/stream/`);
-    
-    sse.onmessage = (event) => {
-      try {
-        const data = JSON.parse(event.data);
-        console.log('수신된 데이터:', data);
-        
-        if (data.meeting_state) {
-          console.log('회의 상태 변경:', data.meeting_state);
-          
-          // 서버로부터 받은 상태에 따라 UI 업데이트
-          switch (data.meeting_state) {
-            case 'waiting_for_start':
-              setIsReady(true);
-              setIsPreparing(false);
-              break;
-            case 'meeting_in_progress':
-              setIsMeetingStarted(true);
-              break;
-            case 'meeting_finished':
-              // 회의 종료 팝업 표시
-              // alert("회의가 종료되었습니다.");
-              // dashboard로 이동
-              navigate('/dashboard');
-              break;
-          }
-        }
-      } catch (error) {
-        console.error('메시지 처리 오류:', error);
-      }
-    };
+    if (!data) return;
 
-    return () => sse.close();
-  }, [API_BASE_URL, navigate]);  // navigate 의존성 추가
+    console.log("🎯 SSE 데이터 감지:", data);
+
+    if (data.meeting_state) {
+        console.log("회의 상태 변경:", data.meeting_state);
+
+        switch (data.meeting_state) {
+            case "waiting_for_start":
+                setIsReady(true);
+                setIsPreparing(false);
+                break;
+            case "meeting_in_progress":
+                setIsMeetingStarted(true);
+                break;
+            case "meeting_finished":
+                alert("회의가 종료되었습니다.");
+                navigate("/dashboard");
+                break;
+            default:
+                console.warn("알 수 없는 상태:", data.meeting_state);
+        }
+    }
+}, [data, navigate]);
 
   // 회의 준비 버튼 클릭 시에만 스케줄러 실행
   const handlePrepareMeeting = async () => {
@@ -283,8 +349,8 @@ const RealtimeMeetingPage = () => {
         // 2. 회의 준비 요청
         const prepareResponse = await axiosInstance.post('/meetings/prepare/', {
           meeting_id: meetingId,
-          agenda_id: meetingData?.meeting_agendas[0]?.id,
-          agenda_title: meetingData?.meeting_agendas[0]?.title
+          agenda_id: meetingInfo?.meeting_agendas[0]?.id,
+          agenda_title: meetingInfo?.meeting_agendas[0]?.title
         });
 
         if (prepareResponse.status === 200) {
@@ -301,13 +367,13 @@ const RealtimeMeetingPage = () => {
 
   // 회의 시작 처리
   const handleStartMeeting = async () => {
-    if (!meetingData) {
+    if (!meetingInfo) {
       setError("회의 정보가 로드되지 않았습니다. 잠시 후 다시 시도해주세요.");
       return;
     }
 
     try {
-      const firstAgenda = meetingData.meeting_agendas[0];
+      const firstAgenda = meetingInfo.meeting_agendas[0];
       const requestData = {
         meeting_id: parseInt(meetingId),  // 문자열을 숫자로 변환
         agenda_id: firstAgenda?.id ? parseInt(firstAgenda.id) : null,  // null 처리 추가
@@ -400,6 +466,7 @@ const RealtimeMeetingPage = () => {
     rightPanelStyle.display = 'none'; // 화면이 줄어들면 오른쪽 패널 숨김
   }
 
+
   // RealtimeNote로부터 회의 정보를 받아오는 콜백 함수
   const handleMeetingInfo = (info) => {
     console.log('안건 데이터 구조:', JSON.stringify(info.meeting_agendas, null, 1));
@@ -461,6 +528,7 @@ const RealtimeMeetingPage = () => {
         <ModalBackground>
           <ModalContainer>
             <h3>회의 준비 중...</h3>
+            <p>🚀지금 당장 떠날 수 있다면 어디로 여행 가고 싶나요?</p>
           </ModalContainer>
         </ModalBackground>
       );
@@ -494,35 +562,48 @@ const RealtimeMeetingPage = () => {
           {meetingInfo && (
             <MeetingInfoContainer>
               <InfoRow>
-                <InfoItem>
+                <InfoItem style={{ flex: 2 }}>
                   <Label>회의명</Label>
-                  <Content>{meetingInfo.title}</Content>
+                  <Content isTitle>{meetingInfo.title}</Content>
                 </InfoItem>
                 <InfoItem>
                   <Label>프로젝트</Label>
-                  <Content>{meetingInfo.project.name}</Content>
+                  <Content isTitle>{meetingInfo.project.name}</Content>
                 </InfoItem>
               </InfoRow>
-              <InfoRow>
-                <InfoItem>
-                  <Label>시간</Label>
-                  <Content>
-                    {meetingInfo.starttime.split(' ')[1]} ~ {meetingInfo.endtime.split(' ')[1]}
-                  </Content>
-                </InfoItem>
-                <InfoItem>
-                  <Label>주최자</Label>
-                  <Content>{meetingInfo.booker}</Content>
-                </InfoItem>
-              </InfoRow>
-              <InfoRow>
-                <InfoItem>
-                  <Label>참가자</Label>
-                  <Content>
-                    {meetingInfo.meeting_participants[0]?.name || meetingInfo.booker}
-                  </Content>
-                </InfoItem>
-              </InfoRow>
+              <SecondaryInfoRow>
+                <SecondaryInfo isDateTime>
+                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
+                  </svg>
+                  <span className="date">
+                    {new Date(meetingInfo.starttime).toLocaleDateString('ko-KR', {
+                      year: 'numeric',
+                      month: 'long',
+                      day: 'numeric'
+                    })}
+                  </span>
+                  <span className="time">
+                    {meetingInfo.starttime.split(' ')[1].slice(0, 5)} ~ {meetingInfo.endtime.split(' ')[1].slice(0, 5)}
+                  </span>
+                </SecondaryInfo>
+                <SecondaryInfo>
+                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 6a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0ZM4.501 20.118a7.5 7.5 0 0 1 14.998 0A17.933 17.933 0 0 1 12 21.75c-2.676 0-5.216-.584-7.499-1.632Z" />
+                  </svg>
+                  {meetingInfo.booker}
+                </SecondaryInfo>
+                <SecondaryInfo>
+                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M18 18.72a9.094 9.094 0 0 0 3.741-.479 3 3 0 0 0-4.682-2.72m.94 3.198.001.031c0 .225-.012.447-.037.666A11.944 11.944 0 0 1 12 21c-2.17 0-4.207-.576-5.963-1.584A6.062 6.062 0 0 1 6 18.719m12 0a5.971 5.971 0 0 0-.941-3.197m0 0A5.995 5.995 0 0 0 12 12.75a5.995 5.995 0 0 0-5.058 2.772m0 0a3 3 0 0 0-4.681 2.72 8.986 8.986 0 0 0 3.74.477m.94-3.197a5.971 5.971 0 0 0-.94 3.197M15 6.75a3 3 0 1 1-6 0 3 3 0 0 1 6 0Zm6 3a2.25 2.25 0 1 1-4.5 0 2.25 2.25 0 0 1 4.5 0Zm-13.5 0a2.25 2.25 0 1 1-4.5 0 2.25 2.25 0 0 1 4.5 0Z" />
+                  </svg>
+                  <ParticipantsList>
+                    {meetingInfo.meeting_participants.map((participant, index) => (
+                      <span key={index}>{participant.name}</span>
+                    ))}
+                  </ParticipantsList>
+                </SecondaryInfo>
+              </SecondaryInfoRow>
               <InfoRow>
                 <InfoItem style={{ width: '100%' }}>
                   <Label>안건</Label>
@@ -541,10 +622,11 @@ const RealtimeMeetingPage = () => {
             meetingInfo={meetingInfo} 
             currentAgendaNum={currentAgendaNum}
             onEndMeeting={handleEndMeeting}
+            onDocumentUpdate={handleDocumentUpdate}
           />
         </LeftPanel>
         <RightPanel>
-          <RealtimeDoc meetingInfo={meetingInfo} />
+          <RealtimeDoc meetingInfo={meetingInfo} documents={documents} />
         </RightPanel>
       </>
     );

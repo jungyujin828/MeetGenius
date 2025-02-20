@@ -12,51 +12,130 @@ import styled from "styled-components";
 const MeetingFormContainer = styled.div`
   display: flex;
   flex-direction: column;
-  padding: 20px;
-  width: 100%;
-  max-width: 400px;
+  padding: 15px;
+  width: calc(100% - 30px);
   background-color: #fff;
-  border-radius: 8px;
-  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+  border-radius: 10px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
+
+  h3 {
+    margin: 0 0 15px 0;
+    padding-bottom: 12px;
+    border-bottom: 1px solid #eef2f6;
+    font-size: 1.1rem;
+    color: #274c77;
+  }
+
+  h4 {
+    margin: 8px 0;
+    font-size: 0.95rem;
+    color: #2d3748;
+  }
 `;
 
 const InputField = styled.input`
-  width: 100%;
-  padding: 10px;
-  margin-bottom: 10px;
-  border: 1px solid #ddd;
-  border-radius: 5px;
+  width: calc(100% - 16px); // 패딩을 고려한 너비 조정
+  padding: 8px;
+  margin-bottom: 12px;
+  border: 1px solid #e8ecef;
+  border-radius: 6px;
+  font-size: 0.9rem;
+
+  &:focus {
+    outline: none;
+    border-color: #274c77;
+  }
 `;
 
 const SelectField = styled.select`
   width: 100%;
-  padding: 10px;
-  margin-bottom: 10px;
-  border: 1px solid #ddd;
-  border-radius: 5px;
-`;
-
-const Button = styled.button`
-  padding: 10px 20px;
-  background-color: #274c77;
-  color: white;
-  border: none;
-  border-radius: 5px;
-  cursor: pointer;
-  &:hover {
-    background-color: #1b3a57;
-  }
+  padding: 8px;
+  margin-bottom: 12px;
+  border: 1px solid #e8ecef;
+  border-radius: 6px;
+  font-size: 0.9rem;
+  background-color: white;
 `;
 
 const UserSelectContainer = styled.div`
-  margin-bottom: 20px;
+  margin-bottom: 15px;
+  max-height: 150px;
+  overflow-y: auto;
+  padding-right: 5px;
+
+  &::-webkit-scrollbar {
+    width: 6px;
+  }
+
+  &::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 3px;
+  }
+
+  &::-webkit-scrollbar-thumb {
+    background: #cbd5e0;
+    border-radius: 3px;
+  }
 `;
 
 const UserItem = styled.div`
   display: flex;
   justify-content: space-between;
   align-items: center;
+  padding: 6px;
   margin-bottom: 5px;
+  border-radius: 5px;
+  background-color: #f8f9fa;
+  font-size: 0.85rem;
+
+  label {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 0.85rem;
+    color: #4a5568;
+  }
+
+  .user-info {
+    display: flex;
+    flex-direction: column;
+    margin-left: 6px;
+  }
+
+  .user-name {
+    font-weight: 500;
+  }
+
+  .user-position {
+    font-size: 0.8rem;
+    color: #718096;
+  }
+
+  input[type="checkbox"] {
+    margin-right: 6px;
+    transform: scale(0.9);
+  }
+`;
+
+const Button = styled.button`
+  padding: 8px 16px;
+  background-color: #274c77;
+  color: white;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  margin-top: 8px;
+  transition: all 0.2s ease;
+
+  &:hover {
+    background-color: #1b3a57;
+    transform: translateY(-1px);
+  }
+`;
+
+const AgendaContainer = styled.div`
+  margin-bottom: 15px;
 `;
 
 const baseURL = import.meta.env.VITE_APP_BASEURL;
@@ -317,22 +396,24 @@ for (let hour = 9; hour <= 18; hour++) {
             <label>
               <input
                 type="checkbox"
-                value={user.participant}
+                value={user.id}
                 checked={participants.some((p) => p.id === user.id)}
-                onChange={() => handleUserSelect(user.id)} // 체크박스 선택 처리
+                onChange={() => handleUserSelect(user.id)}
               />
-              {user.name} ({user.department} / {user.position})
+              <div className="user-info">
+                <span className="user-name">{user.name}</span>
+                <span className="user-position">({user.department} / {user.position})</span>
+              </div>
             </label>
             <div>
-            <label>
-              마스터 권한
-              <input
-                type="checkbox"
-                checked={participants.some((p) => p.id === user.id && p.authority === 0)} // authority가 0일 때 체크
-                onChange={() => handleAuthorityChange(user.id)} // 권한 변경
-              />
-            </label>
-
+              <label>
+                마스터
+                <input
+                  type="checkbox"
+                  checked={participants.some((p) => p.id === user.id && p.authority === 0)}
+                  onChange={() => handleAuthorityChange(user.id)}
+                />
+              </label>
             </div>
           </UserItem>
         ))}
