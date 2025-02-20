@@ -183,7 +183,7 @@ const Login = ({ onLogin }) => {
             <InputLabel>Employee Number</InputLabel>
             <Input
               type="text"
-              placeholder="1231234"
+              placeholder="employee number"
               value={employee_number}
               onChange={(e) => setEmployeeNumber(e.target.value)}
             />
