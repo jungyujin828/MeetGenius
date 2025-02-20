@@ -29,15 +29,15 @@ class UserManager(BaseUserManager):
         return self.create_user(employee_number, password, **extra_fields)
 
 class User(AbstractBaseUser, PermissionsMixin):
-    employee_number = models.IntegerField(unique=True)
+    employee_number = models.CharField(max_length=7, unique=True)
     name = models.CharField(max_length=50)
-    email = models.EmailField(unique=True)
+    email = models.EmailField(unique=False)
     department = models.ForeignKey(Department, on_delete=models.SET_NULL, null=True, blank=True)
     position = models.ForeignKey(Position, on_delete=models.SET_NULL, null=True, blank=True)
 
     is_active = models.BooleanField(default=True)
     is_staff = models.BooleanField(default=False)
-
+    is_superuser = models.BooleanField(default=False)
     objects = UserManager()
 
     USERNAME_FIELD = 'employee_number'
@@ -45,3 +45,12 @@ class User(AbstractBaseUser, PermissionsMixin):
 
     def __str__(self):
         return self.name
+
+class Notification(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE)  # 알림을 받을 사용자
+    message = models.TextField()  # 알림 내용
+    is_read = models.BooleanField(default=False)  # 알림 읽음 여부
+    created_at = models.DateTimeField(auto_now_add=True)  # 알림 생성 시각
+
+    def __str__(self):
+        return f"Notification for {self.user.username}"

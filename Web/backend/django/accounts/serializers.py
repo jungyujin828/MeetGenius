@@ -1,15 +1,21 @@
-from django.contrib.auth.forms import AuthenticationForm
 from rest_framework import serializers
+from .models import User, Department
 
-class LoginSerializer(serializers.Serializer):
-    employee_number = serializers.IntegerField()
-    password = serializers.CharField(write_only=True)
+class UserSerializer(serializers.ModelSerializer):
+    department = serializers.SerializerMethodField()
+    position = serializers.SerializerMethodField()
 
-    def validate(self, attrs):
-        request = self.context.get('request')
-        form = AuthenticationForm(request, data={'username': attrs['employee_number'], 'password': attrs['password']})
-        if not form.is_valid():
-            raise serializers.ValidationError("잘못된 사번 또는 비밀번호입니다.")
+    class Meta:
+        model = User
+        fields = ['id','employee_number', 'name', 'email', 'department', 'position']
 
-        attrs['user'] = form.get_user()
-        return attrs
+    def get_department(self, obj):
+        return obj.department.name if obj.department else None
+
+    def get_position(self, obj):
+        return obj.position.name if obj.position else None
+
+class DepartmentSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Department
+        fields = "__all__"  # 언더스코어 두 개 사용

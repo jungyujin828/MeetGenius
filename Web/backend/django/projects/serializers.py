@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Project, ProjectParticipation
+from .models import Project, ProjectParticipation, Document, Report
 from django.conf import settings
 from django.contrib.auth import get_user_model
 
@@ -56,8 +56,12 @@ class ProjectSerializer(serializers.ModelSerializer):
 User = get_user_model()
 
 class ProjectParticipationSerializer(serializers.ModelSerializer):
-    participant = serializers.PrimaryKeyRelatedField(queryset=User.objects.all())
-
     class Meta:
         model = ProjectParticipation
-        fields = ['id', 'project', 'participant', 'authority']
+        fields = "__all__"
+
+class ReportSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Report
+        # 필요한 필드만 선택할 수 있습니다.
+        fields = "__all__"

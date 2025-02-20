@@ -11,7 +11,11 @@ https://docs.djangoproject.com/en/5.1/ref/settings/
 """
 
 from pathlib import Path
+import os
+from dotenv import load_dotenv
 
+
+load_dotenv()
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -31,10 +35,10 @@ ALLOWED_HOSTS = ["*"]
 # Application definition
 
 INSTALLED_APPS = [
-    'testapp',
     'accounts',
     'projects',
     'meetings',
+    'meetingroom',
     'rest_framework',
     'dj_rest_auth',
     'rest_framework.authtoken',
@@ -45,20 +49,22 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    'allauth',
+    'allauth.account',
 ]
 
 REST_FRAMEWORK = {
     # Use Django's standard `django.contrib.auth` permissions,
     # or allow read-only access for unauthenticated users.
     'DEFAULT_AUTHENTICATION_CLASSES': [
-        'rest_framework.authentication.SessionAuthentication',  # 세션 인증 사용
+        'rest_framework.authentication.TokenAuthentication',
     ],
     'DEFAULT_PERMISSION_CLASSES': [
-        'rest_framework.permissions.DjangoModelPermissionsOrAnonReadOnly',
         'rest_framework.permissions.IsAuthenticated', 
     ],
     
 }
+
 
 MIDDLEWARE = [
     'corsheaders.middleware.CorsMiddleware',
@@ -70,6 +76,7 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    'allauth.account.middleware.AccountMiddleware',
 ]
 
 ROOT_URLCONF = 'ai203.urls'
@@ -96,31 +103,17 @@ WSGI_APPLICATION = 'ai203.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/5.1/ref/settings/#databases
 
-# DB - mariadb 수정 후
+# DB - mariadb
 DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.mysql', # MariaDB도 MySQL 백엔드 사용
-        'NAME': 'test_maria',
-        'USER': 'root',
-        'PASSWORD':'',
-        'HOST': 'localhost',
-        'PORT': '',
-
+        'default': {
+        'ENGINE': 'django.db.backends.mysql',
+        'NAME': os.getenv('DATABASENAME','test_maria'),
+        'USER': os.getenv('DATABASEUSER','admin'),
+        'PASSWORD':os.getenv('DATABASEPASSWORD','admin'),
+        'HOST': os.getenv('DATABASEHOST','db'), 
+        'PORT': os.getenv('DATABASEPORT','3306'),
     }
 }
-
-# # MriaDB 연결
-# DATABASES = {
-#     'default': {
-#         'ENGINE': 'django.db.backends.mysql',  
-#         'NAME': '203.ai_database',          
-#         'USER': 'root',                # MariaDB 사용자 이름
-#         'PASSWORD': 'OKCq0wAQK',        # MariaDB 비밀번호
-#         'HOST': 'localhost',                   # MariaDB가 로컬에 있으면 localhost, 원격 서버일 경우 IP 입력
-#         'PORT': '3306',                        # 기본 MariaDB 포트
-#     }
-# }
-
 
 
 # Password validation
@@ -151,7 +144,8 @@ TIME_ZONE = 'Asia/Seoul'
 
 USE_I18N = True
 
-USE_TZ = True
+# USE_TZ = True
+USE_TZ = False
 
 
 # Static files (CSS, JavaScript, Images)
@@ -167,25 +161,44 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 # 유저모델 설정
 AUTH_USER_MODEL = 'accounts.User'
 
-# 세션 설정 (세션 유지 및 보안 강화)
-SESSION_ENGINE = 'django.contrib.sessions.backends.db'
-SESSION_COOKIE_AGE = 60 * 60 * 24
-SESSION_SAVE_EVERY_REQUEST = True
-SESSION_COOKIE_HTTPONLY = True
-SESSION_COOKIE_SECURE = False  # 배포 시 True로 변경
-
-# dj-rest-auth 설정 (Token 인증 비활성화)
-REST_AUTH_TOKEN_MODEL = None
-REST_USE_JWT = False
 REST_AUTH_SERIALIZERS = {
     'LOGIN_SERIALIZER': 'accounts.serializers.LoginSerializer',
 }
 CORS_ALLOW_CREDENTIALS = True
-CORS_ALLOWED_ORIGINS = ["http://localhost:5173"]
-CSRF_TRUSTED_ORIGINS = ["http://localhost:5173"]
+CORS_ALLOWED_ORIGINS = [
+    "http://localhost:5173",
+    "http://192.168.31.48:5173"]
+CSRF_TRUSTED_ORIGINS = [
+    "http://localhost:5173",
+    "http://192.168.31.48:5173"]
+
+# ACCOUNT_AUTHENTICATION_METHOD = "employee_number"
+# ACCOUNT_USER_MODEL_USERNAME_FIELD = None  # username 필드 없음
+# ACCOUNT_EMAIL_REQUIRED = False  # 이메일을 필수로 하지 않음 (필요에 따라 변경)
+# ACCOUNT_USERNAME_REQUIRED = False  # username 필드를 사용하지 않음
 
 
 AUTHENTICATION_BACKENDS = [
-    'accounts.authentication.EmployeeNumberBackend',
     'django.contrib.auth.backends.ModelBackend',
 ]
+
+# Redis 설정
+REDIS_HOST = os.getenv("REDIS_HOST", "127.0.0.1") # 기본값 지정정
+REDIS_PORT = os.getenv("REDIS_PORT", "6379")  # Redis 기본 포트 기본값 지정
+
+# 🔥 Django 캐시 설정 (선택사항)
+CACHES = {
+    "default": {
+        "BACKEND": "django_redis.cache.RedisCache",
+        "LOCATION": os.getenv('REDIS_BASE_URL') + '/1',
+        "OPTIONS": {
+            "CLIENT_CLASS": "django_redis.client.DefaultClient",
+        }
+    }
+}
+
+# 🔥 Redis Pub/Sub 및 Queue 연결을 위한 기본 URL
+REDIS_URL = os.getenv('REDIS_BASE_URL')
+CELERY_BROKER_URL = 'redis://localhost:6379/0'  # Redis 예시
+CELERY_ACCEPT_CONTENT = ['json']
+CELERY_TASK_SERIALIZER = 'json'

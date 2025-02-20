@@ -1,31 +1,24 @@
 import axios from "axios";
 
-// ✅ 쿠키에서 CSRF 토큰을 가져오는 함수
-function getCSRFToken() {
-  let csrfToken = null;
-  const cookies = document.cookie.split(";"); // 모든 쿠키 가져오기
-  for (let i = 0; i < cookies.length; i++) {
-    const cookie = cookies[i].trim(); // 앞뒤 공백 제거
-    if (cookie.startsWith("csrftoken=")) {
-      csrfToken = cookie.substring("csrftoken=".length, cookie.length); // CSRF 토큰 값 추출
-    }
-  }
-  return csrfToken;
-}
+// ❗ 환경 변수가 없을 경우 기본값을 `127.0.0.1:8000`으로 설정
+const baseURL = import.meta.env.VITE_APP_BASEURL  
+
+console.log("🚀 API BASE URL:", baseURL); // 콘솔에서 API URL 확인
 
 // ✅ Axios 인스턴스 생성
 const axiosInstance = axios.create({
-  baseURL: "http://localhost:8000", // Django 백엔드 API URL
-  withCredentials: true, // 쿠키 기반 인증 활성화
+  baseURL: baseURL, // Django 백엔드 API URL
   headers: {
     "Content-Type": "application/json",
-    "X-CSRFToken": getCSRFToken(), // CSRF 토큰 자동 포함
   },
 });
 
-// ✅ 요청 인터셉터 추가 (모든 요청에 CSRF 토큰 포함)
+// ✅ 요청 시 Authorization 헤더 추가
 axiosInstance.interceptors.request.use((config) => {
-  config.headers["X-CSRFToken"] = getCSRFToken(); // 매 요청마다 CSRF 토큰 갱신
+  const authToken = localStorage.getItem("authToken");
+  if (authToken) {
+    config.headers["Authorization"] = `Token ${authToken}`;
+  }
   return config;
 });
 
