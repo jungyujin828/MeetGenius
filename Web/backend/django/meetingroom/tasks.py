@@ -65,7 +65,7 @@ def process_meeting_update(self, meeting_id, update_data):
                 {"id":mom.agenda.id,
                  "title":mom.agenda.title,
                  "content":mom.agenda_result,
-                 "document_id":mom.document.id
+                "document_id":mom.document.id,
                  } for mom in all_moms
             ]
         }
@@ -78,32 +78,6 @@ def process_meeting_update(self, meeting_id, update_data):
             raise Exception("FastAPI 요청 처리 중 오류 발생")
         fast_api_response = response.json()
 
-        # # 더미데이터터
-        # fast_api_response = {
-        #     "meeting_id": meeting_id,
-        #     "summary": [
-        #         {
-        #             "agenda_id": 14,
-        #             "agenda_title": "1번",
-        #             "summary": "조째즈 - 모르시나요 "
-        #         },
-        #         {
-        #             "agenda_id": 15,
-        #             "agenda_title": "2번",
-        #             "summary": "조째즈 - 모르시나요 "
-        #         },
-        #         {
-        #             "agenda_id": 15,
-        #             "agenda_title": "2번",
-        #             "summary": "조째즈 - 모르시나요 "
-        #         },
-        #         {
-        #             "agenda_id": 16,
-        #             "agenda_title": "엄마 오늘 밥 뭐야?",
-        #             "summary": "조째즈 - 모르시나요 "
-        #         }
-        #     ]
-        # }
 
         # Fastapi 응답 기반 SummaryMom 저장
         summaries = fast_api_response.get("summary")

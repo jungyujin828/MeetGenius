@@ -199,32 +199,6 @@ const AgendaList = styled.div`
   }
 `;
 
-const ParticipantTag = styled.span`
-  background-color: #e9ecef;
-  padding: 4px 8px;
-  border-radius: 4px;
-  font-size: 14px;
-`;
-
-const AgendaItem = styled.div`
-  background-color: #e9ecef;
-  padding: 8px 12px;
-  border-radius: 4px;
-  margin-bottom: 4px;
-  width: 100%;
-`;
-
-const ErrorMessage = styled.div`
-  color: #dc3545;
-  background-color: #f8d7da;
-  border: 1px solid #f5c6cb;
-  border-radius: 4px;
-  padding: 10px;
-  margin-top: 10px;
-  text-align: center;
-  font-size: 14px;
-`;
-
 const MessageContainer = styled.div`
   margin: 10px 0;
   padding: 10px;
@@ -243,26 +217,6 @@ const MessageContainer = styled.div`
   &.rag {
     background-color: #f3e5f5;
     border-left: 4px solid #9c27b0;
-  }
-`;
-
-const ContentArea = styled.div`
-  flex: 1;
-  overflow-y: auto;
-  padding: 24px 32px;
-  background-color: #ffffff;
-  
-  &::-webkit-scrollbar {
-    width: 8px;
-  }
-  
-  &::-webkit-scrollbar-thumb {
-    background-color: #cbd5e0;
-    border-radius: 4px;
-  }
-  
-  &::-webkit-scrollbar-track {
-    background-color: #f8fafc;
   }
 `;
 
@@ -452,16 +406,6 @@ const RealtimeMeetingPage = () => {
     ));
   };
 
-  const containerStyle = {
-    display: 'flex',
-    height: '100vh',
-  };
-
-  const leftPanelStyle = {
-    flex: '0 0 50%',
-    padding: '20px',
-    boxSizing: 'border-box',
-  };
 
   const rightPanelStyle = {
     flex: '0 0 50%',
@@ -469,26 +413,6 @@ const RealtimeMeetingPage = () => {
     boxSizing: 'border-box',
   };
 
-  const infoContainerStyle = {
-    marginBottom: '15px',
-    fontSize: '13px',
-    lineHeight: '1.2',
-    display: 'flex',
-    flexWrap: 'wrap',
-    gap: '8px',
-  };
-
-  const infoItemStyle = {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '4px',
-    whiteSpace: 'nowrap',
-  };
-
-  const labelStyle = {
-    fontWeight: 'bold',
-    color: '#555',
-  };
 
   // 반응형 스타일
   const mediaQuery = window.matchMedia('(max-width: 768px)');
@@ -660,6 +584,7 @@ const RealtimeMeetingPage = () => {
             meetingInfo={meetingInfo} 
             documents={documents}
             data={data}
+            meetingId={meetingId}
           />
         </RightPanel>
       </>

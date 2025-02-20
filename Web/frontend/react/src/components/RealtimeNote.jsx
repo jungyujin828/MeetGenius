@@ -4,50 +4,6 @@ import { useParams } from "react-router-dom";
 import axiosInstance from '../api/axiosInstance';
 import useSSE from "../hooks/useSSE"; // ✅ SSE 훅 가져오기
 
-const Container = styled.div`
-  display: flex;
-  flex-direction: column;
-  padding: 30px;
-  background-color: #f9f9f9;
-  min-height: 100vh;
-`;
-
-const Header = styled.h3`
-  font-size: 28px;
-  color: #333;
-  margin-bottom: 20px;
-  font-weight: bold;
-`;
-
-const Panel = styled.div`
-  display: flex;
-  gap: 20px;
-  margin-top: 30px;
-  flex-wrap: wrap; /* 화면 크기에 따라 자동으로 감김 */
-`;
-
-const LeftPanel = styled.div`
-  flex: 1;
-  background-color: #fff;
-  padding: 20px;
-  box-shadow: 0px 4px 6px rgba(0, 0, 0, 0.1);
-  border-radius: 8px;
-  max-height: 500px;
-  overflow-y: scroll;
-  min-width: 300px;
-`;
-
-const RightPanel = styled.div`
-  flex: 1;
-  background-color: #fff;
-  padding: 20px;
-  box-shadow: 0px 4px 6px rgba(0, 0, 0, 0.1);
-  border-radius: 8px;
-  max-height: 500px;
-  overflow-y: scroll;
-  min-width: 300px;
-`;
-
 const TextMessage = styled.div`
   margin: 12px 0;
   padding: 16px;
@@ -144,120 +100,6 @@ const ContentArea = styled.div`
   padding-bottom: 80px; // 버튼 컨테이너 높이만큼 여백 추가
 `;
 
-const QueryMessage = styled.div`
-  padding: 12px;
-  background-color: #e8e8e8;
-  border-radius: 6px;
-  margin-top: 10px;
-`;
-
-const DocumentList = styled.div`
-  margin-top: 12px;
-  padding-top: 12px;
-  border-top: 1px solid #E5E9F0;
-`;
-
-const DocumentLink = styled.div`
-  padding: 10px 12px;
-  margin: 4px 0;
-  background: rgba(255, 255, 255, 0.7);
-  border-radius: 6px;
-  font-size: 13px;
-  color: #274c77;
-  cursor: pointer;
-  transition: all 0.2s ease;
-
-  &:hover {
-    background: white;
-    transform: translateX(4px);
-  }
-
-  &::before {
-    content: "📑";
-    margin-right: 10px;
-  }
-`;
-
-const MeetingInfo = styled.div`
-  background-color: #fff;
-  padding: 20px;
-  border-radius: 8px;
-  box-shadow: 0px 4px 6px rgba(0, 0, 0, 0.1);
-  margin-bottom: 20px;
-`;
-
-const InfoGrid = styled.div`
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-  gap: 15px;
-  margin-bottom: 15px;
-`;
-
-const InfoItem = styled.div`
-  h4 {
-    color: #274c77;
-    margin-bottom: 5px;
-    font-size: 14px;
-    font-weight: bold;
-  }
-  p {
-    color: #333;
-    font-size: 16px;
-    background-color: #f8f9fa;
-    padding: 8px;
-    border-radius: 4px;
-    margin: 0;
-  }
-`;
-
-const AgendaDivider = styled.div`
-  display: flex;
-  align-items: center;
-  margin: 24px 0;
-  gap: 12px;
-  
-  &::before,
-  &::after {
-    content: "";
-    flex: 1;
-    height: 1px;
-    background: linear-gradient(to right, transparent, #274c77, transparent);
-    opacity: 0.3;
-  }
-`;
-
-const AgendaHeader = styled.div`
-  font-size: 24px;
-  color: #274c77;
-  font-weight: 700;
-  padding: 16px 0;
-  margin: 8px 0 16px 0;
-  
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  
-  &::before {
-    font-size: 20px;
-  }
-`;
-
-const NoteContainer = styled.div`
-  display: flex;
-  flex-direction: column;
-  height: 100%;
-  position: relative;
-`;
-
-const NoteContent = styled.div`
-  flex: 1;
-  overflow-y: auto;
-  padding: 20px;
-  background-color: #ffffff;
-  border-radius: 8px;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
-  margin-bottom: 20px;
-`;
 
 const AgendaTransition = styled.div`
   background-color: white;
@@ -435,7 +277,7 @@ const RealtimeNote = ({ meetingInfo, currentAgendaNum, onEndMeeting, onDocumentU
         }
 
         // 나머지 이벤트 처리...
-        if (data.type === "plain" || data.type === "query") {
+        if (data.type && data.message) {
             const messageWithTimestamp = {
                 ...data,
                 timestamp: new Date().toISOString(),
@@ -545,6 +387,12 @@ const RealtimeNote = ({ meetingInfo, currentAgendaNum, onEndMeeting, onDocumentU
               )}
               {message.type === "plain" && <TextMessage type="plain">{message.message}</TextMessage>}
               {message.type === "query" && <TextMessage type="query">{message.message}</TextMessage>}
+              {message.type === "agenda_docs_update" && (
+                <TextMessage type="agenda_docs_update">
+                  {message.message}
+                </TextMessage>
+              )}
+
             </div>
           ))
         ) : (
