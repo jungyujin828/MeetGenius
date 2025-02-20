@@ -108,6 +108,8 @@ const FileItem = styled.li`
   padding: 8px;
   border-bottom: 1px solid #ddd;
   font-size: 14px;
+  color: ${props => props.isProcessing ? '#666' : 'inherit'};
+  font-style: ${props => props.isProcessing ? 'italic' : 'normal'};
 `;
 
 const DeleteIcon = styled.span`
@@ -190,8 +192,17 @@ const ProjectDetail = ({ projectId, onClose }) => {
 
   // 파일 업로드 함수
   const handleFileUpload = async (event) => {
+    const file = event.target.files[0];
+    if (!file) return;
+
     const formData = new FormData();
-    formData.append("files", event.target.files[0]); // 파일 추가
+    formData.append("files", file);
+
+    // FormData 내용 확인
+    console.log("업로드할 파일:", file);
+    for (let pair of formData.entries()) {
+      console.log("FormData 내용:", pair[0], pair[1]);
+    }
 
     const authToken = localStorage.getItem("authToken");
     if (!authToken) {
@@ -200,6 +211,14 @@ const ProjectDetail = ({ projectId, onClose }) => {
     }
 
     try {
+      // 임시 로딩 상태 표시를 위한 파일 정보 먼저 추가
+      const tempFile = {
+        id: `temp_${Date.now()}`,
+        title: `${file.name} (처리중...)`,
+        isProcessing: true
+      };
+      setFiles(prevFiles => [...prevFiles, tempFile]);
+
       const response = await axios.post(
         `${baseURL}/projects/${projectId}/upload_report/`,
         formData,
@@ -210,12 +229,53 @@ const ProjectDetail = ({ projectId, onClose }) => {
           },
         }
       );
-      if (response.data.reports) {
-        setFiles((prevFiles) => [...prevFiles, ...response.data.reports]);
+
+      console.log("업로드 응답 상세:", JSON.stringify(response.data, null, 2));
+
+      // 파일 목록 새로고침 함수
+      const refreshFileList = async () => {
+        try {
+          console.log("파일 목록 새로고침 시도");
+          const updatedFiles = await fetchFiles(projectId);
+          console.log("새로 받은 파일 목록:", updatedFiles);
+          if (updatedFiles && updatedFiles.length > 0) {
+            setFiles(updatedFiles);
+            return true;
+          }
+          return false;
+        } catch (error) {
+          console.error("파일 목록 새로고침 실패:", error);
+          return false;
+        }
+      };
+
+      // 최대 5번까지 3초 간격으로 파일 목록 새로고침 시도
+      let attempts = 0;
+      const maxAttempts = 5;
+      const checkInterval = setInterval(async () => {
+        attempts++;
+        console.log(`파일 목록 새로고침 시도 ${attempts}/${maxAttempts}`);
+        
+        const success = await refreshFileList();
+        if (success || attempts >= maxAttempts) {
+          clearInterval(checkInterval);
+          if (!success) {
+            console.log("최대 시도 횟수 도달");
+          }
+        }
+      }, 3000);
+
+      // 파일 input 초기화
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
       }
-      alert("파일 업로드가 완료되었습니다.");
+
     } catch (error) {
+      console.error("파일 업로드 에러:", error);
+      console.error("에러 응답:", error.response?.data);
       setError("파일 업로드에 실패했습니다.");
+      // 에러 발생 시 임시 파일 항목 제거
+      setFiles(prevFiles => prevFiles.filter(f => !f.isProcessing));
     }
   };
 
@@ -338,9 +398,11 @@ const ProjectDetail = ({ projectId, onClose }) => {
             <FileList>
               {files.length > 0 ? (
                 files.map((file, index) => (
-                  <FileItem key={index}>
+                  <FileItem key={file.id || index} isProcessing={file.isProcessing}>
                     {file.title}
-                    <DeleteIcon onClick={() => handleDeletReport(file.id)}>❌</DeleteIcon>
+                    {!file.isProcessing && (
+                      <DeleteIcon onClick={() => handleDeletReport(file.id)}>❌</DeleteIcon>
+                    )}
                   </FileItem>
                 ))
               ) : (

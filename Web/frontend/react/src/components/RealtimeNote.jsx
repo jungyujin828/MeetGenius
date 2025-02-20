@@ -94,57 +94,54 @@ const TextMessage = styled.div`
 `;
 
 const ButtonContainer = styled.div`
-  padding: 16px 20px;
-  border-top: 1px solid #e2e8f0;
-  margin-top: 20px;
-`;
-
-const ButtonGroup = styled.div`
-  display: flex;
-  gap: 12px;
-  justify-content: flex-end;
-`;
-
-const Button = styled.button`
-  padding: 8px 16px;
-  border-radius: 6px;
-  font-size: 13px;
-  font-weight: 500;
-  transition: all 0.2s ease;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  
-  &:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
-  }
-`;
-
-const NextButton = styled(Button)`
-  background-color: #1e40af;  // 진한 남색
-  color: white;
-  border: none;
-  
-  &:hover:not(:disabled) {
-    background-color: #1e3a8a;
-    transform: translateY(-1px);
-  }
-
-`;
-
-const EndButton = styled(Button)`
+  position: sticky;
+  bottom: 0;
+  left: 0;
+  right: 0;
   background-color: white;
-  color: #dc2626;  // 빨간색
-  border: 1px solid #dc2626;
-  
-  &:hover:not(:disabled) {
-    background-color: #fee2e2;  // 연한 빨간색 배경
-    border-color: #b91c1c;
-    color: #b91c1c;
-  }
+  padding: 16px 32px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-top: 1px solid #e2e8f0;
+  box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.05);
+  z-index: 10;
+`;
 
+const ActionButton = styled.button`
+  padding: 10px 20px;
+  border-radius: 6px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
 
+  ${props => props.primary && `
+    background-color: #274c77;
+    color: white;
+    border: none;
+
+    &:hover {
+      background-color: #1a365d;
+    }
+  `}
+
+  ${props => props.danger && `
+    background-color: #white;
+    color: #dc2626;
+    border: 1px solid #dc2626;
+
+    &:hover {
+      background-color: #dc2626;
+      color: white;
+    }
+  `}
+`;
+
+const ContentArea = styled.div`
+  flex: 1;
+  overflow-y: auto;
+  padding: 24px 32px;
+  padding-bottom: 80px; // 버튼 컨테이너 높이만큼 여백 추가
 `;
 
 const QueryMessage = styled.div`
@@ -262,6 +259,40 @@ const NoteContent = styled.div`
   margin-bottom: 20px;
 `;
 
+const AgendaTransition = styled.div`
+  background-color: white;
+  color: #274c77;
+  padding: 14px 18px;
+  margin: 16px 0;
+  border-radius: 6px;
+  border-bottom: 2px solid #274c77;
+  
+  .agenda-number {
+    font-size: 15px;
+    color: #6096ba;
+    margin-bottom: 4px;
+    font-weight: 500;
+  }
+  
+  .agenda-title {
+    font-size: 20px;
+    font-weight: 700;
+    color: #274c77;
+  }
+
+  animation: fadeIn 0.3s ease-out;
+  
+  @keyframes fadeIn {
+    from {
+      opacity: 0;
+      transform: translateY(-8px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+`;
 
 const RealtimeNote = ({ meetingInfo, currentAgendaNum, onEndMeeting, onDocumentUpdate }) => {
   const { meetingId } = useParams();
@@ -272,12 +303,47 @@ const RealtimeNote = ({ meetingInfo, currentAgendaNum, onEndMeeting, onDocumentU
     return saved ? JSON.parse(saved) : [];
   });
 
-  const noteContentRef = useRef(null); // 추가: NoteContent에 대한 ref
+  const contentAreaRef = useRef(null); // ContentArea에 대한 ref 추가
   
   // 누적 메시지가 변경될 때마다 localStorage에 저장
   useEffect(() => {
     localStorage.setItem(`meeting_${meetingId}_messages`, JSON.stringify(accumulatedMessages));
   }, [accumulatedMessages, meetingId]);
+
+  // meetingInfo가 처음 로드될 때 첫 번째 안건 표시
+  useEffect(() => {
+    if (!meetingInfo?.meeting_agendas) {
+        console.log("❌ meetingInfo 또는 meeting_agendas가 없음");
+        return;
+    }
+    
+    console.log("📋 회의 정보 로드됨:", meetingInfo);
+    console.log("📝 현재 누적 메시지:", accumulatedMessages);
+    
+    // 첫 번째 안건 가져오기
+    const firstAgenda = meetingInfo.meeting_agendas[0]; // order로 찾는 대신 첫 번째 항목 사용
+    
+    console.log("🎯 첫 번째 안건:", firstAgenda);
+    
+    if (firstAgenda) {
+        const initialAgendaMessage = {
+            type: "agenda_transition",
+            agendaNumber: firstAgenda.order,
+            title: firstAgenda.title,
+            timestamp: new Date().toISOString()
+        };
+        
+        console.log("📢 초기 안건 메시지 생성:", initialAgendaMessage);
+        
+        // 안건 관련 메시지가 없을 때만 추가
+        const hasAgendaMessage = accumulatedMessages.some(msg => msg.type === "agenda_transition");
+        if (!hasAgendaMessage) {
+            console.log("✅ 첫 번째 안건 메시지 추가");
+            setAccumulatedMessages([initialAgendaMessage]);
+            setActualCurrentAgenda(firstAgenda.order);
+        }
+    }
+  }, [meetingInfo]);
 
   // SSE 메시지 수신 처리
   useEffect(() => {
@@ -285,65 +351,102 @@ const RealtimeNote = ({ meetingInfo, currentAgendaNum, onEndMeeting, onDocumentU
     console.log("📡 [SSE] 수신된 데이터:", data);
 
     try {
-        // ✅ 현재 안건 번호 업데이트
-        if (data.cur_agenda) {
-          setActualCurrentAgenda(parseInt(data.cur_agenda));
-        }  
-              // ✅ 문서 업데이트 감지 및 부모로 전달
-      if (data.documents && data.type === "agenda_docs_update") {
-        console.log("📂 문서 업데이트 감지:", data.documents);
-        onDocumentUpdate(data.documents);
-      }
-
-          // ✅ 초기 데이터 처리 (첫 번째 STT 메시지 수신 시)
-          if (data.stt_list && accumulatedMessages.length === 0) {
-            const initialMessages = [];
+        // 안건 전환 이벤트 처리
+        if (data.type === "agenda_update" && data.cur_agenda) {
+            const nextAgendaNum = parseInt(data.cur_agenda);
             
-            // 모든 안건에 대한 구분선과 제목 추가
-            meetingInfo?.meeting_agendas?.forEach((agenda, index) => {
-              if (index === 0) {
-                initialMessages.push({
-                  type: "divider",
-                  timestamp: new Date().toISOString(),
-                  agendaNumber: agenda.order
-                });
+            if (actualCurrentAgenda === nextAgendaNum) return;
+            
+            setActualCurrentAgenda(nextAgendaNum);
+            
+            const nextAgenda = meetingInfo?.meeting_agendas?.find(
+                agenda => agenda.order === nextAgendaNum
+            );
+
+            if (nextAgenda) {
+                const transitionMessage = {
+                    type: "agenda_transition",
+                    agendaNumber: nextAgendaNum,
+                    title: nextAgenda.title,
+                    timestamp: new Date().toISOString()
+                };
                 
-                initialMessages.push({
-                  type: "agenda_change",
-                  message: `안건 ${agenda.order}. ${agenda.title}`,
-                  timestamp: new Date(new Date().getTime() + 1).toISOString(),
-                  agendaNumber: agenda.order
-                });
-              }
-            });
-  
-            // STT 메시지 처리
-            const newMessages = data.stt_list.map(msg => ({
-              message: msg,
-              type: "plain",
-              timestamp: new Date().toISOString(),
-              agendaNumber: actualCurrentAgenda // 현재 안건 번호 추가
-            }));
+                setAccumulatedMessages(prev => [...prev, transitionMessage]);
+            }
+        }
 
-            // 누적 메시지에 추가 (초기 구분선/제목 + 메시지)
-            setAccumulatedMessages([...initialMessages, ...newMessages]);
-          }
+        // 안건 추가 이벤트 처리
+        if (data.type === "agenda_added") {
+            console.log("📌 새로운 안건 추가됨:", data.new_agenda);
+            const newAgendaMessage = {
+                type: "agenda_change",
+                message: `안건 ${data.new_agenda.order}. ${data.new_agenda.title}`,
+                timestamp: new Date().toISOString(),
+                agendaNumber: data.new_agenda.order
+            };
 
-        // 실시간 메시지 처리
-        if (data.type && data.message) {
-          const messageWithTimestamp = {
-            ...data,
+            const dividerMessage = {
+                type: "divider",
+                timestamp: new Date().toISOString(),
+                agendaNumber: data.new_agenda.order
+            };
+
+            setAccumulatedMessages(prev => [...prev, dividerMessage, newAgendaMessage]);
+        }
+
+        // ✅ 문서 업데이트 감지 및 부모로 전달
+        if (data.documents && data.type === "agenda_docs_update") {
+          console.log("📂 문서 업데이트 감지:", data.documents);
+          onDocumentUpdate(data.documents);
+        }
+
+        // ✅ 초기 데이터 처리 (첫 번째 STT 메시지 수신 시)
+        if (data.stt_list && accumulatedMessages.length === 0) {
+          const initialMessages = [];
+          
+          // 모든 안건에 대한 구분선과 제목 추가
+          meetingInfo?.meeting_agendas?.forEach((agenda, index) => {
+            if (index === 0) {
+              initialMessages.push({
+                type: "divider",
+                timestamp: new Date().toISOString(),
+                agendaNumber: agenda.order
+              });
+              
+              initialMessages.push({
+                type: "agenda_change",
+                message: `안건 ${agenda.order}. ${agenda.title}`,
+                timestamp: new Date(new Date().getTime() + 1).toISOString(),
+                agendaNumber: agenda.order
+              });
+            }
+          });
+
+          // STT 메시지 처리
+          const newMessages = data.stt_list.map(msg => ({
+            message: msg,
+            type: "plain",
             timestamp: new Date().toISOString(),
             agendaNumber: actualCurrentAgenda // 현재 안건 번호 추가
-          };
+          }));
 
-          // 누적 메시지에도 추가
-          setAccumulatedMessages(prev => [...prev, messageWithTimestamp]);
+          // 누적 메시지에 추가 (초기 구분선/제목 + 메시지)
+          setAccumulatedMessages([...initialMessages, ...newMessages]);
+        }
+
+        // 나머지 이벤트 처리...
+        if (data.type === "plain" || data.type === "query") {
+            const messageWithTimestamp = {
+                ...data,
+                timestamp: new Date().toISOString(),
+                agendaNumber: actualCurrentAgenda
+            };
+            setAccumulatedMessages(prev => [...prev, messageWithTimestamp]);
         }
     } catch (error) {
         console.error('[SSE] 메시지 처리 오류:', error);
     }
-}, [data, actualCurrentAgenda]);
+}, [data, meetingInfo, actualCurrentAgenda]);
 
 
   // 다음 안건으로 이동
@@ -418,8 +521,8 @@ const RealtimeNote = ({ meetingInfo, currentAgendaNum, onEndMeeting, onDocumentU
 
   // 스크롤을 맨 아래로 이동시키는 함수
   const scrollToBottom = useCallback(() => {
-    if (noteContentRef.current) {
-      noteContentRef.current.scrollTop = noteContentRef.current.scrollHeight;
+    if (contentAreaRef.current) {
+      contentAreaRef.current.scrollTop = contentAreaRef.current.scrollHeight;
     }
   }, []);
 
@@ -429,39 +532,41 @@ const RealtimeNote = ({ meetingInfo, currentAgendaNum, onEndMeeting, onDocumentU
   }, [accumulatedMessages, scrollToBottom]);
 
   return (
-    <NoteContainer>
-      <NoteContent ref={noteContentRef}>
+    <>
+      <ContentArea ref={contentAreaRef}>
         {accumulatedMessages.length > 0 ? (
           accumulatedMessages.map((message, index) => (
             <div key={index}>
-              {message.type === "divider" && <AgendaDivider />}
-              {message.type === "agenda_change" && <AgendaHeader>{message.message}</AgendaHeader>}
+              {message.type === "agenda_transition" && (
+                <AgendaTransition>
+                  <div className="agenda-number">안건 {message.agendaNumber}</div>
+                  <div className="agenda-title">{message.title}</div>
+                </AgendaTransition>
+              )}
               {message.type === "plain" && <TextMessage type="plain">{message.message}</TextMessage>}
               {message.type === "query" && <TextMessage type="query">{message.message}</TextMessage>}
-              {message.type === "agenda_docs_update" && (
-                <TextMessage type="agenda_docs_update">
-                  {message.message}
-                </TextMessage>
-              )}            </div>
+            </div>
           ))
         ) : (
           <p>아직 기록된 내용이 없습니다.</p>
         )}
-      </NoteContent>
-
+      </ContentArea>
       <ButtonContainer>
-        <ButtonGroup>
-          {meetingInfo?.meeting_agendas?.length > currentAgendaNum && (
-            <NextButton onClick={handleNextAgenda}>
-              다음 안건
-            </NextButton>
-          )}
-          <EndButton onClick={handleEndMeeting}>
-            회의 종료
-          </EndButton>
-        </ButtonGroup>
+        <ActionButton 
+          danger 
+          onClick={handleEndMeeting}
+        >
+          회의 종료
+        </ActionButton>
+        <ActionButton 
+          primary 
+          onClick={handleNextAgenda}
+          disabled={!meetingInfo?.meeting_agendas?.length > currentAgendaNum}
+        >
+          다음 안건
+        </ActionButton>
       </ButtonContainer>
-    </NoteContainer>
+    </>
   );
 };
 
