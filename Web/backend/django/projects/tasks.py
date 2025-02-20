@@ -13,7 +13,7 @@ load_dotenv()
 logger = logging.getLogger(__name__)
 
 FASTAPI_URL = os.getenv('FASTAPI_BASE_URL')  # ✅ http:// 추가 (FastAPI 서버 주소)
-@shared_task(bind=True, max_retries=2)
+@shared_task(bind=True, max_retries=0)
 def process_upload_report(self, project_id, user_id, files_data):
     """
     files_data는 각 파일에 대한 정보를 담고 있어야 합니다.

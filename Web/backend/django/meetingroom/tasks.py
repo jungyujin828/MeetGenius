@@ -57,12 +57,15 @@ def process_meeting_update(self, meeting_id, update_data):
         Mom.objects.filter(id__in=moms_ids).update(completed=True)
 
         # FastAPI에 보낼 payload
-        all_moms = list(Mom.objects.filter(id__in=moms_ids).select_related('agenda'))
+        all_moms = list(Mom.objects.filter(id__in=moms_ids).select_related('agenda','meeting__project'))
+        project_id_value = all_moms[0].meeting.project.id
         payload = {
-            "items":[
+            "project_id":project_id_value,
+            "agendas":[
                 {"id":mom.agenda.id,
                  "title":mom.agenda.title,
-                 "content":mom.agenda_result
+                 "content":mom.agenda_result,
+                 "document_id":mom.document.id
                  } for mom in all_moms
             ]
         }
@@ -111,7 +114,7 @@ def process_meeting_update(self, meeting_id, update_data):
             return f"FastAPI 응답에 summaries가 없음"
         
         # agenda_titles = [summary["agenda_title"] for summary in summaries]
-        agenda_ids = [summary["agenda_id"] for summary in summaries]
+        agenda_ids = [summary["id"] for summary in summaries]
         logging.info(f"agenda ids: {agenda_ids}")
 
         mom_dict = {
@@ -125,7 +128,7 @@ def process_meeting_update(self, meeting_id, update_data):
         # summaryMom 생성
         for summary in summaries:
             # agenda_title = summary["agenda_title"]
-            agenda_id = summary['agenda_id']
+            agenda_id = summary['id']
             agenda_summary = summary["summary"]
             logger.info(agenda_id)
 

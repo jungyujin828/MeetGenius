@@ -382,6 +382,7 @@ async def fetch_and_store_documents(document_ids, fastapi_response, redis_client
     """
     FastAPI에서 받은 문서 ID 리스트를 기반으로 DB에서 문서 조회 후 Redis 저장 및 Pub/Sub
     """
+    print('이제 fetch_and_store_doc 넘어왔다')
     if not document_ids:
         print("No document")
         return # 문서 ID가 없으면 함수 종료
@@ -396,9 +397,40 @@ async def fetch_and_store_documents(document_ids, fastapi_response, redis_client
 
     try:
         # Django ORM을 비동기 실행하여 문서 조회
-        documents = await sync_to_async(
-            lambda: list(Report.objects.filter(document_id__in=document_ids, project_id=project_id
-                        ).values("id", "title", "content")))()
+        # documents = await sync_to_async(
+        #     lambda: list(Report.objects.filter(document_id__in=document_ids, project_id=project_id
+        #                 ).values("id", "title", "content")))()
+        
+
+        # Report 모델에서 문서 조회
+        reports = await sync_to_async(lambda: list(
+            Report.objects.filter(document_id__in=document_ids, project_id=project_id)
+            .select_related('document')
+            .values("id", "title", "content")
+        ))()
+        # Mom 모델에서 문서조회회
+        moms = await sync_to_async(lambda: list(
+            Mom.objects.filter(document_id__in=document_ids, document__project_id=project_id)
+            .select_related('document')
+            .values("id", "agenda_result")
+        ))()
+        
+        documents = []
+
+        # 출처 구분분
+        for report in reports:
+            report["source"] = "report"
+            documents.append(report)
+
+        # front가 report 기준으로 코드가 작성됨 => 맞춤
+        for mom in moms:
+            mom_docuent = {
+                "id" : mom["id"],
+                "title": f"{mom['id']}번째 회의록",
+                "content": mom["agenda_result"],
+                "source":"mom"
+            }
+            documents.append(mom_docuent)
 
         print(documents)
 
@@ -423,7 +455,6 @@ async def fetch_and_store_documents(document_ids, fastapi_response, redis_client
         print('문서 전달 완료 ###')
     except Exception as e:
         print(f"ERROR: Failed to fetch and store documents - {e}")
-
 
 
 # 회의시작/다음 안건 response 처리
@@ -452,8 +483,8 @@ async def handle_fastapi_response(fastapi_response):
     print(f"📢 STT 상태 변경: {stt_running}")
 
     # 2. 문서 ID 리스트 기반 DB 조회 & Redis 저장
-    document_ids = fastapi_response.get("docs", [])
-    print('######### 체크')
+    document_ids = fastapi_response.get("agenda_docs", []) # 250220 확인인
+    print('######### 체크 : docs_id', document_ids)
     print(fastapi_response)
     print(document_ids)
     try :
@@ -511,11 +542,11 @@ async def start_meeting(request):
         except Exception as e:
             return JsonResponse({'error': str(e)}, status=500)
         
-        fastapi_response = {
-            "stt_running": 'run',
-            "agenda_docs": []
-        } 
-
+        # fastapi_response = {
+        #     "stt_running": 'run',
+        #     "agenda_docs": [1,2,7]
+        # } 
+        # print(fastapi_response, 'fastapi_response')
         '''
         {
             stt_running: bool,
@@ -530,7 +561,6 @@ async def start_meeting(request):
             - redis RAG 문서에 넣어주기
             - publish
         '''
-        print(fastapi_response)
         await handle_fastapi_response(fastapi_response)
 
         return JsonResponse({
@@ -696,7 +726,7 @@ async def next_agenda(request):
         #     'agenda_docs': [1,2]
         # }
         # FastAPI 응답 처리 함수
-        # await handle_fastapi_response(fastapi_response)
+        await handle_fastapi_response(fastapi_response)
 
         return JsonResponse({
                 'status': 'success',
