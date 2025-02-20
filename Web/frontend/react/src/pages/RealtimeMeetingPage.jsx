@@ -282,6 +282,7 @@ const RealtimeMeetingPage = () => {
   const [eventSource, setEventSource] = useState(null);
   const [sttText, setSttText] = useState([]);
   const [documents, setDocuments] = useState([]);
+  const [isModalOpen, setIsModalOpen] = useState(false); // 모달 상태 추가
 
   console.log("Current meeting ID:", meetingId);
 
@@ -313,7 +314,29 @@ const RealtimeMeetingPage = () => {
     if (!data) return;
 
     console.log("🎯 SSE 데이터 감지:", data);
+    console.log("현재 data.type:", data.type);
 
+    // 안건 업데이트나 추가 시 처리
+    if (data.type === "agenda_update" || data.type === "agenda_added" || data.type === "add_agenda") {
+        console.log("📌 안건 정보 변경 감지");
+        // 회의 정보 다시 불러오기
+        const refreshMeetingData = async () => {
+            try {
+                console.log("🔄 회의 정보 새로고침 시도...");
+                console.log("현재 meetingId:", meetingId);
+                const updatedMeetingInfo = await fetchMeetingDetails(meetingId);
+                console.log("📥 새로 받아온 회의 정보:", updatedMeetingInfo);
+                setMeetingInfo(updatedMeetingInfo);
+                console.log("✅ 회의 정보가 성공적으로 새로고침됨");
+            } catch (error) {
+                console.error("❌ 회의 정보 새로고침 중 오류:", error);
+                console.error("에러 상세:", error.response?.data || error.message);
+            }
+        };
+        refreshMeetingData();
+    }
+
+    // 기존의 meeting_state 관련 코드는 그대로 유지
     if (data.meeting_state) {
         console.log("회의 상태 변경:", data.meeting_state);
 
@@ -333,7 +356,12 @@ const RealtimeMeetingPage = () => {
                 console.warn("알 수 없는 상태:", data.meeting_state);
         }
     }
-}, [data, navigate]);
+}, [data, navigate, meetingId]);
+
+  // meetingInfo가 업데이트되는지 확인하기 위한 useEffect 추가
+  useEffect(() => {
+    console.log("📊 meetingInfo 업데이트됨:", meetingInfo);
+  }, [meetingInfo]);
 
   // 회의 준비 버튼 클릭 시에만 스케줄러 실행
   const handlePrepareMeeting = async () => {
@@ -373,6 +401,11 @@ const RealtimeMeetingPage = () => {
     }
 
     try {
+      // 모달을 닫는 로직이 필요하다면 여기에 추가
+      setIsModalOpen(false);
+
+      // 회의 시작 로직
+      console.log("회의 시작 중...");
       const firstAgenda = meetingInfo.meeting_agendas[0];
       const requestData = {
         meeting_id: parseInt(meetingId),  // 문자열을 숫자로 변환
@@ -389,10 +422,8 @@ const RealtimeMeetingPage = () => {
       if (response.status === 200) {
         if (response.data.status === 'error' && response.data.message === 'Meeting is already in progress.') {
           setIsMeetingStarted(true);
-          setIsModalOpen(false);
         } else {
           setIsMeetingStarted(true);
-          setIsModalOpen(false);
         }
       }
     } catch (error) {
@@ -403,7 +434,6 @@ const RealtimeMeetingPage = () => {
       
       if (error.response?.data?.message === 'Meeting is already in progress.') {
         setIsMeetingStarted(true);
-        setIsModalOpen(false);
       } else {
         setError(error.response?.data?.message || "회의 시작에 실패했습니다. 다시 시도해 주세요.");
       }
@@ -626,7 +656,11 @@ const RealtimeMeetingPage = () => {
           />
         </LeftPanel>
         <RightPanel>
-          <RealtimeDoc meetingInfo={meetingInfo} documents={documents} />
+          <RealtimeDoc 
+            meetingInfo={meetingInfo} 
+            documents={documents}
+            data={data}
+          />
         </RightPanel>
       </>
     );
@@ -638,6 +672,14 @@ const RealtimeMeetingPage = () => {
       <div className="messages">
         {renderMessages()}
       </div>
+      {isModalOpen && (
+        <ModalBackground>
+          <ModalContainer>
+            <h3>회의를 시작하시겠습니까?</h3>
+            <Button onClick={handleStartMeeting}>회의 시작</Button>
+          </ModalContainer>
+        </ModalBackground>
+      )}
     </MeetingPageContainer>
   );
 };
