@@ -179,16 +179,16 @@
 - **회의 중 AI 비서(아리)에게 질문 가능**  
 - **ChromaDB에서 관련 문서를 검색 후 AI 답변 제공**  
 - **알고리즘**
-    **1. [FastAPI, Jetson] 문서 유사도 검사**
-    - 문서 추가 시 함께 전달된 **메타데이터(문서 ID, 프로젝트 ID 등)**를 활용
-    - 회의 안건과 유사한 문서를 **벡터DB(ChromaDB)**에서 검색
-    - 유사도가 높은 상위 3개의 문서(Document IDs) 반환
-    **2. [Django, Web] 데이터 처리 및 Redis 전송**
-    - 반환된 document_ids를 MariaDB에서 검색
-    - 관련 문서를 Redis에 저장 및 SSE(Server-Sent Events)로 실시간 전송
-    **3. [React, Web] 해당 데이터 처리**
-    - 웹 애플리케이션(React)에서 Redis의 SSE 스트림을 수신
-    - 실시간으로 관련 문서를 화면에 표시
+    - **1. [FastAPI, Jetson] 문서 유사도 검사**
+        - 문서 추가 시 함께 전달된 **메타데이터(문서 ID, 프로젝트 ID 등)**를 활용
+        - 회의 안건과 유사한 문서를 **벡터DB(ChromaDB)**에서 검색
+        - 유사도가 높은 상위 3개의 문서(Document IDs) 반환
+    - **2. [Django, Web] 데이터 처리 및 Redis 전송**
+        - 반환된 document_ids를 MariaDB에서 검색
+        - 관련 문서를 Redis에 저장 및 SSE(Server-Sent Events)로 실시간 전송
+    - **3. [React, Web] 해당 데이터 처리**
+        - 웹 애플리케이션(React)에서 Redis의 SSE 스트림을 수신
+        - 실시간으로 관련 문서를 화면에 표시
 ![자료탐색](/uploads/f1124d9d0e051bedc44a45e2ea634892/자료탐색.mp4)
 
 **5. 동일한 화면**
