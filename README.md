@@ -178,30 +178,30 @@
 **4. AI 비서(아리) 기반 자료 탐색**
 - **회의 중 AI 비서(아리)에게 질문 가능**  
 - **ChromaDB에서 관련 문서를 검색 후 AI 답변 제공**  
-알고리즘 
-**1. [FastAPI, Jetson] 문서 유사도 검사**
-- 문서 추가 시 함께 전달된 **메타데이터(문서 ID, 프로젝트 ID 등)**를 활용
-- 회의 안건과 유사한 문서를 **벡터DB(ChromaDB)**에서 검색
-- 유사도가 높은 상위 3개의 문서(Document IDs) 반환
-**2. [Django, Web] 데이터 처리 및 Redis 전송**
-- 반환된 document_ids를 MariaDB에서 검색
-- 관련 문서를 Redis에 저장 및 SSE(Server-Sent Events)로 실시간 전송
-**3. [React, Web] 해당 데이터 처리**
-- 웹 애플리케이션(React)에서 Redis의 SSE 스트림을 수신
-- 실시간으로 관련 문서를 화면에 표시
+- **알고리즘**
+    **1. [FastAPI, Jetson] 문서 유사도 검사**
+    - 문서 추가 시 함께 전달된 **메타데이터(문서 ID, 프로젝트 ID 등)**를 활용
+    - 회의 안건과 유사한 문서를 **벡터DB(ChromaDB)**에서 검색
+    - 유사도가 높은 상위 3개의 문서(Document IDs) 반환
+    **2. [Django, Web] 데이터 처리 및 Redis 전송**
+    - 반환된 document_ids를 MariaDB에서 검색
+    - 관련 문서를 Redis에 저장 및 SSE(Server-Sent Events)로 실시간 전송
+    **3. [React, Web] 해당 데이터 처리**
+    - 웹 애플리케이션(React)에서 Redis의 SSE 스트림을 수신
+    - 실시간으로 관련 문서를 화면에 표시
 ![자료탐색](/uploads/f1124d9d0e051bedc44a45e2ea634892/자료탐색.mp4)
 
 **5. 동일한 화면**
 - 모든 사용자에게 동일한 회의 기록을 제공
 - **회의 내용은 Redis를 통해 회의id별로 사용자(회의 참여자)에게 동기화**하여 참여 시점에 관계없이 회의 내용 확인 가능
-알고리즘
-- **Redis를 활용한 실시간 데이터 동기화**
-    - 참고 문서(documents)
-    - 안건 정보(agendas)
-    - 현재 안건 정보(cur_agenda)
-    - STT 데이터(STT_data)
-    - 지난 안건 STT 데이터 (STT_history)
-- Django가 Redis Pub/Sub을 통해 데이터 전송, 프론트엔드는 SSE를 활용해 실시간 반영
+- **알고리즘**
+    - **Redis를 활용한 실시간 데이터 동기화**
+        - 참고 문서(documents)
+        - 안건 정보(agendas)
+        - 현재 안건 정보(cur_agenda)
+        - STT 데이터(STT_data)
+        - 지난 안건 STT 데이터 (STT_history)
+    - Django가 Redis Pub/Sub을 통해 데이터 전송, 프론트엔드는 SSE를 활용해 실시간 반영
 
 ![화면_동일](/uploads/dbc4c342be7d4534731f58ec203e538f/화면_동일.mp4)
 
@@ -209,11 +209,11 @@
 - 회의 전체 내용을 확인하고 수정 가능
 - 수정 후, AI 회의 비서가 회의록을 요약
 - 회의 요약에는 약 10s 소요 (500자 미만)
-알고리즘
-1. Django에서 FastAPI에 요약 요청 (Celery 활용한 백그라운드 처리)
-2. FastAPI에서 전달받은 안건 별 회의록 내용 ChromaDB에 저장
-3. FastAPI에서 AI 모델을 통해 안건별로 회의록 내용 요약 후 반환
-4. Django가 받은 요약 결과를 MariaDB에 저장 후 프론트엔드에 전달달
+- **알고리즘**
+    1. Django에서 FastAPI에 요약 요청 (Celery 활용한 백그라운드 처리)
+    2. FastAPI에서 전달받은 안건 별 회의록 내용 ChromaDB에 저장
+    3. FastAPI에서 AI 모델을 통해 안건별로 회의록 내용 요약 후 반환
+    4. Django가 받은 요약 결과를 MariaDB에 저장 후 프론트엔드에 전달달
 
 ![회의록_요약](/uploads/133b6ae37d370457a1330d0372fed613/회의록_요약.mp4)
 
