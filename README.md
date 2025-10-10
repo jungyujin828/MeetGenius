@@ -1,7 +1,7 @@
 # MeetGenius
 [소개 영상]
 
-![12기_공통PJT_영상_포트폴리오_B203](https://github.com/jungyujin828/MeetGenius/blob/master/images/%EB%B0%B0%EB%84%88.png?raw=true)
+![배너](https://github.com/jungyujin828/MeetGenius/blob/master/images/%EB%B0%B0%EB%84%88.png?raw=true)
 
 ## 💡 개요
 - 진행기간 : 2025.01.06 ~ 2025.02.21.
